@@ -30,9 +30,52 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .env*.local
 
 # typescript
 *.tsbuildinfo
+
+# iOS
+ios/Pods/
+ios/build/
+ios/.xcode.env.local
+ios/DerivedData/
+*.xcworkspace
+!default.xcworkspace
+
+# Android
+android
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+android/.cxx/
+android/local.properties
+*.apk
+*.aab
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+logs/
+
+# Temporary
+.tmp/
+.temp/
 
 app-example
