@@ -6,55 +6,55 @@ export const lightTheme = {
   ...MD3LightTheme,
   colors: {
     ...MD3LightTheme.colors,
-    primary: "#904A44",
+    primary: "#DE3A3A",
     onPrimary: "#FFFFFF",
-    primaryContainer: "#FFDAD6",
-    onPrimaryContainer: "#73332E",
+    primaryContainer: "#FDE8E8",
+    onPrimaryContainer: "#8F1F1F",
 
-    secondary: "#904B40",
+    secondary: "#DE3A3A",
     onSecondary: "#FFFFFF",
-    secondaryContainer: "#FFDAD4",
-    onSecondaryContainer: "#73342B",
+    secondaryContainer: "#FDE8E8",
+    onSecondaryContainer: "#8F1F1F",
 
-    tertiary: "#904A46",
+    tertiary: "#DE3A3A",
     onTertiary: "#FFFFFF",
-    tertiaryContainer: "#FFDAD7",
-    onTertiaryContainer: "#733330",
+    tertiaryContainer: "#FDE8E8",
+    onTertiaryContainer: "#8F1F1F",
 
     error: "#BA1A1A",
     onError: "#FFFFFF",
     errorContainer: "#FFDAD6",
     onErrorContainer: "#93000A",
 
-    background: "#FFF8F7",
-    onBackground: "#231918",
+    background: "#FFFFFF",
+    onBackground: "#111111",
 
-    surface: "#FFF8F7",
-    onSurface: "#231918",
-    surfaceVariant: "#F5DDDB",
-    onSurfaceVariant: "#534341",
+    surface: "#FFFFFF",
+    onSurface: "#111111",
+    surfaceVariant: "#F7F7F8",
+    onSurfaceVariant: "#8E8E93",
 
-    outline: "#857371",
-    outlineVariant: "#D8C2BF",
+    outline: "#8E8E93",
+    outlineVariant: "#E5E5EA",
 
     shadow: "#000000",
     scrim: "#000000",
 
-    inverseSurface: "#392E2D",
-    inverseOnSurface: "#FFEDEA",
-    inversePrimary: "#FFB4AC",
+    inverseSurface: "#121212",
+    inverseOnSurface: "#FFFFFF",
+    inversePrimary: "#FF7A7A",
 
-    surfaceDisabled: "rgba(35, 25, 24, 0.12)",
-    onSurfaceDisabled: "rgba(35, 25, 24, 0.38)",
-    backdrop: "rgba(58, 45, 41, 0.4)",
+    surfaceDisabled: "rgba(17, 17, 17, 0.12)",
+    onSurfaceDisabled: "rgba(17, 17, 17, 0.38)",
+    backdrop: "rgba(18, 18, 18, 0.4)",
 
     elevation: {
       level0: "transparent",
-      level1: "#FFF0EF", // surfaceContainerLow
-      level2: "#FCEAE8", // surfaceContainer
-      level3: "#F6E4E2", // surfaceContainerHigh
-      level4: "#F4E2E0", // interpolated
-      level5: "#F1DEDC", // surfaceContainerHighest
+      level1: "#FFFFFF",
+      level2: "#FFFFFF",
+      level3: "#F7F7F8",
+      level4: "#F2F2F7",
+      level5: "#E5E5EA",
     },
   },
 };
@@ -63,55 +63,55 @@ export const darkTheme = {
   ...MD3DarkTheme,
   colors: {
     ...MD3DarkTheme.colors,
-    primary: "#FFB4AC",
-    onPrimary: "#561E1A",
-    primaryContainer: "#73332E",
-    onPrimaryContainer: "#FFDAD6",
+    primary: "#DE3A3A",
+    onPrimary: "#FFFFFF",
+    primaryContainer: "#4A1717",
+    onPrimaryContainer: "#FFDCDC",
 
-    secondary: "#FFB4A8",
-    onSecondary: "#561E16",
-    secondaryContainer: "#73342B",
-    onSecondaryContainer: "#FFDAD4",
+    secondary: "#DE3A3A",
+    onSecondary: "#FFFFFF",
+    secondaryContainer: "#4A1717",
+    onSecondaryContainer: "#FFDCDC",
 
-    tertiary: "#FFB3AE",
-    onTertiary: "#571E1C",
-    tertiaryContainer: "#733330",
-    onTertiaryContainer: "#FFDAD7",
+    tertiary: "#DE3A3A",
+    onTertiary: "#FFFFFF",
+    tertiaryContainer: "#4A1717",
+    onTertiaryContainer: "#FFDCDC",
 
     error: "#FFB4AB",
     onError: "#690005",
     errorContainer: "#93000A",
     onErrorContainer: "#FFDAD6",
 
-    background: "#1A1110",
-    onBackground: "#F1DEDC",
+    background: "#121212",
+    onBackground: "#FFFFFF",
 
-    surface: "#1A1110",
-    onSurface: "#F1DEDC",
-    surfaceVariant: "#534341",
-    onSurfaceVariant: "#D8C2BF",
+    surface: "#121212",
+    onSurface: "#FFFFFF",
+    surfaceVariant: "#1C1C1E",
+    onSurfaceVariant: "#8A8A8A",
 
-    outline: "#A08C8A",
-    outlineVariant: "#534341",
+    outline: "#8A8A8A",
+    outlineVariant: "#262626",
 
     shadow: "#000000",
     scrim: "#000000",
 
-    inverseSurface: "#F1DEDC",
-    inverseOnSurface: "#392E2D",
-    inversePrimary: "#904A44",
+    inverseSurface: "#FFFFFF",
+    inverseOnSurface: "#121212",
+    inversePrimary: "#DE3A3A",
 
-    surfaceDisabled: "rgba(241, 222, 220, 0.12)",
-    onSurfaceDisabled: "rgba(241, 222, 220, 0.38)",
-    backdrop: "rgba(58, 45, 41, 0.4)",
+    surfaceDisabled: "rgba(255, 255, 255, 0.12)",
+    onSurfaceDisabled: "rgba(255, 255, 255, 0.38)",
+    backdrop: "rgba(0, 0, 0, 0.4)",
 
     elevation: {
       level0: "transparent",
-      level1: "#231918", // surfaceContainerLow
-      level2: "#271D1C", // surfaceContainer
-      level3: "#322826", // surfaceContainerHigh
-      level4: "#372D2B", // interpolated
-      level5: "#3D3231", // surfaceContainerHighest
+      level1: "#121212",
+      level2: "#121212",
+      level3: "#1C1C1E",
+      level4: "#202022",
+      level5: "#262626",
     },
   },
 };
