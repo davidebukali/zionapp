@@ -1,5 +1,6 @@
 // theme.ts
 import { MD3LightTheme, MD3DarkTheme } from "react-native-paper";
+import { StyleSheet } from "react-native";
 
 export const lightTheme = {
   ...MD3LightTheme,
@@ -114,3 +115,24 @@ export const darkTheme = {
     },
   },
 };
+
+export const globalStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  buttonFull: {
+    width: "100%",
+    marginVertical: 8,
+  },
+  buttonHalf: {
+    width: "48%",
+    marginVertical: 8,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+  },
+});
