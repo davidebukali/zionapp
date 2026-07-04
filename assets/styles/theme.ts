@@ -31,11 +31,11 @@ export const lightTheme = {
 
     surface: "#FFFFFF",
     onSurface: "#111111",
-    surfaceVariant: "#F7F7F8",
-    onSurfaceVariant: "#8E8E93",
+    surfaceVariant: "#F8F2F2",
+    onSurfaceVariant: "#6F6262",
 
-    outline: "#8E8E93",
-    outlineVariant: "#E5E5EA",
+    outline: "#C9B3B3",
+    outlineVariant: "#EFE1E1",
 
     shadow: "#000000",
     scrim: "#000000",
@@ -52,9 +52,9 @@ export const lightTheme = {
       level0: "transparent",
       level1: "#FFFFFF",
       level2: "#FFFFFF",
-      level3: "#F7F7F8",
-      level4: "#F2F2F7",
-      level5: "#E5E5EA",
+      level3: "#F8F2F2",
+      level4: "#F3EAEA",
+      level5: "#EFE1E1",
     },
   },
 };
@@ -83,16 +83,16 @@ export const darkTheme = {
     errorContainer: "#93000A",
     onErrorContainer: "#FFDAD6",
 
-    background: "#121212",
-    onBackground: "#FFFFFF",
+    background: "#111111",
+    onBackground: "#F3EEEE",
 
-    surface: "#121212",
-    onSurface: "#FFFFFF",
-    surfaceVariant: "#1C1C1E",
-    onSurfaceVariant: "#8A8A8A",
+    surface: "#1A1A1A",
+    onSurface: "#F3EEEE",
+    surfaceVariant: "#202020",
+    onSurfaceVariant: "#E7C6C6",
 
-    outline: "#8A8A8A",
-    outlineVariant: "#262626",
+    outline: "#524545",
+    outlineVariant: "#2B2B2B",
 
     shadow: "#000000",
     scrim: "#000000",
@@ -107,19 +107,38 @@ export const darkTheme = {
 
     elevation: {
       level0: "transparent",
-      level1: "#121212",
-      level2: "#121212",
-      level3: "#1C1C1E",
-      level4: "#202022",
-      level5: "#262626",
+      level1: "#151515",
+      level2: "#1A1A1A",
+      level3: "#202020",
+      level4: "#252525",
+      level5: "#2B2B2B",
     },
   },
+};
+
+export const postTokens = {
+  actionColor: "#E7C6C6",
+  activeActionColor: "#FFB6B6",
+  imageAspectRatio: 16 / 9,
 };
 
 export const globalStyles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+  },
+  screen: {
+    flex: 1,
+  },
+  feedContainer: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  fullWidth: {
+    width: "100%",
+    alignSelf: "stretch",
   },
   buttonFull: {
     width: "100%",
@@ -134,5 +153,97 @@ export const globalStyles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     width: "100%",
+  },
+  postCard: {
+    width: "100%",
+    alignSelf: "stretch",
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
+    marginBottom: 24,
+  },
+  postCardShadow: {
+    elevation: 4,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+  },
+  postTitle: {
+    minHeight: 106,
+    paddingHorizontal: 26,
+    paddingTop: 26,
+    paddingBottom: 18,
+  },
+  postTitleRight: {
+    alignSelf: "flex-start",
+    marginRight: 10,
+    marginTop: 22,
+  },
+  postAvatar: {
+    marginLeft: 0,
+  },
+  postBodyContent: {
+    paddingHorizontal: 26,
+    paddingTop: 12,
+    paddingBottom: 26,
+  },
+  postCaptionContent: {
+    paddingHorizontal: 26,
+    paddingTop: 26,
+    paddingBottom: 0,
+  },
+  postFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 26,
+    paddingTop: 22,
+    paddingBottom: 26,
+  },
+  postActionGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 28,
+  },
+  postAction: {
+    minWidth: 50,
+    minHeight: 36,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  postIconButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  postAuthorText: {
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  postTimestampText: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  postBodyText: {
+    fontSize: 28,
+    lineHeight: 42,
+    fontWeight: "400",
+  },
+  postCaptionText: {
+    fontSize: 23,
+    lineHeight: 32,
+    fontWeight: "600",
+  },
+  postActionText: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginLeft: 8,
+  },
+  postMedia: {
+    width: "100%",
+    aspectRatio: postTokens.imageAspectRatio,
+    borderRadius: 0,
   },
 });
