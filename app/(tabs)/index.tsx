@@ -1,35 +1,68 @@
-import { ScrollView, View } from "react-native";
+import React, { useEffect, useCallback } from "react";
+import { View } from "react-native";
 import { useTheme } from "react-native-paper";
+import { useDispatch, useSelector } from "react-redux";
 
 import { globalStyles } from "../../assets/styles/theme";
 import PostCard from "../../components/Posts/PostCard";
+import { InfiniteScrollList } from "../../components/InfiniteScrollList";
+import { fetchPosts, Post } from "../../features/posts/postSlice";
+import { AppDispatch, RootState } from "../../store/store";
+
+const PAGE_SIZE = 3;
 
 export default function Index() {
   const theme = useTheme();
+  const dispatch = useDispatch<AppDispatch>();
+  const { posts, isLoading, isRefreshing, hasMore, page } = useSelector(
+    (state: RootState) => state.post
+  );
+
+  // Fetch initial posts on mount
+  useEffect(() => {
+    dispatch(fetchPosts({ page: 1, limit: PAGE_SIZE, isRefresh: true }));
+  }, [dispatch]);
+
+  const handleLoadMore = useCallback(() => {
+    if (!isLoading && !isRefreshing && hasMore) {
+      dispatch(fetchPosts({ page: page + 1, limit: PAGE_SIZE }));
+    }
+  }, [dispatch, page, isLoading, isRefreshing, hasMore]);
+
+  const handleRefresh = useCallback(() => {
+    dispatch(fetchPosts({ page: 1, limit: PAGE_SIZE, isRefresh: true }));
+  }, [dispatch]);
+
+  const renderPostItem = useCallback(({ item }: { item: Post }) => {
+    return (
+      <PostCard
+        title={item.title}
+        subtitle={item.createdAt}
+        body={item.content}
+        avatarUrl={item.avatarUrl}
+        imageUrl={item.imageUrl}
+        likes={item.likes}
+        comments={item.comments}
+        liked={item.liked}
+      />
+    );
+  }, []);
 
   return (
     <View style={[globalStyles.screen, { backgroundColor: theme.colors.background }]}>
-      <ScrollView
+      <InfiniteScrollList
+        data={posts}
+        renderItem={renderPostItem}
+        onLoadMore={handleLoadMore}
+        isLoadingMore={isLoading}
+        hasMore={hasMore}
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
         contentContainerStyle={globalStyles.feedContainer}
         showsVerticalScrollIndicator={false}
-      >
-        <PostCard
-          title="Alex Rivera"
-          subtitle="2h ago"
-          likes="1.2k"
-          comments="48"
-        />
-        <PostCard
-          title="Elena Vance"
-          subtitle="5h ago"
-          avatarUrl="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80"
-          imageUrl="https://images.unsplash.com/photo-1472148439583-1f4cf81b80e0?auto=format&fit=crop&w=1400&q=80"
-          body="Finding inspiration in the raw energy of nature. The color palette of this volcanic field is exactly what we need for the next collection."
-          likes="3.5k"
-          comments="124"
-          liked
-        />
-      </ScrollView>
+      />
     </View>
   );
 }
+
+
