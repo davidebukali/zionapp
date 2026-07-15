@@ -171,25 +171,24 @@ export const globalStyles = StyleSheet.create({
   postTitle: {
     minHeight: 106,
     paddingHorizontal: 26,
-    paddingTop: 26,
-    paddingBottom: 18,
+    paddingTop: 10,
   },
   postTitleRight: {
     alignSelf: "flex-start",
-    marginRight: 10,
-    marginTop: 22,
+    marginLeft: 20,
+    marginTop: 10,
   },
   postAvatar: {
     marginLeft: 0,
+    paddingRight: 10,
+    marginRight: 22,
   },
   postBodyContent: {
     paddingHorizontal: 26,
-    paddingTop: 12,
-    paddingBottom: 26,
   },
   postCaptionContent: {
     paddingHorizontal: 26,
-    paddingTop: 26,
+    paddingTop: 30,
     paddingBottom: 0,
   },
   postFooter: {
@@ -218,23 +217,25 @@ export const globalStyles = StyleSheet.create({
     justifyContent: "center",
   },
   postAuthorText: {
-    fontSize: 24,
-    fontWeight: "800",
+    fontSize: 20,
+    fontWeight: "600",
+    marginLeft: 5,
   },
   postTimestampText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     marginTop: 2,
+    marginLeft: 5,
   },
   postBodyText: {
-    fontSize: 28,
-    lineHeight: 42,
-    fontWeight: "400",
+    fontSize: 18,
+    lineHeight: 28,
+    fontWeight: "400"
   },
   postCaptionText: {
-    fontSize: 23,
-    lineHeight: 32,
-    fontWeight: "600",
+    fontSize: 18,
+    lineHeight: 28,
+    fontWeight: "400",
   },
   postActionText: {
     fontSize: 18,

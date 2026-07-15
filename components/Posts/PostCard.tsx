@@ -106,7 +106,7 @@ const PostCard = ({
               <Text
                 style={[
                   globalStyles.postCaptionText,
-                  { color: theme.colors.onSurfaceVariant },
+                  { color: theme.colors.onSurface },
                 ]}
               >
                 {body}
