@@ -2,9 +2,11 @@ import { CommonActions } from "@react-navigation/native";
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
 import { darkTheme, lightTheme } from "../assets/styles/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export function CustomTabBar({ state, descriptors, navigation, insets }: any) {
+export function CustomTabBar({ state, descriptors, navigation }: any) {
   const colorScheme = useColorScheme();
+  const insets = useSafeAreaInsets();
   const theme = colorScheme === "dark" ? darkTheme : lightTheme;
 
   const activeColor = theme.colors.primary;
@@ -19,8 +21,7 @@ export function CustomTabBar({ state, descriptors, navigation, insets }: any) {
         {
           backgroundColor,
           borderTopColor: borderColor,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-          height: insets.bottom > 0 ? 64 + insets.bottom : 72,
+          paddingBottom: insets.bottom,
         },
       ]}
     >

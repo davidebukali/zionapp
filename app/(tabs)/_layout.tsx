@@ -1,5 +1,5 @@
 import { PaperProvider } from 'react-native-paper';
-import { lightTheme, darkTheme } from "../../assets/styles/theme";
+import { lightTheme, darkTheme, globalStyles } from "../../assets/styles/theme";
 import { useColorScheme, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { AppHeader } from '../../components/AppHeader';
@@ -33,6 +33,7 @@ export default function RootLayout() {
             <AppHeader title={getHeaderTitle(options, route.name)} />
           ),
           headerShadowVisible: false,
+          sceneStyle: globalStyles.screen,
         }}
       >
         <Tabs.Screen
