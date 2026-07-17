@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
+import { kijani_ip } from '../../constants';
 
 export interface Post {
   id: string
@@ -37,12 +38,13 @@ export const fetchPosts = createAsyncThunk(
   'posts/fetchPosts',
   async ({ page, limit, isRefresh = false }: { page: number; limit: number; isRefresh?: boolean }) => {
     const response = await fetch(
-      `http://localhost:3000/posts?_page=${page}&_limit=${limit}`
+      `http://${kijani_ip}:3000/posts?_page=${page}&_per_page=${limit}`
     );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const data: Post[] = await response.json();
+    const json = await response.json();
+    const data: Post[] = Array.isArray(json) ? json : (json.data || []);
     return { data, isRefresh, page, limit };
   }
 )
@@ -79,6 +81,9 @@ export const postSlice = createSlice({
           state.isLoading = true;
         }
         state.error = null;
+
+        console.log("Pending");
+        
       })
       .addCase(fetchPosts.fulfilled, (state, action) => {
         const { data, isRefresh, page, limit } = action.payload;
@@ -97,12 +102,18 @@ export const postSlice = createSlice({
         } else {
           state.hasMore = true;
         }
+
+        console.log("Fullfilled");
+        
       })
       .addCase(fetchPosts.rejected, (state, action) => {
         state.isLoading = false;
         state.isRefreshing = false;
         state.hasMore = false;
         state.error = action.error.message || "Failed to fetch posts";
+
+        console.log("Rejected");
+        
       });
   },
 })

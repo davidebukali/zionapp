@@ -21,7 +21,7 @@ export default function Index() {
   // Fetch initial posts on mount
   useEffect(() => {
     dispatch(fetchPosts({ page: 1, limit: PAGE_SIZE, isRefresh: true }));
-  }, [dispatch]);
+  }, []);
 
   const handleLoadMore = useCallback(() => {
     if (!isLoading && !isRefreshing && hasMore) {
