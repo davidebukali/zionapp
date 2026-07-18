@@ -34,6 +34,24 @@ const initialState: PostState = {
   error: null,
 }
 
+function parseLikes(likes: string | undefined): number {
+  if (!likes) return 0;
+  const normalized = likes.toLowerCase().trim();
+  if (normalized.endsWith('k')) {
+    const num = parseFloat(normalized.slice(0, -1));
+    return isNaN(num) ? 0 : num * 1000;
+  }
+  const parsed = parseInt(normalized, 10);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+function formatLikes(likesCount: number): string {
+  if (likesCount >= 1000) {
+    return (likesCount / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  }
+  return String(likesCount);
+}
+
 export const fetchPosts = createAsyncThunk(
   'posts/fetchPosts',
   async ({ page, limit, isRefresh = false }: { page: number; limit: number; isRefresh?: boolean }) => {
@@ -46,6 +64,38 @@ export const fetchPosts = createAsyncThunk(
     const json = await response.json();
     const data: Post[] = Array.isArray(json) ? json : (json.data || []);
     return { data, isRefresh, page, limit };
+  }
+)
+
+export const toggleLikePost = createAsyncThunk(
+  'posts/toggleLikePost',
+  async ({ postId, liked, likes }: { postId: string; liked: boolean; likes: string }, { rejectWithValue }) => {
+    const nextLiked = !liked;
+    const currentLikesNum = parseLikes(likes);
+    const nextLikesNum = nextLiked ? currentLikesNum + 1 : Math.max(0, currentLikesNum - 1);
+    const nextLikes = formatLikes(nextLikesNum);
+
+    try {
+      const response = await fetch(`http://${kijani_ip}:3000/posts/${postId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          liked: nextLiked,
+          likes: nextLikes,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const updatedPost = await response.json();
+      return updatedPost;
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to update like status");
+    }
   }
 )
 
@@ -114,6 +164,33 @@ export const postSlice = createSlice({
 
         console.log("Rejected");
         
+      })
+      .addCase(toggleLikePost.pending, (state, action) => {
+        const { postId, liked, likes } = action.meta.arg;
+        const post = state.posts.find((p) => p.id === postId);
+        if (post) {
+          const nextLiked = !liked;
+          const currentLikesNum = parseLikes(likes);
+          const nextLikesNum = nextLiked ? currentLikesNum + 1 : Math.max(0, currentLikesNum - 1);
+          post.likes = formatLikes(nextLikesNum);
+          post.liked = nextLiked;
+        }
+      })
+      .addCase(toggleLikePost.fulfilled, (state, action) => {
+        const updatedPost = action.payload;
+        const index = state.posts.findIndex((p) => p.id === updatedPost.id);
+        if (index !== -1) {
+          state.posts[index] = updatedPost;
+        }
+      })
+      .addCase(toggleLikePost.rejected, (state, action) => {
+        const { postId, liked, likes } = action.meta.arg;
+        const post = state.posts.find((p) => p.id === postId);
+        if (post) {
+          post.liked = liked;
+          post.likes = likes;
+        }
+        state.error = (action.payload as string) || "Failed to update like";
       });
   },
 })

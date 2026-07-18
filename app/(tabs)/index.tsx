@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { globalStyles } from "../../assets/styles/theme";
 import PostCard from "../../components/Posts/PostCard";
 import { InfiniteScrollList } from "../../components/InfiniteScrollList";
-import { fetchPosts, Post } from "../../features/posts/postSlice";
+import { fetchPosts, Post, toggleLikePost } from "../../features/posts/postSlice";
 import { AppDispatch, RootState } from "../../store/store";
 
 const PAGE_SIZE = 3;
@@ -44,9 +44,18 @@ export default function Index() {
         likes={item.likes}
         comments={item.comments}
         liked={item.liked}
+        onLike={() =>
+          dispatch(
+            toggleLikePost({
+              postId: item.id,
+              liked: !!item.liked,
+              likes: item.likes || "0",
+            })
+          )
+        }
       />
     );
-  }, []);
+  }, [dispatch]);
 
   return (
     <View style={[globalStyles.screen, { backgroundColor: theme.colors.background }]}>

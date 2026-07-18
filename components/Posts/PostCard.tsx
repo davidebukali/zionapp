@@ -15,6 +15,7 @@ interface PostCardProps {
   likes?: string;
   comments?: string;
   liked?: boolean;
+  onLike?: () => void;
 }
 
 const fallbackAvatar =
@@ -33,6 +34,7 @@ const PostCard = ({
   likes = "1.2k",
   comments = "48",
   liked = false,
+  onLike,
 }: PostCardProps) => {
   const theme = useTheme();
   const mediaSource = imageSource ?? (imageUrl ? { uri: imageUrl } : undefined);
@@ -123,6 +125,7 @@ const PostCard = ({
             label={likes}
             color={actionColor}
             accessibilityLabel={`${likes} likes`}
+            onPress={onLike}
           />
           <PostAction
             icon="chatbox-outline"

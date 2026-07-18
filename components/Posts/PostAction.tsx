@@ -8,6 +8,7 @@ type PostActionProps = {
   label?: string;
   color: string;
   accessibilityLabel: string;
+  onPress?: () => void;
 };
 
 export function PostAction({
@@ -15,6 +16,7 @@ export function PostAction({
   label,
   color,
   accessibilityLabel,
+  onPress,
 }: PostActionProps) {
   return (
     <TouchableOpacity
@@ -22,6 +24,7 @@ export function PostAction({
       accessibilityLabel={accessibilityLabel}
       hitSlop={10}
       style={globalStyles.postAction}
+      onPress={onPress}
     >
       <Ionicons name={icon} size={31} color={color} />
       {label ? (

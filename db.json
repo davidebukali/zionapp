@@ -39,9 +39,9 @@
       "content": "Late night coding sessions always bring out the best debugging breakthroughs. Refactoring the state architecture feels extremely clean now.",
       "avatarUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=80",
       "imageUrl": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1400&q=80",
-      "likes": "892",
+      "likes": "893",
       "comments": "31",
-      "liked": false,
+      "liked": true,
       "createdAt": "2026-07-14T23:46:00Z",
       "updatedAt": "2026-07-14T23:46:00Z"
     },
@@ -86,9 +86,10 @@
       "imageUrl": "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1400&q=80",
       "likes": "2.8k",
       "comments": "94",
-      "liked": false,
+      "liked": true,
       "createdAt": "2026-07-11T23:46:00Z",
       "updatedAt": "2026-07-11T23:46:00Z"
     }
-  ]
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
 }
