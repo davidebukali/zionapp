@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
-import { kijani_ip } from '../../constants';
+import { current_ip } from '../../constants';
 
 export interface Post {
   id: string
@@ -56,7 +56,7 @@ export const fetchPosts = createAsyncThunk(
   'posts/fetchPosts',
   async ({ page, limit, isRefresh = false }: { page: number; limit: number; isRefresh?: boolean }) => {
     const response = await fetch(
-      `http://${kijani_ip}:3000/posts?_page=${page}&_per_page=${limit}`
+      `http://${current_ip}:3000/posts?_page=${page}&_per_page=${limit}`
     );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -76,7 +76,7 @@ export const toggleLikePost = createAsyncThunk(
     const nextLikes = formatLikes(nextLikesNum);
 
     try {
-      const response = await fetch(`http://${kijani_ip}:3000/posts/${postId}`, {
+      const response = await fetch(`http://${current_ip}:3000/posts/${postId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
