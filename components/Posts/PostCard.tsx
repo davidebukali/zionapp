@@ -3,11 +3,12 @@ import { ImageSourcePropType, Text, TouchableOpacity, View } from "react-native"
 import { Avatar, Card, useTheme } from "react-native-paper";
 
 import { globalStyles, postTokens } from "../../assets/styles/theme";
+import { formatRelativeTime } from "../../utils/date";
 import { PostAction } from "./PostAction";
 
 interface PostCardProps {
   title: string;
-  subtitle: string;
+  createdAt: string | Date;
   body?: string;
   avatarUrl?: string;
   imageUrl?: string;
@@ -26,7 +27,7 @@ const defaultBody =
 
 const PostCard = ({
   title,
-  subtitle,
+  createdAt,
   body = defaultBody,
   avatarUrl = fallbackAvatar,
   imageUrl,
@@ -55,7 +56,7 @@ const PostCard = ({
     >
       <Card.Title
         title={title}
-        subtitle={subtitle}
+        subtitle={formatRelativeTime(createdAt)}
         titleNumberOfLines={1}
         subtitleNumberOfLines={1}
         style={globalStyles.postTitle}

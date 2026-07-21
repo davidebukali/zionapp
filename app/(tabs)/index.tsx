@@ -37,7 +37,7 @@ export default function Index() {
     return (
       <PostCard
         title={item.title}
-        subtitle={item.createdAt}
+        createdAt={item.createdAt}
         body={item.content}
         avatarUrl={item.avatarUrl}
         imageUrl={item.imageUrl}
