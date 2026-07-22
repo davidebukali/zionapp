@@ -1,37 +1,47 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useState } from "react";
 import { View } from "react-native";
 import { useTheme } from "react-native-paper";
-import { useDispatch, useSelector } from "react-redux";
 
 import { globalStyles } from "../../assets/styles/theme";
 import PostCard from "../../components/Posts/PostCard";
 import { InfiniteScrollList } from "../../components/InfiniteScrollList";
-import { fetchPosts, Post, toggleLikePost } from "../../features/posts/postSlice";
-import { AppDispatch, RootState } from "../../store/store";
+import { Post } from "../../features/posts/postSlice";
+import { useGetPostsQuery, useToggleLikePostMutation } from "../../features/posts/postsApi";
 
 const PAGE_SIZE = 3;
 
 export default function Index() {
   const theme = useTheme();
-  const dispatch = useDispatch<AppDispatch>();
-  const { posts, isLoading, isRefreshing, hasMore, page } = useSelector(
-    (state: RootState) => state.post
-  );
+  const [page, setPage] = useState(1);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch initial posts on mount
+  const { data: posts = [], isFetching, refetch } = useGetPostsQuery({
+    page,
+    limit: PAGE_SIZE,
+  });
+
+  const [toggleLikePost] = useToggleLikePostMutation();
+
+  // Reset refreshing state when query finishes loading
   useEffect(() => {
-    dispatch(fetchPosts({ page: 1, limit: PAGE_SIZE, isRefresh: true }));
-  }, []);
+    if (!isFetching) {
+      setIsRefreshing(false);
+    }
+  }, [isFetching]);
+
+  const hasMore = posts.length >= page * PAGE_SIZE;
 
   const handleLoadMore = useCallback(() => {
-    if (!isLoading && !isRefreshing && hasMore) {
-      dispatch(fetchPosts({ page: page + 1, limit: PAGE_SIZE }));
+    if (!isFetching && hasMore) {
+      setPage((prev) => prev + 1);
     }
-  }, [dispatch, page, isLoading, isRefreshing, hasMore]);
+  }, [isFetching, hasMore]);
 
   const handleRefresh = useCallback(() => {
-    dispatch(fetchPosts({ page: 1, limit: PAGE_SIZE, isRefresh: true }));
-  }, [dispatch]);
+    setIsRefreshing(true);
+    setPage(1);
+    refetch();
+  }, [refetch]);
 
   const renderPostItem = useCallback(({ item }: { item: Post }) => {
     return (
@@ -45,17 +55,15 @@ export default function Index() {
         comments={item.comments}
         liked={item.liked}
         onLike={() =>
-          dispatch(
-            toggleLikePost({
-              postId: item.id,
-              liked: !!item.liked,
-              likes: item.likes || "0",
-            })
-          )
+          toggleLikePost({
+            postId: item.id,
+            liked: !!item.liked,
+            likes: item.likes || "0",
+          })
         }
       />
     );
-  }, [dispatch]);
+  }, [toggleLikePost]);
 
   return (
     <View style={[globalStyles.screen, { backgroundColor: theme.colors.background }]}>
@@ -63,7 +71,7 @@ export default function Index() {
         data={posts}
         renderItem={renderPostItem}
         onLoadMore={handleLoadMore}
-        isLoadingMore={isLoading}
+        isLoadingMore={isFetching && page > 1}
         hasMore={hasMore}
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
@@ -73,5 +81,6 @@ export default function Index() {
     </View>
   );
 }
+
 
 

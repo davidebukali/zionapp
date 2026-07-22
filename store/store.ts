@@ -1,10 +1,15 @@
 import { configureStore } from '@reduxjs/toolkit'
 import postReducer from '../features/posts/postSlice'
 
+import { postsApi } from '../features/posts/postsApi'
+
 export const store = configureStore({
   reducer: {
-    post: postReducer
+    post: postReducer,
+    [postsApi.reducerPath]: postsApi.reducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(postsApi.middleware),
 })
 
 // Infer the `RootState` and `AppDispatch` types from the store itself
