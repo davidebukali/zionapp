@@ -17,6 +17,7 @@ interface PostCardProps {
   comments?: string;
   liked?: boolean;
   onLike?: () => void;
+  onComment?: () => void;
 }
 
 const fallbackAvatar =
@@ -36,6 +37,7 @@ const PostCard = ({
   comments = "48",
   liked = false,
   onLike,
+  onComment,
 }: PostCardProps) => {
   const theme = useTheme();
   const mediaSource = imageSource ?? (imageUrl ? { uri: imageUrl } : undefined);
@@ -133,6 +135,7 @@ const PostCard = ({
             label={comments}
             color={postTokens.actionColor}
             accessibilityLabel={`${comments} comments`}
+            onPress={onComment}
           />
           <PostAction
             icon="share-social-outline"

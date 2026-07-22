@@ -11,7 +11,7 @@ describe("formatRelativeTime", () => {
   });
 
   it("uses just now for timestamps under one minute old", () => {
-    expect(formatRelativeTime("2026-07-21T11:59:01.000Z")).toBe("just now");
+    expect(formatRelativeTime("2026-07-21T11:59:01.000Z")).toBe("Just now");
   });
 
   it("uses compact relative units", () => {

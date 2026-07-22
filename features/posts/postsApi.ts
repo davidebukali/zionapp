@@ -2,9 +2,9 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { current_ip } from '../../constants';
 import { Post } from './postSlice';
 
-function parseLikes(likes: string | undefined): number {
-  if (!likes) return 0;
-  const normalized = likes.toLowerCase().trim();
+function parseCount(count: string | undefined): number {
+  if (!count) return 0;
+  const normalized = count.toLowerCase().trim();
   if (normalized.endsWith('k')) {
     const num = parseFloat(normalized.slice(0, -1));
     return isNaN(num) ? 0 : num * 1000;
@@ -13,11 +13,11 @@ function parseLikes(likes: string | undefined): number {
   return isNaN(parsed) ? 0 : parsed;
 }
 
-function formatLikes(likesCount: number): string {
-  if (likesCount >= 1000) {
-    return (likesCount / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+function formatCount(count: number): string {
+  if (count >= 1000) {
+    return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
   }
-  return String(likesCount);
+  return String(count);
 }
 
 export const postsApi = createApi({
@@ -55,9 +55,9 @@ export const postsApi = createApi({
     toggleLikePost: builder.mutation<Post, { postId: string; liked: boolean; likes: string }>({
       query: ({ postId, liked, likes }) => {
         const nextLiked = !liked;
-        const currentLikesNum = parseLikes(likes);
+        const currentLikesNum = parseCount(likes);
         const nextLikesNum = nextLiked ? currentLikesNum + 1 : Math.max(0, currentLikesNum - 1);
-        const nextLikes = formatLikes(nextLikesNum);
+        const nextLikes = formatCount(nextLikesNum);
 
         return {
           url: `posts/${postId}`,
@@ -70,9 +70,9 @@ export const postsApi = createApi({
       },
       async onQueryStarted({ postId, liked, likes }, { dispatch, queryFulfilled }) {
         const nextLiked = !liked;
-        const currentLikesNum = parseLikes(likes);
+        const currentLikesNum = parseCount(likes);
         const nextLikesNum = nextLiked ? currentLikesNum + 1 : Math.max(0, currentLikesNum - 1);
-        const nextLikes = formatLikes(nextLikesNum);
+        const nextLikes = formatCount(nextLikesNum);
 
         // Optimistically patch the getPosts cache
         const patchResult = dispatch(
@@ -92,7 +92,38 @@ export const postsApi = createApi({
       },
       invalidatesTags: (result, error, { postId }) => [{ type: 'Post', id: postId }],
     }),
+    incrementPostCommentCount: builder.mutation<
+      Post,
+      { postId: string; comments: string }
+    >({
+      query: ({ postId, comments }) => ({
+        url: `posts/${postId}`,
+        method: 'PATCH',
+        body: { comments: formatCount(parseCount(comments) + 1) },
+      }),
+      async onQueryStarted({ postId, comments }, { dispatch, queryFulfilled }) {
+        const nextComments = formatCount(parseCount(comments) + 1);
+        const patchResult = dispatch(
+          postsApi.util.updateQueryData('getPosts', { page: 1, limit: 3 }, (draft) => {
+            const post = draft.find((item) => item.id === postId);
+            if (post) {
+              post.comments = nextComments;
+            }
+          })
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          patchResult.undo();
+        }
+      },
+    }),
   }),
 });
 
-export const { useGetPostsQuery, useToggleLikePostMutation } = postsApi;
+export const {
+  useGetPostsQuery,
+  useIncrementPostCommentCountMutation,
+  useToggleLikePostMutation,
+} = postsApi;

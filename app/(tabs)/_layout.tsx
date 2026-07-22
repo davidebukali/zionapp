@@ -1,10 +1,6 @@
-import { PaperProvider } from 'react-native-paper';
-import { lightTheme, darkTheme, globalStyles } from "../../assets/styles/theme";
-import { useColorScheme, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { globalStyles } from "../../assets/styles/theme";
 import { Tabs } from 'expo-router';
 import { AppHeader } from '../../components/AppHeader';
-import { Provider } from 'react-redux'
-import { store } from '../../store/store'
 import { CustomTabBar } from '../../components/CustomTabBar';
 
 function getHeaderTitle(options: { title?: string; headerTitle?: unknown }, routeName: string) {
@@ -20,13 +16,8 @@ function getHeaderTitle(options: { title?: string; headerTitle?: unknown }, rout
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === "dark" ? darkTheme : lightTheme;
-
   return (
-    <Provider store={store}>
-      <PaperProvider theme={theme}>
-      <Tabs
+    <Tabs
         tabBar={(props) => <CustomTabBar {...props} />}
         screenOptions={{
           header: ({ options, route }) => (
@@ -66,8 +57,6 @@ export default function RootLayout() {
             title: 'Settings',
           }}
         />
-      </Tabs>
-    </PaperProvider>
-    </Provider>
+    </Tabs>
   );
 }

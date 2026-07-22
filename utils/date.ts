@@ -52,7 +52,7 @@ export const formatRelativeTime = (value: RelativeTimeInput): string => {
   }
 
   if (Math.abs(differenceInSeconds(date, new Date())) < 60) {
-    return "just now";
+    return "Just now";
   }
 
   return formatDistanceToNowStrict(date, {
