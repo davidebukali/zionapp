@@ -13,7 +13,7 @@ type CommentPageProps = {
   onSubmit: () => void;
 };
 
-export function CommentPage({
+export function CommentInput({
   value,
   initials,
   isSubmitting = false,

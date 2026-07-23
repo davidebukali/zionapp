@@ -65,7 +65,7 @@ export default function Index() {
         }
         onComment={() =>
           router.push({
-            pathname: "/posts/[postId]/comments",
+            pathname: "/posts/[postId]/PostComments",
             params: { postId: item.id, count: item.comments ?? "0" },
           })
         }

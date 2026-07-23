@@ -11,7 +11,7 @@ import { useTheme } from "react-native-paper";
 import { useDispatch, useSelector } from "react-redux";
 
 import { globalStyles } from "../../../assets/styles/theme";
-import { CommentPage, CommentItem, CommentsHeader } from "../../../components/Comments";
+import { CommentInput, CommentItem, CommentsHeader } from "../../../components/Comments";
 import { InfiniteScrollList } from "../../../components/InfiniteScrollList";
 import {
   addComment,
@@ -34,7 +34,7 @@ const currentUser = {
 const COMMENTS_PAGE_SIZE = 10;
 const selectCachedPosts = postsApi.endpoints.getPosts.select({ page: 1, limit: 3 });
 
-export default function PostCommentsScreen() {
+export default function PostComments() {
   const params = useLocalSearchParams<{ postId: string; count?: string }>();
   const postId = Array.isArray(params.postId) ? params.postId[0] : params.postId;
   const fallbackCount = Array.isArray(params.count) ? params.count[0] : params.count;
@@ -159,7 +159,7 @@ export default function PostCommentsScreen() {
           </View>
         }
       />
-      <CommentPage
+      <CommentInput
         value={draft}
         initials={currentUser.initials}
         isSubmitting={isSubmitting}

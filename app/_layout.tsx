@@ -15,7 +15,7 @@ export default function RootLayout() {
       <PaperProvider theme={theme}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="posts/[postId]/comments" />
+          <Stack.Screen name="posts/[postId]/PostComments" />
         </Stack>
       </PaperProvider>
     </Provider>
