@@ -1,7 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 import commentReducer from '../features/comments/commentSlice'
 
-import { postsApi } from '../features/posts/postsApi'
+import { postsApi } from '../features/posts/api'
 
 export const store = configureStore({
   reducer: {

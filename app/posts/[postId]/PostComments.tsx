@@ -21,7 +21,7 @@ import {
 import {
   postsApi,
   useIncrementPostCommentCountMutation,
-} from "../../../features/posts/postsApi";
+} from "../../../features/posts/api";
 import { AppDispatch, RootState } from "../../../store/store";
 
 const currentUser = {

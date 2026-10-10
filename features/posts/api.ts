@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { current_ip } from '../../constants';
-import { Post } from './postSlice';
+import { Post } from './types';
 
 function parseCount(count: string | undefined): number {
   if (!count) return 0;

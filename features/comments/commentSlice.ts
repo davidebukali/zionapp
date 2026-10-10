@@ -44,6 +44,14 @@ type FetchCommentsInput = {
   isRefresh?: boolean;
 };
 
+type AddCommentInput = {
+  postId: string;
+  body: string;
+  author: string;
+  username: string;
+  avatarColor?: string;
+};
+
 export const fetchComments = createAsyncThunk(
   "comments/fetchComments",
   async ({ postId, page, limit, isRefresh = false }: FetchCommentsInput) => {
@@ -65,14 +73,6 @@ export const fetchComments = createAsyncThunk(
     return { postId, comments, page, hasMore, isRefresh };
   }
 );
-
-type AddCommentInput = {
-  postId: string;
-  body: string;
-  author: string;
-  username: string;
-  avatarColor?: string;
-};
 
 export const addComment = createAsyncThunk(
   "comments/addComment",

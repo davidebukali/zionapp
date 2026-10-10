@@ -26,7 +26,7 @@
       "imageUrl": "https://images.unsplash.com/photo-1472148439583-1f4cf81b80e0?auto=format&fit=crop&w=1400&q=80",
       "likes": "3.5k",
       "comments": "124",
-      "liked": true,
+      "liked": false,
       "createdAt": "2026-07-15T18:46:00Z",
       "updatedAt": "2026-07-15T18:46:00Z"
     },

@@ -9,4 +9,4 @@ export const ips = {
     pece: pece_ip
 }
 
-export const current_ip = ips["kijani"];
+export const current_ip = ips["android"];
