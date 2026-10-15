@@ -148,6 +148,26 @@ export const globalStyles = StyleSheet.create({
     width: "48%",
     marginVertical: 8,
   },
+  primaryButton: {
+    height: 58,
+    borderRadius: 29,
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.38,
+    shadowRadius: 14,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
