@@ -11,6 +11,7 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
+import { StatusBar } from "expo-status-bar";
 import { useDispatch } from "react-redux";
 import {
   AuthButton,
@@ -69,11 +70,15 @@ export default function RegisterScreen() {
         styles.container,
         {
           backgroundColor: isDark ? theme.colors.background : "#FFFFFF",
-          paddingTop: insets.top,
+          paddingTop: Platform.OS === "ios" ? insets.top : 0,
           paddingBottom: insets.bottom,
         },
       ]}
     >
+      <StatusBar
+        style={isDark ? "light" : "dark"}
+        backgroundColor={isDark ? theme.colors.background : "#FFFFFF"}
+      />
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -143,9 +148,8 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 16,
     paddingBottom: 24,
-    justifyContent: "center",
   },
   formContainer: {
     width: "100%",

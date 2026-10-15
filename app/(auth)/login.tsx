@@ -1,9 +1,10 @@
 import React from "react";
-import { Alert, StyleSheet, View, useColorScheme } from "react-native";
+import { Alert, Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
 import { useDispatch } from "react-redux";
+import { StatusBar } from "expo-status-bar";
 import { LoginForm } from "../../components/Auth";
 import { loginUser } from "../../features/auth/authSlice";
 import { AppDispatch } from "../../store/store";
@@ -48,11 +49,15 @@ export default function LoginScreen() {
         styles.container,
         {
           backgroundColor: isDark ? theme.colors.background : "#FFFFFF",
-          paddingTop: insets.top,
+          paddingTop: Platform.OS === "ios" ? insets.top : 0,
           paddingBottom: insets.bottom,
         },
       ]}
     >
+      <StatusBar
+        style={isDark ? "light" : "dark"}
+        backgroundColor={isDark ? theme.colors.background : "#FFFFFF"}
+      />
       <LoginForm
         onSignIn={handleSignIn}
         onForgotPassword={handleForgotPassword}

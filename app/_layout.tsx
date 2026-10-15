@@ -3,6 +3,7 @@ import { Slot } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useColorScheme } from "react-native";
 import { PaperProvider } from "react-native-paper";
+import { StatusBar } from "expo-status-bar";
 import { Provider, useDispatch, useSelector } from "react-redux";
 
 import { darkTheme, lightTheme } from "../assets/styles/theme";
@@ -42,6 +43,10 @@ export default function RootLayout() {
   return (
     <Provider store={store}>
       <PaperProvider theme={theme}>
+        <StatusBar
+          style={colorScheme === "dark" ? "light" : "dark"}
+          backgroundColor={theme.colors.background}
+        />
         <RootNavigation />
       </PaperProvider>
     </Provider>

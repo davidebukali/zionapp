@@ -114,7 +114,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 40,
     paddingBottom: 24,
-    justifyContent: "center",
   },
   formContainer: {
     width: "100%",
