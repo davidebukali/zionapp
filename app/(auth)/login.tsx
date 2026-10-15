@@ -3,10 +3,14 @@ import { Alert, StyleSheet, View, useColorScheme } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
-import { LoginForm } from "../components/Auth";
+import { useDispatch } from "react-redux";
+import { LoginForm } from "../../components/Auth";
+import { loginUser } from "../../features/auth/authSlice";
+import { AppDispatch } from "../../store/store";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === "dark";
@@ -14,8 +18,17 @@ export default function LoginScreen() {
   const handleSignIn = async (email: string) => {
     // Simulate sign-in process
     await new Promise((resolve) => setTimeout(resolve, 800));
-    // Navigate to main tabs screen
-    router.replace("/(tabs)");
+    await dispatch(
+      loginUser({
+        token: "mock_jwt_token_" + Date.now(),
+        user: {
+          id: "1",
+          email,
+          name: email.split("@")[0] || "User",
+        },
+      })
+    );
+    router.replace("/(app)/(tabs)");
   };
 
   const handleForgotPassword = () => {

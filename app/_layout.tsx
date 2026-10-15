@@ -1,10 +1,39 @@
-import { Stack } from "expo-router";
+import React, { useEffect } from "react";
+import { Slot } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { useColorScheme } from "react-native";
 import { PaperProvider } from "react-native-paper";
-import { Provider } from "react-redux";
+import { Provider, useDispatch, useSelector } from "react-redux";
 
 import { darkTheme, lightTheme } from "../assets/styles/theme";
-import { store } from "../store/store";
+import { store, RootState, AppDispatch } from "../store/store";
+import { restoreSession } from "../features/auth/authSlice";
+
+// Prevent splash screen from auto-hiding while restoring session
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+function RootNavigation() {
+  const dispatch = useDispatch<AppDispatch>();
+  const isInitializing = useSelector(
+    (state: RootState) => state.auth.isInitializing
+  );
+
+  useEffect(() => {
+    dispatch(restoreSession());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!isInitializing) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isInitializing]);
+
+  if (isInitializing) {
+    return null;
+  }
+
+  return <Slot />;
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -13,12 +42,7 @@ export default function RootLayout() {
   return (
     <Provider store={store}>
       <PaperProvider theme={theme}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="login" />
-          <Stack.Screen name="register" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="posts/[postId]/PostComments" />
-        </Stack>
+        <RootNavigation />
       </PaperProvider>
     </Provider>
   );

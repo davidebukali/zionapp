@@ -10,19 +10,19 @@ import {
 import { useTheme } from "react-native-paper";
 import { useDispatch, useSelector } from "react-redux";
 
-import { globalStyles } from "../../../assets/styles/theme";
-import { CommentInput, CommentItem, CommentsHeader } from "../../../components/Comments";
-import { InfiniteScrollList } from "../../../components/InfiniteScrollList";
+import { globalStyles } from "../../../../assets/styles/theme";
+import { CommentInput, CommentItem, CommentsHeader } from "../../../../components/Comments";
+import { InfiniteScrollList } from "../../../../components/InfiniteScrollList";
 import {
   addComment,
   Comment,
   fetchComments,
-} from "../../../features/comments/commentSlice";
+} from "../../../../features/comments/commentSlice";
 import {
   postsApi,
   useIncrementPostCommentCountMutation,
-} from "../../../features/posts/api";
-import { AppDispatch, RootState } from "../../../store/store";
+} from "../../../../features/posts/api";
+import { AppDispatch, RootState } from "../../../../store/store";
 
 const currentUser = {
   author: "Alex Rivera",

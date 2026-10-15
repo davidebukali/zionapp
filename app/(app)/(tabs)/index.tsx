@@ -3,11 +3,11 @@ import { useRouter } from "expo-router";
 import { View } from "react-native";
 import { useTheme } from "react-native-paper";
 
-import { globalStyles } from "../../assets/styles/theme";
-import PostCard from "../../components/Posts/PostCard";
-import { InfiniteScrollList } from "../../components/InfiniteScrollList";
-import { Post } from "../../features/posts/types";
-import { useGetPostsQuery, useToggleLikePostMutation } from "../../features/posts/api";
+import { globalStyles } from "../../../assets/styles/theme";
+import PostCard from "../../../components/Posts/PostCard";
+import { InfiniteScrollList } from "../../../components/InfiniteScrollList";
+import { Post } from "../../../features/posts/types";
+import { useGetPostsQuery, useToggleLikePostMutation } from "../../../features/posts/api";
 
 const PAGE_SIZE = 3;
 

@@ -1,7 +1,7 @@
-import { globalStyles } from "../../assets/styles/theme";
+import { globalStyles } from "../../../assets/styles/theme";
 import { Tabs } from 'expo-router';
-import { AppHeader } from '../../components/AppHeader';
-import { CustomTabBar } from '../../components/CustomTabBar';
+import { AppHeader } from '../../../components/AppHeader';
+import { CustomTabBar } from '../../../components/CustomTabBar';
 
 function getHeaderTitle(options: { title?: string; headerTitle?: unknown }, routeName: string) {
   if (typeof options.title === "string") {

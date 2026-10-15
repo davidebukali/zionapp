@@ -11,15 +11,19 @@ import {
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
+import { useDispatch } from "react-redux";
 import {
   AuthButton,
   AuthFooter,
   AuthHeader,
   AuthInput,
-} from "../components/Auth";
+} from "../../components/Auth";
+import { loginUser } from "../../features/auth/authSlice";
+import { AppDispatch } from "../../store/store";
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === "dark";
@@ -45,8 +49,18 @@ export default function RegisterScreen() {
 
     setLoading(true);
     await new Promise((resolve) => setTimeout(resolve, 800));
+    await dispatch(
+      loginUser({
+        token: "mock_jwt_token_" + Date.now(),
+        user: {
+          id: "1",
+          email,
+          name: name.trim(),
+        },
+      })
+    );
     setLoading(false);
-    router.replace("/(tabs)");
+    router.replace("/(app)/(tabs)");
   };
 
   return (
