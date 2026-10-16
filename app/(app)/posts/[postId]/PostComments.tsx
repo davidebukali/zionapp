@@ -20,6 +20,7 @@ import {
 } from "../../../../features/comments/commentSlice";
 import {
   postsApi,
+  useGetPostQuery,
   useIncrementPostCommentCountMutation,
 } from "../../../../features/posts/api";
 import { AppDispatch, RootState } from "../../../../store/store";
@@ -32,7 +33,7 @@ const currentUser = {
 };
 
 const COMMENTS_PAGE_SIZE = 10;
-const selectCachedPosts = postsApi.endpoints.getPosts.select({ page: 1, limit: 3 });
+const selectCachedFeed = postsApi.endpoints.getFeed.select();
 
 export default function PostComments() {
   const params = useLocalSearchParams<{ postId: string; count?: string }>();
@@ -44,11 +45,13 @@ export default function PostComments() {
   const [incrementPostCommentCount] = useIncrementPostCommentCountMutation();
   const [draft, setDraft] = useState("");
 
+  const { data: fetchedPost } = useGetPostQuery(postId, { skip: !postId });
+  const feedPosts = useSelector((state: RootState) => selectCachedFeed(state).data?.posts);
+  const post = fetchedPost || feedPosts?.find((item) => item.id === postId);
+
   const comments = useSelector(
     (state: RootState) => state.comments.byPostId[postId] ?? []
   );
-  const posts = useSelector((state: RootState) => selectCachedPosts(state).data);
-  const post = posts?.find((item) => item.id === postId);
   const {
     loadingPostId,
     refreshingPostId,

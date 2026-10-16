@@ -1,48 +1,100 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { current_ip } from '../../constants';
-import { Post } from './types';
-
-function parseCount(count: string | undefined): number {
-  if (!count) return 0;
-  const normalized = count.toLowerCase().trim();
-  if (normalized.endsWith('k')) {
-    const num = parseFloat(normalized.slice(0, -1));
-    return isNaN(num) ? 0 : num * 1000;
-  }
-  const parsed = parseInt(normalized, 10);
-  return isNaN(parsed) ? 0 : parsed;
-}
-
-function formatCount(count: number): string {
-  if (count >= 1000) {
-    return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
-  }
-  return String(count);
-}
+import { API_BASE_URL } from '../../constants';
+import type { RootState } from '../../store/store';
+import {
+  Post,
+  FeedResult,
+  FeedResponse,
+  PostsListResponse,
+  normalizePost,
+  LaravelPost,
+} from './types';
 
 export const postsApi = createApi({
   reducerPath: 'postsApi',
-  baseQuery: fetchBaseQuery({ baseUrl: `http://${current_ip}:3000/` }),
-  tagTypes: ['Post'],
+  baseQuery: fetchBaseQuery({
+    baseUrl: API_BASE_URL,
+    prepareHeaders: (headers, { getState }) => {
+      const token = (getState() as RootState).auth?.token;
+      headers.set('Accept', 'application/json');
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      return headers;
+    },
+  }),
+  tagTypes: ['Post', 'Feed'],
   endpoints: (builder) => ({
-    getPosts: builder.query<Post[], { page: number; limit: number }>({
-      query: ({ page, limit }) => `posts?_page=${page}&_per_page=${limit}`,
-      transformResponse: (response: any) => {
-        return Array.isArray(response) ? response : (response.data || []);
+    getFeed: builder.query<FeedResult, { cursor?: string; perPage?: number } | void>({
+      query: (arg) => {
+        const cursor = arg && 'cursor' in arg ? arg.cursor : undefined;
+        const perPage = arg && 'perPage' in arg && arg.perPage ? arg.perPage : 20;
+        const queryParams = new URLSearchParams();
+        queryParams.append('per_page', String(perPage));
+        if (cursor) {
+          queryParams.append('cursor', cursor);
+        }
+        return `/feed?${queryParams.toString()}`;
       },
-      serializeQueryArgs: ({ endpointName }) => {
-        return endpointName;
+      transformResponse: (response: FeedResponse): FeedResult => {
+        const items = response?.data || [];
+        const posts = items.map((item) => normalizePost(item.post, item.published_at));
+        return {
+          posts,
+          nextCursor: response?.meta?.next_cursor ?? null,
+        };
       },
+      serializeQueryArgs: ({ endpointName }) => endpointName,
       merge: (currentCache, newItems, { arg }) => {
-        if (arg.page === 1) {
+        const cursor = arg && 'cursor' in arg ? arg.cursor : undefined;
+        if (!cursor) {
           return newItems;
         }
-        const existingIds = new Set(currentCache.map(post => post.id));
-        const filteredNewItems = newItems.filter(post => !existingIds.has(post.id));
+        const existingIds = new Set(currentCache.posts.map((p) => p.id));
+        const filteredNewItems = newItems.posts.filter((p) => !existingIds.has(p.id));
+        currentCache.posts.push(...filteredNewItems);
+        currentCache.nextCursor = newItems.nextCursor;
+      },
+      forceRefetch({ currentArg, previousArg }) {
+        const currentCursor = currentArg && 'cursor' in currentArg ? currentArg.cursor : undefined;
+        const previousCursor = previousArg && 'cursor' in previousArg ? previousArg.cursor : undefined;
+        return currentCursor !== previousCursor;
+      },
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.posts.map(({ id }) => ({ type: 'Post' as const, id })),
+              { type: 'Feed', id: 'LIST' },
+            ]
+          : [{ type: 'Feed', id: 'LIST' }],
+    }),
+
+    getPosts: builder.query<Post[], { page?: number; limit?: number } | void>({
+      query: (arg) => {
+        const page = arg && 'page' in arg && arg.page ? arg.page : 1;
+        const limit = arg && 'limit' in arg && arg.limit ? arg.limit : 15;
+        return `/posts?page=${page}&per_page=${limit}`;
+      },
+      transformResponse: (response: PostsListResponse | LaravelPost[] | any): Post[] => {
+        const rawPosts = Array.isArray(response)
+          ? response
+          : (response?.data || response?.resource || []);
+        return rawPosts.map((p: LaravelPost) => normalizePost(p));
+      },
+      serializeQueryArgs: ({ endpointName }) => endpointName,
+      merge: (currentCache, newItems, { arg }) => {
+        const page = arg && 'page' in arg ? arg.page : 1;
+        if (page === 1) {
+          return newItems;
+        }
+        const existingIds = new Set(currentCache.map((post) => post.id));
+        const filteredNewItems = newItems.filter((post) => !existingIds.has(post.id));
         return [...currentCache, ...filteredNewItems];
       },
       forceRefetch({ currentArg, previousArg }) {
-        return currentArg?.page !== previousArg?.page;
+        const currentPage = currentArg && 'page' in currentArg ? currentArg.page : 1;
+        const prevPage = previousArg && 'page' in previousArg ? previousArg.page : 1;
+        return currentPage !== prevPage;
       },
       providesTags: (result) =>
         result
@@ -52,78 +104,106 @@ export const postsApi = createApi({
             ]
           : [{ type: 'Post', id: 'LIST' }],
     }),
-    toggleLikePost: builder.mutation<Post, { postId: string; liked: boolean; likes: string }>({
-      query: ({ postId, liked, likes }) => {
-        const nextLiked = !liked;
-        const currentLikesNum = parseCount(likes);
-        const nextLikesNum = nextLiked ? currentLikesNum + 1 : Math.max(0, currentLikesNum - 1);
-        const nextLikes = formatCount(nextLikesNum);
 
-        return {
-          url: `posts/${postId}`,
-          method: 'PATCH',
-          body: {
-            liked: nextLiked,
-            likes: nextLikes,
-          },
-        };
-      },
-      async onQueryStarted({ postId, liked, likes }, { dispatch, queryFulfilled }) {
-        const nextLiked = !liked;
-        const currentLikesNum = parseCount(likes);
-        const nextLikesNum = nextLiked ? currentLikesNum + 1 : Math.max(0, currentLikesNum - 1);
-        const nextLikes = formatCount(nextLikesNum);
+    getPost: builder.query<Post, string>({
+      query: (postId) => `/posts/${postId}`,
+      transformResponse: (response: any) =>
+        normalizePost(response?.data || response?.resource || response),
+      providesTags: (result, error, postId) => [{ type: 'Post', id: postId }],
+    }),
 
-        // Optimistically patch the getPosts cache
-        const patchResult = dispatch(
-          postsApi.util.updateQueryData('getPosts', { page: 1, limit: 3 }, (draft) => {
-            const post = draft.find((p) => p.id === postId);
+    toggleLikePost: builder.mutation<
+      { success: boolean; message?: string },
+      { postId: string; liked: boolean; likes?: string }
+    >({
+      query: ({ postId, liked }) => ({
+        url: `/posts/${postId}/like`,
+        method: liked ? 'DELETE' : 'POST',
+      }),
+      async onQueryStarted({ postId, liked }, { dispatch, queryFulfilled }) {
+        const nextLiked = !liked;
+
+        // Optimistically update getFeed cache
+        const patchFeed = dispatch(
+          postsApi.util.updateQueryData('getFeed', undefined as any, (draft) => {
+            if (!draft?.posts) return;
+            const post = draft.posts.find((p) => p.id === postId);
             if (post) {
               post.liked = nextLiked;
-              post.likes = nextLikes;
+              const currentNum = parseInt(post.likes || '0', 10) || 0;
+              post.likes = String(nextLiked ? currentNum + 1 : Math.max(0, currentNum - 1));
             }
           })
         );
+
+        // Optimistically update getPosts cache
+        const patchPosts = dispatch(
+          postsApi.util.updateQueryData('getPosts', undefined as any, (draft) => {
+            if (!Array.isArray(draft)) return;
+            const post = draft.find((p) => p.id === postId);
+            if (post) {
+              post.liked = nextLiked;
+              const currentNum = parseInt(post.likes || '0', 10) || 0;
+              post.likes = String(nextLiked ? currentNum + 1 : Math.max(0, currentNum - 1));
+            }
+          })
+        );
+
+        // Optimistically update single getPost cache if present
+        const patchSingle = dispatch(
+          postsApi.util.updateQueryData('getPost', postId, (draft) => {
+            if (draft) {
+              draft.liked = nextLiked;
+              const currentNum = parseInt(draft.likes || '0', 10) || 0;
+              draft.likes = String(nextLiked ? currentNum + 1 : Math.max(0, currentNum - 1));
+            }
+          })
+        );
+
         try {
           await queryFulfilled;
         } catch {
-          patchResult.undo();
+          patchFeed.undo();
+          patchPosts.undo();
+          patchSingle.undo();
         }
       },
       invalidatesTags: (result, error, { postId }) => [{ type: 'Post', id: postId }],
     }),
+
     incrementPostCommentCount: builder.mutation<
-      Post,
-      { postId: string; comments: string }
+      void,
+      { postId: string; comments?: string }
     >({
-      query: ({ postId, comments }) => ({
-        url: `posts/${postId}`,
-        method: 'PATCH',
-        body: { comments: formatCount(parseCount(comments) + 1) },
-      }),
-      async onQueryStarted({ postId, comments }, { dispatch, queryFulfilled }) {
-        const nextComments = formatCount(parseCount(comments) + 1);
-        const patchResult = dispatch(
-          postsApi.util.updateQueryData('getPosts', { page: 1, limit: 3 }, (draft) => {
-            const post = draft.find((item) => item.id === postId);
+      queryFn: () => ({ data: undefined }),
+      async onQueryStarted({ postId }, { dispatch }) {
+        dispatch(
+          postsApi.util.updateQueryData('getFeed', undefined as any, (draft) => {
+            const post = draft?.posts?.find((p) => p.id === postId);
             if (post) {
-              post.comments = nextComments;
+              const current = parseInt(post.comments || '0', 10) || 0;
+              post.comments = String(current + 1);
             }
           })
         );
-
-        try {
-          await queryFulfilled;
-        } catch {
-          patchResult.undo();
-        }
+        dispatch(
+          postsApi.util.updateQueryData('getPosts', undefined as any, (draft) => {
+            const post = draft?.find((p) => p.id === postId);
+            if (post) {
+              const current = parseInt(post.comments || '0', 10) || 0;
+              post.comments = String(current + 1);
+            }
+          })
+        );
       },
     }),
   }),
 });
 
 export const {
+  useGetFeedQuery,
   useGetPostsQuery,
-  useIncrementPostCommentCountMutation,
+  useGetPostQuery,
   useToggleLikePostMutation,
+  useIncrementPostCommentCountMutation,
 } = postsApi;

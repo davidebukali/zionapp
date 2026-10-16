@@ -48,7 +48,7 @@ export function LoginForm({
       if (onSignIn) {
         await onSignIn(email, password, rememberMe);
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Sign In Failed", "Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
