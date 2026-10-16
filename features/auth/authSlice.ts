@@ -1,11 +1,8 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import * as SecureStore from 'expo-secure-store';
+import { User } from './types';
 
-export interface User {
-  id: string;
-  email: string;
-  name?: string;
-}
+export type { User };
 
 export interface AuthState {
   token: string | null;
@@ -30,7 +27,7 @@ export const restoreSession = createAsyncThunk(
     try {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
       const userJson = await SecureStore.getItemAsync(USER_KEY);
-      const user = userJson ? JSON.parse(userJson) : null;
+      const user = userJson ? (JSON.parse(userJson) as User) : null;
       return { token, user };
     } catch {
       return { token: null, user: null };
@@ -40,10 +37,12 @@ export const restoreSession = createAsyncThunk(
 
 export const loginUser = createAsyncThunk(
   'auth/loginUser',
-  async ({ token, user }: { token: string; user: User }) => {
+  async ({ token, user }: { token: string; user?: User | null }) => {
     await SecureStore.setItemAsync(TOKEN_KEY, token);
-    await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
-    return { token, user };
+    if (user) {
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+    }
+    return { token, user: user ?? null };
   }
 );
 
@@ -63,7 +62,11 @@ export const logoutUser = createAsyncThunk(
 export const authSlice = createSlice({
   name: 'auth',
   initialState,
-  reducers: {},
+  reducers: {
+    setUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(restoreSession.fulfilled, (state, action) => {
@@ -91,4 +94,5 @@ export const authSlice = createSlice({
   },
 });
 
+export const { setUser } = authSlice.actions;
 export default authSlice.reducer;

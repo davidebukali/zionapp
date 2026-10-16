@@ -20,11 +20,14 @@ import {
   AuthInput,
 } from "../../components/Auth";
 import { loginUser } from "../../features/auth/authSlice";
+import { useRegisterMutation, useLoginMutation } from "../../features/auth/api";
 import { AppDispatch } from "../../store/store";
 
 export default function RegisterScreen() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
+  const [registerApi] = useRegisterMutation();
+  const [loginApi] = useLoginMutation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === "dark";
@@ -48,20 +51,72 @@ export default function RegisterScreen() {
       return;
     }
 
-    setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    await dispatch(
-      loginUser({
-        token: "mock_jwt_token_" + Date.now(),
-        user: {
+    try {
+      setLoading(true);
+      const response = await registerApi({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+      }).unwrap();
+
+      const user =
+        response.resource ||
+        response.data?.user || {
           id: "1",
-          email,
+          email: email.trim(),
           name: name.trim(),
-        },
-      })
-    );
-    setLoading(false);
-    router.replace("/(app)/(tabs)");
+        };
+
+      let token =
+        response?.data?.token ||
+        response?.token ||
+        response?.access_token ||
+        response?.data?.access_token;
+
+      // If backend registration does not issue a token directly, auto-login with credentials
+      if (!token) {
+        try {
+          const loginRes = await loginApi({
+            email: email.trim(),
+            password,
+          }).unwrap();
+
+          token =
+            loginRes?.data?.token ||
+            loginRes?.token ||
+            loginRes?.access_token ||
+            loginRes?.data?.access_token;
+        } catch {
+          // If auto-login fails, inform user that account was created
+          Alert.alert(
+            "Account Created",
+            "Your account was created successfully. Please sign in.",
+            [{ text: "Sign In", onPress: () => router.replace("/(auth)/login") }]
+          );
+          return;
+        }
+      }
+
+      if (token) {
+        await dispatch(loginUser({ token, user }));
+        router.replace("/(app)/(tabs)");
+      } else {
+        Alert.alert(
+          "Account Created",
+          "Your account was created successfully. Please sign in.",
+          [{ text: "Sign In", onPress: () => router.replace("/(auth)/login") }]
+        );
+      }
+    } catch (err: any) {
+      const errorMsg =
+        (err?.data?.errors && Object.values(err.data.errors).flat().join("\n")) ||
+        err?.data?.message ||
+        err?.error ||
+        "Registration failed. Please check your details and try again.";
+      Alert.alert("Registration Failed", errorMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -15,19 +15,21 @@ import { AuthFooter } from "./AuthFooter";
 
 type LoginFormProps = {
   initialEmail?: string;
+  initialPassword?: string;
   onSignIn?: (email: string, password: string, rememberMe: boolean) => Promise<void> | void;
   onForgotPassword?: () => void;
   onCreateAccount?: () => void;
 };
 
 export function LoginForm({
-  initialEmail = "alex@zion.app",
+  initialEmail = "",
+  initialPassword = "",
   onSignIn,
   onForgotPassword,
   onCreateAccount,
 }: LoginFormProps) {
   const [email, setEmail] = useState(initialEmail);
-  const [password, setPassword] = useState("••••••••••");
+  const [password, setPassword] = useState(initialPassword);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
 

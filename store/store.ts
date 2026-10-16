@@ -3,15 +3,17 @@ import commentReducer from '../features/comments/commentSlice'
 import authReducer from '../features/auth/authSlice'
 
 import { postsApi } from '../features/posts/api'
+import { authApi } from '../features/auth/api'
 
 export const store = configureStore({
   reducer: {
     [postsApi.reducerPath]: postsApi.reducer,
+    [authApi.reducerPath]: authApi.reducer,
     comments: commentReducer,
     auth: authReducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(postsApi.middleware),
+    getDefaultMiddleware().concat(postsApi.middleware, authApi.middleware),
 })
 
 // Infer the `RootState` and `AppDispatch` types from the store itself
