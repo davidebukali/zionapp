@@ -26,7 +26,6 @@ export function CustomTabBar({ state, descriptors, navigation }: any) {
       ]}
     >
       {state.routes.map((route: any, index: number) => {
-        const { options } = descriptors[route.key];
         const isFocused = state.index === index;
 
         const onPress = () => {

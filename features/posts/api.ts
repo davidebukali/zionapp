@@ -1,6 +1,4 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { API_BASE_URL } from '../../constants';
-import type { RootState } from '../../store/store';
+import { baseApi } from '../../services/baseApi';
 import {
   Post,
   FeedResult,
@@ -10,20 +8,7 @@ import {
   LaravelPost,
 } from './types';
 
-export const postsApi = createApi({
-  reducerPath: 'postsApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as RootState).auth?.token;
-      headers.set('Accept', 'application/json');
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
-      return headers;
-    },
-  }),
-  tagTypes: ['Post', 'Feed'],
+export const postsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getFeed: builder.query<FeedResult, { cursor?: string; perPage?: number } | void>({
       query: (arg) => {
@@ -198,6 +183,7 @@ export const postsApi = createApi({
       },
     }),
   }),
+  overrideExisting: false,
 });
 
 export const {

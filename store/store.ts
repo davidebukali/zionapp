@@ -2,18 +2,16 @@ import { configureStore } from '@reduxjs/toolkit'
 import commentReducer from '../features/comments/commentSlice'
 import authReducer from '../features/auth/authSlice'
 
-import { postsApi } from '../features/posts/api'
-import { authApi } from '../features/auth/api'
+import { baseApi } from '../services/baseApi'
 
 export const store = configureStore({
   reducer: {
-    [postsApi.reducerPath]: postsApi.reducer,
-    [authApi.reducerPath]: authApi.reducer,
+    [baseApi.reducerPath]: baseApi.reducer,
     comments: commentReducer,
     auth: authReducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(postsApi.middleware, authApi.middleware),
+    getDefaultMiddleware().concat(baseApi.middleware),
 })
 
 // Infer the `RootState` and `AppDispatch` types from the store itself

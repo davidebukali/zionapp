@@ -1,6 +1,4 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { API_BASE_URL } from '../../constants';
-import type { RootState } from '../../store/store';
+import { baseApi } from '../../services/baseApi';
 import type {
   LoginRequest,
   LoginResponse,
@@ -9,20 +7,7 @@ import type {
   MeResponse,
 } from './types';
 
-export const authApi = createApi({
-  reducerPath: 'authApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as RootState).auth?.token;
-      headers.set('Accept', 'application/json');
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
-      return headers;
-    },
-  }),
-  tagTypes: ['User'],
+export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     login: builder.mutation<LoginResponse, LoginRequest>({
       query: (credentials) => ({
@@ -43,6 +28,7 @@ export const authApi = createApi({
       providesTags: ['User'],
     }),
   }),
+  overrideExisting: false,
 });
 
 export const {
