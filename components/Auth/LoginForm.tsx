@@ -12,6 +12,7 @@ import { AuthInput } from "./AuthInput";
 import { RememberMeRow } from "./RememberMeRow";
 import { AuthButton } from "./AuthButton";
 import { AuthFooter } from "./AuthFooter";
+import { globalStyles } from "../../assets/styles/theme";
 
 type LoginFormProps = {
   initialEmail?: string;
@@ -61,7 +62,7 @@ export function LoginForm({
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={globalStyles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -110,12 +111,6 @@ export function LoginForm({
 const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 24,
   },
   formContainer: {
     width: "100%",

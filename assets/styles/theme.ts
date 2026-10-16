@@ -406,4 +406,16 @@ export const globalStyles = StyleSheet.create({
     justifyContent: "center",
     marginLeft: 8,
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 24,
+  },
+  authScrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 24,
+  },
 });
