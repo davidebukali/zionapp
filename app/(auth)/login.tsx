@@ -57,10 +57,7 @@ export default function LoginScreen() {
   };
 
   const handleForgotPassword = () => {
-    Alert.alert(
-      "Reset Password",
-      "A password reset link has been sent to your email address."
-    );
+    router.push("/(auth)/forgot-password");
   };
 
   const handleCreateAccount = () => {
