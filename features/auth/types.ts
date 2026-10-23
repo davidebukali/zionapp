@@ -78,3 +78,11 @@ export const registerSchema = z.object({
 
 export type RegisterFormData = z.infer<typeof registerSchema>;
 export type SubmissionPhase = "idle" | "creating_account" | "logging_in";
+
+export const loginSchema = z.object({
+  email: z.string().trim().email("Please enter a valid email address"),
+  password: z.string().min(1, "Please enter your password"),
+  rememberMe: z.boolean(),
+});
+
+export type LoginFormData = z.infer<typeof loginSchema>;

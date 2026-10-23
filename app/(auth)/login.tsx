@@ -7,8 +7,9 @@ import { useDispatch } from "react-redux";
 import { StatusBar } from "expo-status-bar";
 import { LoginForm } from "../../components/Auth";
 import { saveUserData } from "../../features/auth/authSlice";
-import { useLoginMutation, authApi } from "../../features/auth/api";
+import { useLoginMutation } from "../../features/auth/api";
 import { AppDispatch } from "../../store/store";
+import { LoginFormData } from "../../features/auth/types";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -18,9 +19,12 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === "dark";
 
-  const handleSignIn = async (email: string, password: string) => {
+  const handleSignIn = async (data: LoginFormData) => {
     try {
-      const response = await login({ email: email.trim(), password }).unwrap();
+      const response = await login({
+        email: data.email.trim(),
+        password: data.password,
+      }).unwrap();
       const token =
         response?.data?.token ||
         response?.token ||

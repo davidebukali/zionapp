@@ -2,7 +2,7 @@ import React from "react";
 import { View, StyleSheet } from "react-native";
 import { Button, Text, useTheme } from "react-native-paper";
 import { useDispatch, useSelector } from "react-redux";
-import { logoutUser } from "../../../features/auth/authSlice";
+import { deleteUserData } from "../../../features/auth/authSlice";
 import { AppDispatch, RootState } from "../../../store/store";
 
 export default function Settings() {
@@ -11,7 +11,7 @@ export default function Settings() {
   const user = useSelector((state: RootState) => state.auth.user);
 
   const handleLogout = () => {
-    dispatch(logoutUser());
+    dispatch(deleteUserData());
   };
 
   return (

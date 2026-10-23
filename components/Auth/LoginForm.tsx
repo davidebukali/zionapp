@@ -1,23 +1,25 @@
 import React, { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { AuthHeader } from "./AuthHeader";
 import { AuthInput } from "./AuthInput";
 import { RememberMeRow } from "./RememberMeRow";
 import { AuthButton } from "./AuthButton";
 import { AuthFooter } from "./AuthFooter";
 import { globalStyles } from "../../assets/styles/theme";
+import { LoginFormData, loginSchema } from "../../features/auth/types";
 
 type LoginFormProps = {
   initialEmail?: string;
   initialPassword?: string;
-  onSignIn?: (email: string, password: string, rememberMe: boolean) => Promise<void> | void;
+  onSignIn?: (data: LoginFormData) => Promise<void> | void;
   onForgotPassword?: () => void;
   onCreateAccount?: () => void;
 };
@@ -29,28 +31,29 @@ export function LoginForm({
   onForgotPassword,
   onCreateAccount,
 }: LoginFormProps) {
-  const [email, setEmail] = useState(initialEmail);
-  const [password, setPassword] = useState(initialPassword);
-  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  const handleSignIn = async () => {
-    if (!email.trim()) {
-      Alert.alert("Error", "Please enter your email address.");
-      return;
-    }
-    if (!password) {
-      Alert.alert("Error", "Please enter your password.");
-      return;
-    }
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: initialEmail,
+      password: initialPassword,
+      rememberMe: true,
+    },
+  });
 
+  const onSubmit = async (data: LoginFormData) => {
     try {
       setLoading(true);
       if (onSignIn) {
-        await onSignIn(email, password, rememberMe);
+        await onSignIn(data);
       }
     } catch {
-      Alert.alert("Sign In Failed", "Invalid credentials. Please try again.");
+      // Error handling is handled upstream in onSignIn
     } finally {
       setLoading(false);
     }
@@ -73,32 +76,54 @@ export function LoginForm({
         />
 
         <View style={styles.formContainer}>
-          <AuthInput
-            iconName="mail-outline"
-            placeholder="Email address"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <AuthInput
+                iconName="mail-outline"
+                placeholder="Email address"
+                keyboardType="email-address"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.email?.message}
+              />
+            )}
           />
 
-          <AuthInput
-            iconName="lock-closed-outline"
-            placeholder="Password"
-            isPassword
-            value={password}
-            onChangeText={setPassword}
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <AuthInput
+                iconName="lock-closed-outline"
+                placeholder="Password"
+                isPassword
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.password?.message}
+              />
+            )}
           />
 
-          <RememberMeRow
-            rememberMe={rememberMe}
-            onToggleRememberMe={() => setRememberMe((prev) => !prev)}
-            onForgotPassword={onForgotPassword}
+          <Controller
+            control={control}
+            name="rememberMe"
+            render={({ field: { value, onChange } }) => (
+              <RememberMeRow
+                rememberMe={value}
+                onToggleRememberMe={() => onChange(!value)}
+                onForgotPassword={onForgotPassword}
+              />
+            )}
           />
 
           <AuthButton
-            title="Sign in"
+            title={loading ? "Signing in..." : "Sign in"}
             loading={loading}
-            onPress={handleSignIn}
+            onPress={handleSubmit(onSubmit)}
           />
 
           <AuthFooter onActionPress={onCreateAccount} />
@@ -116,3 +141,4 @@ const styles = StyleSheet.create({
     width: "100%",
   },
 });
+
