@@ -13,6 +13,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
 import { StatusBar } from "expo-status-bar";
 import { useDispatch } from "react-redux";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   AuthButton,
   AuthFooter,
@@ -24,6 +27,15 @@ import { useRegisterMutation, useLoginMutation } from "../../features/auth/api";
 import { AppDispatch } from "../../store/store";
 import { globalStyles } from "../../assets/styles/theme";
 
+const registerSchema = z.object({
+  name: z.string().trim().min(2, "Full name must be at least 2 characters"),
+  email: z.string().trim().email("Please enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+type RegisterFormData = z.infer<typeof registerSchema>;
+type SubmissionPhase = "idle" | "creating_account" | "logging_in";
+
 export default function RegisterScreen() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
@@ -33,82 +45,79 @@ export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === "dark";
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submissionPhase, setSubmissionPhase] = useState<SubmissionPhase>("idle");
 
-  const handleRegister = async () => {
-    if (!name.trim()) {
-      Alert.alert("Error", "Please enter your full name.");
-      return;
-    }
-    if (!email.trim()) {
-      Alert.alert("Error", "Please enter your email address.");
-      return;
-    }
-    if (!password) {
-      Alert.alert("Error", "Please enter your password.");
-      return;
-    }
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = async (data: RegisterFormData) => {
+    const trimmedName = data.name.trim();
+    const trimmedEmail = data.email.trim();
 
     try {
-      setLoading(true);
-      const response = await registerApi({
-        name: name.trim(),
-        email: email.trim(),
-        password,
+      // Step 1: Register user on backend
+      setSubmissionPhase("creating_account");
+      const registerResponse = await registerApi({
+        name: trimmedName,
+        email: trimmedEmail,
+        password: data.password,
       }).unwrap();
 
       const user =
-        response.resource ||
-        response.data?.user || {
+        registerResponse.resource ||
+        registerResponse.data?.user || {
           id: "1",
-          email: email.trim(),
-          name: name.trim(),
+          email: trimmedEmail,
+          name: trimmedName,
         };
 
-      let token =
-        response?.data?.token ||
-        response?.token ||
-        response?.access_token ||
-        response?.data?.access_token;
+      // Step 2: Auto-login only if registration succeeded
+      setSubmissionPhase("logging_in");
+      try {
+        const loginRes = await loginApi({
+          email: trimmedEmail,
+          password: data.password,
+        }).unwrap();
 
-      // If backend registration does not issue a token directly, auto-login with credentials
-      if (!token) {
-        try {
-          const loginRes = await loginApi({
-            email: email.trim(),
-            password,
-          }).unwrap();
+        const token =
+          loginRes?.data?.token ||
+          loginRes?.token ||
+          loginRes?.access_token ||
+          loginRes?.data?.access_token;
 
-          token =
-            loginRes?.data?.token ||
-            loginRes?.token ||
-            loginRes?.access_token ||
-            loginRes?.data?.access_token;
-        } catch {
-          // If auto-login fails, inform user that account was created
-          Alert.alert(
-            "Account Created",
-            "Your account was created successfully. Please sign in.",
-            [{ text: "Sign In", onPress: () => router.replace("/(auth)/login") }]
-          );
+        if (token) {
+          await dispatch(loginUser({ token, user }));
+          router.replace("/(app)/(tabs)");
           return;
         }
-      }
-
-      if (token) {
-        await dispatch(loginUser({ token, user }));
-        router.replace("/(app)/(tabs)");
-      } else {
+      } catch {
+        // Auto-login failed: inform user that account was created
         Alert.alert(
           "Account Created",
-          "Your account was created successfully. Please sign in.",
+          "Your account was created successfully! Please sign in with your email and password.",
           [{ text: "Sign In", onPress: () => router.replace("/(auth)/login") }]
         );
+        return;
       }
+
+      // Fallback if login call completed without a usable token
+      Alert.alert(
+        "Account Created",
+        "Your account was created successfully! Please sign in with your email and password.",
+        [{ text: "Sign In", onPress: () => router.replace("/(auth)/login") }]
+      );
     } catch (err: any) {
+      // Step 1 Register failure
       const errorMsg =
         (err?.data?.errors && Object.values(err.data.errors).flat().join("\n")) ||
         err?.data?.message ||
@@ -116,9 +125,16 @@ export default function RegisterScreen() {
         "Registration failed. Please check your details and try again.";
       Alert.alert("Registration Failed", errorMsg);
     } finally {
-      setLoading(false);
+      setSubmissionPhase("idle");
     }
   };
+
+  const buttonTitle =
+    submissionPhase === "creating_account"
+      ? "Creating account..."
+      : submissionPhase === "logging_in"
+      ? "Signing you in..."
+      : "Create account";
 
   return (
     <View
@@ -151,35 +167,59 @@ export default function RegisterScreen() {
           />
 
           <View style={styles.formContainer}>
-            <AuthInput
-              iconName="person-outline"
-              placeholder="Full name"
-              value={name}
-              onChangeText={setName}
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <AuthInput
+                  iconName="person-outline"
+                  placeholder="Full name"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={errors.name?.message}
+                />
+              )}
             />
 
-            <AuthInput
-              iconName="mail-outline"
-              placeholder="Email address"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <AuthInput
+                  iconName="mail-outline"
+                  placeholder="Email address"
+                  keyboardType="email-address"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={errors.email?.message}
+                />
+              )}
             />
 
-            <AuthInput
-              iconName="lock-closed-outline"
-              placeholder="Password"
-              isPassword
-              value={password}
-              onChangeText={setPassword}
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <AuthInput
+                  iconName="lock-closed-outline"
+                  placeholder="Password"
+                  isPassword
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={errors.password?.message}
+                />
+              )}
             />
 
             <View style={styles.spacing} />
 
             <AuthButton
-              title="Create account"
-              loading={loading}
-              onPress={handleRegister}
+              title={buttonTitle}
+              loading={submissionPhase !== "idle"}
+              onPress={handleSubmit(onSubmit)}
             />
 
             <AuthFooter
