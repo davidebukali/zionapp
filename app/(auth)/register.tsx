@@ -22,7 +22,7 @@ import {
   AuthHeader,
   AuthInput,
 } from "../../components/Auth";
-import { loginUser } from "../../features/auth/authSlice";
+import { saveUserData } from "../../features/auth/authSlice";
 import { useRegisterMutation, useLoginMutation } from "../../features/auth/api";
 import { AppDispatch } from "../../store/store";
 import { globalStyles } from "../../assets/styles/theme";
@@ -32,7 +32,7 @@ export default function RegisterScreen() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const [registerApi] = useRegisterMutation();
-  const [loginApi] = useLoginMutation();
+  const [login] = useLoginMutation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === "dark";
@@ -76,7 +76,7 @@ export default function RegisterScreen() {
       // Step 2: Auto-login only if registration succeeded
       setSubmissionPhase("logging_in");
       try {
-        const loginRes = await loginApi({
+        const loginRes = await login({
           email: trimmedEmail,
           password: data.password,
         }).unwrap();
@@ -88,7 +88,7 @@ export default function RegisterScreen() {
           loginRes?.data?.access_token;
 
         if (token) {
-          await dispatch(loginUser({ token, user }));
+          await dispatch(saveUserData({ token, user }));
           router.replace("/(app)/(tabs)");
           return;
         }

@@ -35,8 +35,8 @@ export const restoreSession = createAsyncThunk(
   }
 );
 
-export const loginUser = createAsyncThunk(
-  'auth/loginUser',
+export const saveUserData = createAsyncThunk(
+  'auth/saveUserData',
   async ({ token, user }: { token: string; user?: User | null }) => {
     await SecureStore.setItemAsync(TOKEN_KEY, token);
     if (user) {
@@ -46,8 +46,8 @@ export const loginUser = createAsyncThunk(
   }
 );
 
-export const logoutUser = createAsyncThunk(
-  'auth/logoutUser',
+export const deleteUserData = createAsyncThunk(
+  'auth/deleteUserData',
   async () => {
     try {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
@@ -81,12 +81,12 @@ export const authSlice = createSlice({
         state.isAuthenticated = false;
         state.isInitializing = false;
       })
-      .addCase(loginUser.fulfilled, (state, action) => {
+      .addCase(saveUserData.fulfilled, (state, action) => {
         state.token = action.payload.token;
         state.user = action.payload.user;
         state.isAuthenticated = true;
       })
-      .addCase(logoutUser.fulfilled, (state) => {
+      .addCase(deleteUserData.fulfilled, (state) => {
         state.token = null;
         state.user = null;
         state.isAuthenticated = false;

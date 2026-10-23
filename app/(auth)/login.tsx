@@ -6,7 +6,7 @@ import { useTheme } from "react-native-paper";
 import { useDispatch } from "react-redux";
 import { StatusBar } from "expo-status-bar";
 import { LoginForm } from "../../components/Auth";
-import { loginUser } from "../../features/auth/authSlice";
+import { saveUserData } from "../../features/auth/authSlice";
 import { useLoginMutation, authApi } from "../../features/auth/api";
 import { AppDispatch } from "../../store/store";
 
@@ -38,32 +38,7 @@ export default function LoginScreen() {
         null;
 
       // Save token to SecureStore & Redux state
-      await dispatch(loginUser({ token, user: initialUser }));
-
-      // Fetch user profile from /me endpoint if not already fully provided
-      try {
-        const meResult = await dispatch(
-          authApi.endpoints.getMe.initiate(undefined, { forceRefetch: true })
-        ).unwrap();
-        const meUser = meResult.data || meResult.resource;
-        if (meUser) {
-          await dispatch(loginUser({ token, user: meUser }));
-        }
-      } catch {
-        if (!initialUser) {
-          // Fallback user if /me endpoint is not yet available
-          await dispatch(
-            loginUser({
-              token,
-              user: {
-                id: "1",
-                email: email.trim(),
-                name: email.trim().split("@")[0] || "User",
-              },
-            })
-          );
-        }
-      }
+      await dispatch(saveUserData({ token, user: initialUser }));
 
       router.replace("/(app)/(tabs)");
     } catch (err: any) {

@@ -6,7 +6,7 @@ import {
   FetchBaseQueryError,
 } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL } from '../constants';
-import { logoutUser } from '../features/auth/authSlice';
+import { deleteUserData } from '../features/auth/authSlice';
 import type { RootState } from '../store/store';
 
 const rawBaseQuery = fetchBaseQuery({
@@ -29,7 +29,7 @@ const baseQueryWithReauth: BaseQueryFn<
   const result = await rawBaseQuery(args, api, extraOptions);
   if (result.error && result.error.status === 401) {
     // Automatically log out on 401 Unauthorized
-    api.dispatch(logoutUser());
+    api.dispatch(deleteUserData());
   }
   return result;
 };
