@@ -9,8 +9,8 @@ export const ips = {
     pece: pece_ip
 }
 
-export const current_ip = ips["android"];
+export const current_ip = ips["pece"];
 
 export const API_PORT = 8000;
-export const BASE_URL = `http://${current_ip}:${API_PORT}`;
+export const BASE_URL = `http://${current_ip}`;
 export const API_BASE_URL = `${BASE_URL}/api/v1`;
