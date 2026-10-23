@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,8 +19,12 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthButton, AuthInput } from "../../components/Auth";
 import { globalStyles } from "../../assets/styles/theme";
+import {
+  useForgotPasswordMutation,
+  useVerifyCodeMutation,
+} from "../../features/auth/api";
 
-const CODE_EXPIRY_SECONDS = 300; // 5 minutes
+const CODE_EXPIRY_SECONDS = 120; // 2 minutes
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -27,10 +33,15 @@ export default function ForgotPasswordScreen() {
   const isDark = useColorScheme() === "dark";
 
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("2941"); // Initial sample code matching mockup
-  const [codeSent, setCodeSent] = useState(true); // Preview mode: displays code card as in mockup
-  const [loading] = useState(false);
+  const [emailError, setEmailError] = useState<string | undefined>();
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
   const [timeLeft, setTimeLeft] = useState(CODE_EXPIRY_SECONDS);
+
+  const [forgotPassword, { isLoading: isSendingCode }] =
+    useForgotPasswordMutation();
+  const [verifyCode, { isLoading: isVerifyingCode }] =
+    useVerifyCodeMutation();
 
   const hiddenInputRef = useRef<TextInput>(null);
 
@@ -66,30 +77,74 @@ export default function ForgotPasswordScreen() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleSendCode = () => {
-    setCodeSent(true);
-    setTimeLeft(CODE_EXPIRY_SECONDS);
-    setTimeout(() => {
-      hiddenInputRef.current?.focus();
-    }, 150);
+  const handleSendCode = async () => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setEmailError("Please enter your email address");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+
+    setEmailError(undefined);
+
+    try {
+      await forgotPassword({ email: trimmedEmail }).unwrap();
+      setCodeSent(true);
+      setCode("");
+      setTimeLeft(CODE_EXPIRY_SECONDS);
+      setTimeout(() => {
+        hiddenInputRef.current?.focus();
+      }, 150);
+    } catch (err: any) {
+      const errorMsg =
+        (err?.data?.errors && Object.values(err.data.errors).flat().join("\n")) ||
+        err?.data?.message ||
+        err?.error ||
+        "Could not send reset code. Please check your email and try again.";
+      Alert.alert("Request Failed", errorMsg);
+    }
   };
 
-  const handleCodeChange = (val: string) => {
+  const handleCodeChange = async (val: string) => {
+    if (isVerifyingCode) return;
+
     const cleaned = val.replace(/[^0-9]/g, "").slice(0, 6);
     setCode(cleaned);
 
     if (cleaned.length === 6) {
-      setTimeout(() => {
+      try {
+        await verifyCode({
+          email: email.trim(),
+          code: cleaned,
+        }).unwrap();
+
         router.push({
           pathname: "/(auth)/reset-password",
-          params: { email: email.trim() || "alex@zion.app", code: cleaned },
+          params: { email: email.trim(), code: cleaned },
         });
-      }, 150);
-    }
-  };
+      } catch (err: any) {
+        const errorMsg =
+          (err?.data?.errors && Object.values(err.data.errors).flat().join("\n")) ||
+          err?.data?.message ||
+          err?.error ||
+          "The verification code is invalid or has expired.";
 
-  const handleCirclePress = () => {
-    hiddenInputRef.current?.focus();
+        Alert.alert("Verification Failed", errorMsg, [
+          {
+            text: "Try Again",
+            onPress: () => {
+              setCode("");
+              hiddenInputRef.current?.focus();
+            },
+          },
+        ]);
+        setCode("");
+      }
+    }
   };
 
   return (
@@ -143,17 +198,22 @@ export default function ForgotPasswordScreen() {
           <View style={styles.formSection}>
             <AuthInput
               iconName="mail-outline"
-              placeholder="alex@zion.app"
+              placeholder="Email address"
               keyboardType="email-address"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (emailError) setEmailError(undefined);
+              }}
+              error={emailError}
               autoFocus={false}
+              editable={!isSendingCode}
             />
 
             {/* Send Reset Code Button */}
             <AuthButton
-              title="Send reset code"
-              loading={loading}
+              title={isSendingCode ? "Sending code..." : "Send reset code"}
+              loading={isSendingCode}
               onPress={handleSendCode}
               style={styles.sendButton}
             />
@@ -212,65 +272,81 @@ export default function ForgotPasswordScreen() {
                   Enter 6-digit code
                 </Text>
 
-                {/* Hidden TextInput for native typing */}
-                <TextInput
-                  ref={hiddenInputRef}
-                  value={code}
-                  onChangeText={handleCodeChange}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  style={styles.hiddenInput}
-                  accessibilityLabel="6-digit verification code"
-                />
+                {/* 6 Circular Code Boxes with Overlay TextInput */}
+                <View style={styles.circlesContainer}>
+                  <View style={styles.circlesRow} pointerEvents="none">
+                    {[0, 1, 2, 3, 4, 5].map((index) => {
+                      const digit = code[index] || "";
+                      const isFilled = digit.length > 0;
+                      const isActive = index === code.length && code.length < 6;
 
-                {/* 6 Circular Code Boxes */}
-                <TouchableOpacity
-                  style={styles.circlesRow}
-                  activeOpacity={1}
-                  onPress={handleCirclePress}
-                >
-                  {[0, 1, 2, 3, 4, 5].map((index) => {
-                    const digit = code[index] || "";
-                    const isFilled = digit.length > 0;
-                    const isActive = index === code.length && code.length < 6;
+                      return (
+                        <View
+                          key={index}
+                          style={[
+                            styles.codeCircle,
+                            {
+                              backgroundColor: isFilled
+                                ? isDark
+                                  ? "#140D0D"
+                                  : "#FFFFFF"
+                                : circleEmptyBg,
+                              borderColor: isFilled || isActive ? primaryColor : "transparent",
+                              borderWidth: isFilled || isActive ? 2 : 1.5,
+                            },
+                          ]}
+                        >
+                          {isFilled && (
+                            <Text style={[styles.digitText, { color: textColor }]}>
+                              {digit}
+                            </Text>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
 
-                    return (
-                      <View
-                        key={index}
-                        style={[
-                          styles.codeCircle,
-                          {
-                            backgroundColor: isFilled
-                              ? isDark
-                                ? "#140D0D"
-                                : "#FFFFFF"
-                              : circleEmptyBg,
-                            borderColor: isFilled || isActive ? primaryColor : "transparent",
-                            borderWidth: isFilled || isActive ? 2 : 1.5,
-                          },
-                        ]}
-                      >
-                        {isFilled && (
-                          <Text style={[styles.digitText, { color: textColor }]}>
-                            {digit}
-                          </Text>
-                        )}
-                      </View>
-                    );
-                  })}
-                </TouchableOpacity>
-
-                {/* Resend Link */}
-                <View style={styles.resendRow}>
-                  <Text style={[styles.resendPrompt, { color: subtitleColor }]}>
-                    Didn't receive the code?{" "}
-                  </Text>
-                  <TouchableOpacity onPress={handleSendCode} activeOpacity={0.7}>
-                    <Text style={[styles.resendLink, { color: primaryColor }]}>
-                      Resend
-                    </Text>
-                  </TouchableOpacity>
+                  {/* Transparent overlay TextInput directly capturing touches */}
+                  <TextInput
+                    ref={hiddenInputRef}
+                    value={code}
+                    onChangeText={handleCodeChange}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    editable={!isVerifyingCode}
+                    caretHidden={true}
+                    style={styles.overlayInput}
+                    accessibilityLabel="6-digit verification code"
+                  />
                 </View>
+
+                {/* Resend Link: Shown ONLY when code has expired */}
+                {isExpired && (
+                  <View style={styles.resendRow}>
+                    <Text style={[styles.resendPrompt, { color: subtitleColor }]}>
+                      Didn't receive the code?{" "}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={handleSendCode}
+                      activeOpacity={0.7}
+                      disabled={isSendingCode}
+                    >
+                      <Text style={[styles.resendLink, { color: primaryColor }]}>
+                        Resend
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Loading indicator below the code card when verifying */}
+            {isVerifyingCode && (
+              <View style={styles.verifyingContainer}>
+                <ActivityIndicator size="small" color={primaryColor} />
+                <Text style={[styles.verifyingText, { color: subtitleColor }]}>
+                  Verifying code...
+                </Text>
               </View>
             )}
 
@@ -388,17 +464,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 18,
   },
-  hiddenInput: {
-    position: "absolute",
-    width: 1,
-    height: 1,
-    opacity: 0,
+  circlesContainer: {
+    position: "relative",
+    width: "100%",
+    justifyContent: "center",
+    marginBottom: 16,
   },
   circlesRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    width: "100%",
+  },
+  overlayInput: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0,
+    fontSize: 24,
+    color: "transparent",
   },
   codeCircle: {
     width: 44,
@@ -423,6 +505,18 @@ const styles = StyleSheet.create({
   resendLink: {
     fontSize: 13,
     fontWeight: "600",
+  },
+  verifyingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -12,
+    marginBottom: 20,
+  },
+  verifyingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "500",
   },
   footerContainer: {
     alignItems: "center",

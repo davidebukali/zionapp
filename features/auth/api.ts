@@ -5,6 +5,12 @@ import type {
   RegisterRequest,
   RegisterResponse,
   MeResponse,
+  ForgotPasswordRequest,
+  ForgotPasswordResponse,
+  VerifyCodeRequest,
+  VerifyCodeResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
 } from './types';
 
 export const authApi = baseApi.injectEndpoints({
@@ -23,6 +29,27 @@ export const authApi = baseApi.injectEndpoints({
         body: userData,
       }),
     }),
+    forgotPassword: builder.mutation<ForgotPasswordResponse, ForgotPasswordRequest>({
+      query: (data) => ({
+        url: '/forgot-password',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    verifyCode: builder.mutation<VerifyCodeResponse, VerifyCodeRequest>({
+      query: (data) => ({
+        url: '/verify-code',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    resetPassword: builder.mutation<ResetPasswordResponse, ResetPasswordRequest>({
+      query: (data) => ({
+        url: '/reset-password',
+        method: 'POST',
+        body: data,
+      }),
+    }),
     getMe: builder.query<MeResponse, void>({
       query: () => '/me',
       providesTags: ['User'],
@@ -34,5 +61,9 @@ export const authApi = baseApi.injectEndpoints({
 export const {
   useLoginMutation,
   useRegisterMutation,
+  useForgotPasswordMutation,
+  useVerifyCodeMutation,
+  useResetPasswordMutation,
   useGetMeQuery,
 } = authApi;
+

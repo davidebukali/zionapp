@@ -17,6 +17,7 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthButton, AuthInput } from "../../components/Auth";
 import { globalStyles } from "../../assets/styles/theme";
+import { useResetPasswordMutation } from "../../features/auth/api";
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
@@ -25,10 +26,11 @@ export default function ResetPasswordScreen() {
   const isDark = useColorScheme() === "dark";
   const params = useLocalSearchParams<{ email?: string; code?: string }>();
 
-  const email = params.email || "alex@zion.app";
+  const email = params.email || "";
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState<string | undefined>();
-  const [loading, setLoading] = useState(false);
+
+  const [resetPassword, { isLoading }] = useResetPasswordMutation();
 
   const bgColor = isDark ? "#120E0E" : "#FFFFFF";
   const textColor = isDark ? "#FFFFFF" : "#111111";
@@ -49,21 +51,26 @@ export default function ResetPasswordScreen() {
     }
 
     setPasswordError(undefined);
-    setLoading(true);
 
     try {
-      // In design phase: simulate action
-      setTimeout(() => {
-        setLoading(false);
-        Alert.alert(
-          "Password Changed",
-          "Your password has been successfully updated. Please sign in with your new password.",
-          [{ text: "Sign In", onPress: () => router.replace("/(auth)/login") }]
-        );
-      }, 700);
-    } catch {
-      setLoading(false);
-      Alert.alert("Error", "Could not change password. Please try again.");
+      await resetPassword({
+        email: email.trim(),
+        password,
+        password_confirmation: password,
+      }).unwrap();
+
+      Alert.alert(
+        "Password Changed",
+        "Your password has been successfully updated. Please sign in with your new password.",
+        [{ text: "Sign In", onPress: () => router.replace("/(auth)/login") }]
+      );
+    } catch (err: any) {
+      const errorMsg =
+        (err?.data?.errors && Object.values(err.data.errors).flat().join("\n")) ||
+        err?.data?.message ||
+        err?.error ||
+        "Could not update password. Please try again.";
+      Alert.alert("Password Reset Failed", errorMsg);
     }
   };
 
@@ -148,8 +155,8 @@ export default function ResetPasswordScreen() {
 
             {/* Change Password Primary Button */}
             <AuthButton
-              title="Change password"
-              loading={loading}
+              title={isLoading ? "Updating password..." : "Change password"}
+              loading={isLoading}
               onPress={handleChangePassword}
               style={styles.submitButton}
             />
