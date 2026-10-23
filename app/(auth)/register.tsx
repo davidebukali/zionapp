@@ -26,15 +26,7 @@ import { loginUser } from "../../features/auth/authSlice";
 import { useRegisterMutation, useLoginMutation } from "../../features/auth/api";
 import { AppDispatch } from "../../store/store";
 import { globalStyles } from "../../assets/styles/theme";
-
-const registerSchema = z.object({
-  name: z.string().trim().min(2, "Full name must be at least 2 characters"),
-  email: z.string().trim().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
-
-type RegisterFormData = z.infer<typeof registerSchema>;
-type SubmissionPhase = "idle" | "creating_account" | "logging_in";
+import { RegisterFormData, SubmissionPhase, registerSchema } from "../../features/auth/types";
 
 export default function RegisterScreen() {
   const router = useRouter();
