@@ -5,6 +5,8 @@ import { useTheme } from "react-native-paper";
 
 import { globalStyles } from "../../../assets/styles/theme";
 import PostCard from "../../../components/Posts/PostCard";
+import PostFeedSkeleton from "../../../components/Posts/PostFeedSkeleton";
+import EmptyFeedView from "../../../components/Posts/EmptyFeedView";
 import { InfiniteScrollList } from "../../../components/InfiniteScrollList";
 import { Post } from "../../../features/posts/types";
 import {
@@ -46,6 +48,10 @@ export default function Index() {
       : shouldFallbackToPosts
       ? publicPosts
       : [];
+
+  const isInitialLoading =
+    (isFetchingFeed && !feedData) ||
+    (shouldFallbackToPosts && isFetchingPosts && !publicPosts?.length);
 
   const hasMore = Boolean(feedData?.nextCursor);
 
@@ -103,17 +109,23 @@ export default function Index() {
 
   return (
     <View style={[globalStyles.screen, { backgroundColor: theme.colors.background }]}>
-      <InfiniteScrollList
-        data={posts}
-        renderItem={renderPostItem}
-        onLoadMore={handleLoadMore}
-        isLoadingMore={isFetching && !!cursor}
-        hasMore={hasMore}
-        onRefresh={handleRefresh}
-        isRefreshing={isRefreshing}
-        contentContainerStyle={globalStyles.feedContainer}
-        showsVerticalScrollIndicator={false}
-      />
+      {isInitialLoading ? (
+        <PostFeedSkeleton count={2} />
+      ) : posts.length === 0 ? (
+        <EmptyFeedView onRefresh={handleRefresh} isRefreshing={isRefreshing} />
+      ) : (
+        <InfiniteScrollList
+          data={posts}
+          renderItem={renderPostItem}
+          onLoadMore={handleLoadMore}
+          isLoadingMore={isFetching && !!cursor}
+          hasMore={hasMore}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          contentContainerStyle={globalStyles.feedContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }
