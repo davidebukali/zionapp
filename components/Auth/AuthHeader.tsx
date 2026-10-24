@@ -1,36 +1,51 @@
 import React from "react";
 import { StyleSheet, Text, View, useColorScheme } from "react-native";
 import { useTheme } from "react-native-paper";
+import { Ionicons } from "@expo/vector-icons";
+import { globalStyles } from "../../assets/styles/theme";
 
 type AuthHeaderProps = {
   title?: string;
   subtitle?: string;
   badgeText?: string;
+  iconName?: keyof typeof Ionicons.glyphMap;
 };
 
 export function AuthHeader({
   title = "Welcome back",
   subtitle = "Sign in to pick up where you left off.",
   badgeText = "Project preview",
+  iconName,
 }: AuthHeaderProps) {
   const theme = useTheme();
   const isDark = useColorScheme() === "dark";
 
   return (
     <View style={styles.container}>
-      {/* Brand Icon Badge */}
-      <View style={styles.badgeWrapper}>
-        <View style={[styles.redCircle, { backgroundColor: theme.colors.primary }]} />
-        <View style={styles.chipTag}>
-          <View style={styles.chipDot} />
-          <Text style={styles.chipText}>{badgeText}</Text>
+      {/* Icon Badge or Brand Chip */}
+      {iconName ? (
+        <View
+          style={[
+            globalStyles.authIconBadge,
+            { backgroundColor: isDark ? "#2A1616" : "#FFEBEA" },
+          ]}
+        >
+          <Ionicons name={iconName} size={30} color={theme.colors.primary} />
         </View>
-      </View>
+      ) : (
+        <View style={styles.badgeWrapper}>
+          <View style={[styles.redCircle, { backgroundColor: theme.colors.primary }]} />
+          <View style={styles.chipTag}>
+            <View style={styles.chipDot} />
+            <Text style={styles.chipText}>{badgeText}</Text>
+          </View>
+        </View>
+      )}
 
       {/* Header Text */}
       <Text
         style={[
-          styles.title,
+          iconName ? globalStyles.authPageTitle : styles.title,
           { color: isDark ? theme.colors.onBackground : "#111111" },
         ]}
       >
@@ -38,7 +53,7 @@ export function AuthHeader({
       </Text>
       <Text
         style={[
-          styles.subtitle,
+          iconName ? globalStyles.authPageSubtitle : styles.subtitle,
           { color: isDark ? theme.colors.onSurfaceVariant : "#666666" },
         ]}
       >
