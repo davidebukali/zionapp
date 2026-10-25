@@ -40,12 +40,6 @@ export default function RootLayout() {
           }}
         />
         <Tabs.Screen
-          name="add"
-          options={{
-            title: 'Add',
-          }}
-        />
-        <Tabs.Screen
           name="notifications"
           options={{
             title: 'Alerts',

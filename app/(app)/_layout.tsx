@@ -13,5 +13,16 @@ export default function AppGroupLayout() {
     return <Redirect href="/login" />;
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="new-post"
+        options={{
+          presentation: "fullScreenModal",
+          headerShown: false,
+        }}
+      />
+    </Stack>
+  );
 }

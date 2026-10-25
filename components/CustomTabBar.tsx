@@ -1,6 +1,8 @@
+import React from "react";
 import { CommonActions } from "@react-navigation/native";
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
+import { router } from "expo-router";
 import { darkTheme, lightTheme } from "../assets/styles/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -14,6 +16,77 @@ export function CustomTabBar({ state, descriptors, navigation }: any) {
   const backgroundColor = theme.colors.surface;
   const borderColor = theme.colors.outlineVariant;
 
+  const renderTabButton = (route: any, index: number) => {
+    const isFocused = state.index === index;
+
+    const onPress = () => {
+      const event = navigation.emit({
+        type: 'tabPress',
+        target: route.key,
+        canPreventDefault: true,
+      });
+
+      if (!isFocused && !event.defaultPrevented) {
+        navigation.dispatch({
+          ...CommonActions.navigate(route.name, route.params),
+          target: state.key,
+        });
+      }
+    };
+
+    const onLongPress = () => {
+      navigation.emit({
+        type: 'tabLongPress',
+        target: route.key,
+      });
+    };
+
+    let iconName: any = 'home-outline';
+    let label = 'Home';
+
+    if (route.name === 'index') {
+      iconName = isFocused ? 'home' : 'home-outline';
+      label = 'Home';
+    } else if (route.name === 'discover') {
+      iconName = isFocused ? 'search' : 'search-outline';
+      label = 'Discover';
+    } else if (route.name === 'notifications') {
+      iconName = isFocused ? 'notifications' : 'notifications-outline';
+      label = 'Alerts';
+    } else if (route.name === 'settings') {
+      iconName = isFocused ? 'person' : 'person-outline';
+      label = 'Me';
+    }
+
+    const color = isFocused ? activeColor : inactiveColor;
+
+    return (
+      <TouchableOpacity
+        key={route.key}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        style={styles.tabButton}
+        activeOpacity={0.7}
+      >
+        <Ionicons name={iconName} size={24} color={color} />
+        <Text style={[styles.tabLabel, { color }]}>{label}</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderAddButton = () => (
+    <TouchableOpacity
+      key="custom-add-button"
+      onPress={() => router.push('/new-post')}
+      style={styles.addButtonContainer}
+      activeOpacity={0.8}
+    >
+      <View style={[styles.addButton, { backgroundColor: activeColor, shadowColor: activeColor }]}>
+        <Ionicons name="add" size={32} color={theme.colors.onPrimary} />
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <View
       style={[
@@ -25,79 +98,12 @@ export function CustomTabBar({ state, descriptors, navigation }: any) {
         },
       ]}
     >
-      {state.routes.map((route: any, index: number) => {
-        const isFocused = state.index === index;
-
-        const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
-
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.dispatch({
-              ...CommonActions.navigate(route.name, route.params),
-              target: state.key,
-            });
-          }
-        };
-
-        const onLongPress = () => {
-          navigation.emit({
-            type: 'tabLongPress',
-            target: route.key,
-          });
-        };
-
-        if (route.name === 'add') {
-          return (
-            <TouchableOpacity
-              key={route.key}
-              onPress={onPress}
-              onLongPress={onLongPress}
-              style={styles.addButtonContainer}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.addButton, { backgroundColor: activeColor, shadowColor: activeColor }]}>
-                <Ionicons name="add" size={32} color={theme.colors.onPrimary} />
-              </View>
-            </TouchableOpacity>
-          );
-        }
-
-        let iconName: any = 'home-outline';
-        let label = 'Home';
-
-        if (route.name === 'index') {
-          iconName = isFocused ? 'home' : 'home-outline';
-          label = 'Home';
-        } else if (route.name === 'discover') {
-          iconName = isFocused ? 'search' : 'search-outline';
-          label = 'Discover';
-        } else if (route.name === 'notifications') {
-          iconName = isFocused ? 'notifications' : 'notifications-outline';
-          label = 'Alerts';
-        } else if (route.name === 'settings') {
-          iconName = isFocused ? 'person' : 'person-outline';
-          label = 'Me';
-        }
-
-        const color = isFocused ? activeColor : inactiveColor;
-
-        return (
-          <TouchableOpacity
-            key={route.key}
-            onPress={onPress}
-            onLongPress={onLongPress}
-            style={styles.tabButton}
-            activeOpacity={0.7}
-          >
-            <Ionicons name={iconName} size={24} color={color} />
-            <Text style={[styles.tabLabel, { color }]}>{label}</Text>
-          </TouchableOpacity>
-        );
-      })}
+      {state.routes.map((route: any, index: number) => (
+        <React.Fragment key={route.key}>
+          {index === 2 && renderAddButton()}
+          {renderTabButton(route, index)}
+        </React.Fragment>
+      ))}
     </View>
   );
 }
