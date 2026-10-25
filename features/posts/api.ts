@@ -6,6 +6,12 @@ import {
   PostsListResponse,
   normalizePost,
   LaravelPost,
+  UploadUrlRequest,
+  UploadUrlResponse,
+  ConfirmMediaRequest,
+  ConfirmMediaResponse,
+  CreatePostRequest,
+  CreatePostResponse,
 } from './types';
 
 export const postsApi = baseApi.injectEndpoints({
@@ -182,6 +188,36 @@ export const postsApi = baseApi.injectEndpoints({
         );
       },
     }),
+
+    getMediaUploadUrl: builder.mutation<UploadUrlResponse, UploadUrlRequest>({
+      query: (body) => ({
+        url: '/media/upload-url',
+        method: 'POST',
+        body,
+      }),
+    }),
+
+    confirmMediaUpload: builder.mutation<ConfirmMediaResponse, ConfirmMediaRequest>({
+      query: ({ mediaId, checksum }) => ({
+        url: `/media/${mediaId}/confirm`,
+        method: 'POST',
+        body: { checksum },
+      }),
+    }),
+
+    createPost: builder.mutation<Post, CreatePostRequest>({
+      query: (body) => ({
+        url: '/posts',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: CreatePostResponse | any): Post =>
+        normalizePost(response?.data || response),
+      invalidatesTags: [
+        { type: 'Feed', id: 'LIST' },
+        { type: 'Post', id: 'LIST' },
+      ],
+    }),
   }),
   overrideExisting: false,
 });
@@ -192,4 +228,7 @@ export const {
   useGetPostQuery,
   useToggleLikePostMutation,
   useIncrementPostCommentCountMutation,
+  useGetMediaUploadUrlMutation,
+  useConfirmMediaUploadMutation,
+  useCreatePostMutation,
 } = postsApi;

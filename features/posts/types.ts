@@ -107,3 +107,43 @@ export function normalizePost(raw: LaravelPost, fallbackDate?: string): Post {
     updatedAt,
   };
 }
+
+export interface UploadUrlRequest {
+  filename: string;
+  mime_type: string;
+  size: number;
+}
+
+export interface UploadUrlResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    id: string;
+    upload_url: string;
+  };
+}
+
+export interface ConfirmMediaRequest {
+  mediaId: string;
+  checksum: string;
+}
+
+export interface ConfirmMediaResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    id: string;
+    status: string;
+  };
+}
+
+export interface CreatePostRequest {
+  content: string;
+  media_ids?: string[];
+}
+
+export interface CreatePostResponse {
+  success: boolean;
+  message?: string;
+  data: LaravelPost;
+}
