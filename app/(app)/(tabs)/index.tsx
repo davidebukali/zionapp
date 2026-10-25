@@ -7,6 +7,7 @@ import { globalStyles } from "../../../assets/styles/theme";
 import PostCard from "../../../components/Posts/PostCard";
 import PostFeedSkeleton from "../../../components/Posts/PostFeedSkeleton";
 import EmptyFeedView from "../../../components/Posts/EmptyFeedView";
+import ErrorStateView from "../../../components/Common/ErrorStateView";
 import { InfiniteScrollList } from "../../../components/InfiniteScrollList";
 import { Post } from "../../../features/posts/types";
 import {
@@ -14,6 +15,7 @@ import {
   useGetPostsQuery,
   useToggleLikePostMutation,
 } from "../../../features/posts/api";
+import { isNetworkError } from "../../../utils/network";
 
 export default function Index() {
   const theme = useTheme();
@@ -26,16 +28,23 @@ export default function Index() {
     data: feedData,
     isFetching: isFetchingFeed,
     isError: isFeedError,
+    error: feedError,
     refetch: refetchFeed,
   } = useGetFeedQuery({ cursor });
 
-  // Fallback to public posts if feed is empty or unpopulated
+  // Skip public posts fallback if feed failed specifically due to a network connection error
+  const isFeedNetworkError = isNetworkError(feedError);
+
   const shouldFallbackToPosts =
-    !isFetchingFeed && (isFeedError || (feedData?.posts && feedData.posts.length === 0));
+    !isFetchingFeed &&
+    !isFeedNetworkError &&
+    (isFeedError || (feedData?.posts && feedData.posts.length === 0));
 
   const {
     data: publicPosts = [],
     isFetching: isFetchingPosts,
+    isError: isPostsError,
+    error: postsError,
     refetch: refetchPosts,
   } = useGetPostsQuery(undefined, { skip: !shouldFallbackToPosts });
 
@@ -52,6 +61,9 @@ export default function Index() {
   const isInitialLoading =
     (isFetchingFeed && !feedData) ||
     (shouldFallbackToPosts && isFetchingPosts && !publicPosts?.length);
+
+  const hasError = isFeedError || (shouldFallbackToPosts && isPostsError);
+  const activeError = feedError || postsError;
 
   const hasMore = Boolean(feedData?.nextCursor);
 
@@ -111,6 +123,12 @@ export default function Index() {
     <View style={[globalStyles.screen, { backgroundColor: theme.colors.background }]}>
       {isInitialLoading ? (
         <PostFeedSkeleton count={2} />
+      ) : hasError && posts.length === 0 ? (
+        <ErrorStateView
+          error={activeError}
+          onRetry={handleRefresh}
+          isRetrying={isRefreshing}
+        />
       ) : posts.length === 0 ? (
         <EmptyFeedView onRefresh={handleRefresh} isRefreshing={isRefreshing} />
       ) : (

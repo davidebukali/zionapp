@@ -9,6 +9,7 @@ import { Provider, useDispatch, useSelector } from "react-redux";
 import { darkTheme, lightTheme } from "../assets/styles/theme";
 import { store, RootState, AppDispatch } from "../store/store";
 import { restoreSession } from "../features/auth/authSlice";
+import { GlobalOfflineBanner } from "../components/Common/GlobalOfflineBanner";
 
 // Prevent splash screen from auto-hiding while restoring session
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -47,6 +48,7 @@ export default function RootLayout() {
           style={colorScheme === "dark" ? "light" : "dark"}
           backgroundColor={theme.colors.background}
         />
+        <GlobalOfflineBanner />
         <RootNavigation />
       </PaperProvider>
     </Provider>
