@@ -4,6 +4,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -20,6 +21,7 @@ import { useTheme } from "react-native-paper";
 import { useSelector } from "react-redux";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
+import EmojiPicker, { EmojiType } from "rn-emoji-keyboard";
 
 import { globalStyles } from "../../assets/styles/theme";
 import { RootState } from "../../store/store";
@@ -41,8 +43,18 @@ export default function NewPostScreen() {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
   const [reviewIndex, setReviewIndex] = useState(0);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
   const user = useSelector((state: RootState) => state.auth.user);
+
+  const handleEmojiSelected = (emojiObject: EmojiType) => {
+    setContent((prev) => (prev + emojiObject.emoji).slice(0, MAX_CHARACTERS));
+  };
+
+  const handleOpenEmojiPicker = () => {
+    Keyboard.dismiss();
+    setIsEmojiPickerOpen(true);
+  };
 
   const getInitials = () => {
     if (user?.name) {
@@ -346,6 +358,7 @@ export default function NewPostScreen() {
             <TouchableOpacity
               accessibilityLabel="Add emoji"
               style={styles.actionIconButton}
+              onPress={handleOpenEmojiPicker}
               activeOpacity={0.7}
             >
               <Ionicons
@@ -435,6 +448,31 @@ export default function NewPostScreen() {
           />
         </View>
       </Modal>
+
+      {/* Emoji Keyboard Picker */}
+      <EmojiPicker
+        open={isEmojiPickerOpen}
+        onClose={() => setIsEmojiPickerOpen(false)}
+        onEmojiSelected={handleEmojiSelected}
+        theme={{
+          backdrop: "rgba(0, 0, 0, 0.6)",
+          container: theme.colors.surface,
+          header: theme.colors.onSurface,
+          knob: theme.colors.outline,
+          category: {
+            icon: theme.colors.onSurfaceVariant,
+            iconActive: theme.colors.primary,
+            container: "transparent",
+            containerActive: theme.colors.primaryContainer,
+          },
+          search: {
+            background: theme.colors.surfaceVariant,
+            text: theme.colors.onSurface,
+            placeholder: theme.colors.onSurfaceVariant,
+            icon: theme.colors.onSurfaceVariant,
+          },
+        }}
+      />
     </View>
   );
 }
