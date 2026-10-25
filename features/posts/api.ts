@@ -159,7 +159,6 @@ export const postsApi = baseApi.injectEndpoints({
           patchSingle.undo();
         }
       },
-      invalidatesTags: (result, error, { postId }) => [{ type: 'Post', id: postId }],
     }),
 
     incrementPostCommentCount: builder.mutation<
