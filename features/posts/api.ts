@@ -14,43 +14,92 @@ import {
   CreatePostResponse,
 } from './types';
 
+// ============================================================================
+// Cache Helper: Synchronize Post Changes Across Feeds & Detail Caches
+// ============================================================================
+
+/**
+ * Optimistically updates a post across all active RTK Query caches
+ * (feed list, public posts list, and single post query).
+ *
+ * Returns an undo function that reverts all patched caches if an API call fails.
+ */
+function updatePostInCaches(
+  dispatch: any,
+  postId: string,
+  updater: (post: Post) => void
+): () => void {
+  // 1. Patch personalized feed cache
+  const patchFeed = dispatch(
+    postsApi.util.updateQueryData('getFeed', undefined as any, (draft) => {
+      const post = draft?.posts?.find((p) => p.id === postId);
+      if (post) updater(post);
+    })
+  );
+
+  // 2. Patch public posts cache (used as fallback when feed is empty)
+  const patchPosts = dispatch(
+    postsApi.util.updateQueryData('getPosts', undefined as any, (draft) => {
+      if (!Array.isArray(draft)) return;
+      const post = draft.find((p) => p.id === postId);
+      if (post) updater(post);
+    })
+  );
+
+  // 3. Patch single post detail cache (if currently open)
+  const patchSingle = dispatch(
+    postsApi.util.updateQueryData('getPost', postId, (draft) => {
+      if (draft) updater(draft);
+    })
+  );
+
+  return () => {
+    patchFeed.undo();
+    patchPosts.undo();
+    patchSingle.undo();
+  };
+}
+
+// ============================================================================
+// Posts API Slice Endpoints
+// ============================================================================
+
 export const postsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    // ------------------------------------------------------------------------
+    // Queries
+    // ------------------------------------------------------------------------
+
+    /**
+     * Personalized Home Feed with cursor-based pagination.
+     */
     getFeed: builder.query<FeedResult, { cursor?: string; perPage?: number } | void>({
-      query: (arg) => {
-        const cursor = arg && 'cursor' in arg ? arg.cursor : undefined;
-        const perPage = arg && 'perPage' in arg && arg.perPage ? arg.perPage : 20;
-        const queryParams = new URLSearchParams();
-        queryParams.append('per_page', String(perPage));
-        if (cursor) {
-          queryParams.append('cursor', cursor);
-        }
-        return `/feed?${queryParams.toString()}`;
-      },
+      query: (arg) => ({
+        url: '/feed',
+        params: {
+          per_page: arg?.perPage ?? 20,
+          cursor: arg?.cursor,
+        },
+      }),
       transformResponse: (response: FeedResponse): FeedResult => {
         const items = response?.data || [];
-        const posts = items.map((item) => normalizePost(item.post, item.published_at));
         return {
-          posts,
+          posts: items.map((item) => normalizePost(item.post, item.published_at)),
           nextCursor: response?.meta?.next_cursor ?? null,
         };
       },
       serializeQueryArgs: ({ endpointName }) => endpointName,
+      // Merge subsequent pages into existing feed without duplicating post IDs
       merge: (currentCache, newItems, { arg }) => {
-        const cursor = arg && 'cursor' in arg ? arg.cursor : undefined;
-        if (!cursor) {
+        if (!arg?.cursor) {
           return newItems;
         }
         const existingIds = new Set(currentCache.posts.map((p) => p.id));
-        const filteredNewItems = newItems.posts.filter((p) => !existingIds.has(p.id));
-        currentCache.posts.push(...filteredNewItems);
+        const filtered = newItems.posts.filter((p) => !existingIds.has(p.id));
+        currentCache.posts.push(...filtered);
         currentCache.nextCursor = newItems.nextCursor;
       },
-      forceRefetch({ currentArg, previousArg }) {
-        const currentCursor = currentArg && 'cursor' in currentArg ? currentArg.cursor : undefined;
-        const previousCursor = previousArg && 'cursor' in previousArg ? previousArg.cursor : undefined;
-        return currentCursor !== previousCursor;
-      },
+      forceRefetch: ({ currentArg, previousArg }) => currentArg?.cursor !== previousArg?.cursor,
       providesTags: (result) =>
         result
           ? [
@@ -60,12 +109,17 @@ export const postsApi = baseApi.injectEndpoints({
           : [{ type: 'Feed', id: 'LIST' }],
     }),
 
+    /**
+     * Public Posts Feed with offset-based pagination.
+     */
     getPosts: builder.query<Post[], { page?: number; limit?: number } | void>({
-      query: (arg) => {
-        const page = arg && 'page' in arg && arg.page ? arg.page : 1;
-        const limit = arg && 'limit' in arg && arg.limit ? arg.limit : 15;
-        return `/posts?page=${page}&per_page=${limit}`;
-      },
+      query: (arg) => ({
+        url: '/posts',
+        params: {
+          page: arg?.page ?? 1,
+          per_page: arg?.limit ?? 15,
+        },
+      }),
       transformResponse: (response: PostsListResponse | LaravelPost[] | any): Post[] => {
         const rawPosts = Array.isArray(response)
           ? response
@@ -74,19 +128,15 @@ export const postsApi = baseApi.injectEndpoints({
       },
       serializeQueryArgs: ({ endpointName }) => endpointName,
       merge: (currentCache, newItems, { arg }) => {
-        const page = arg && 'page' in arg ? arg.page : 1;
-        if (page === 1) {
+        if ((arg?.page ?? 1) === 1) {
           return newItems;
         }
-        const existingIds = new Set(currentCache.map((post) => post.id));
-        const filteredNewItems = newItems.filter((post) => !existingIds.has(post.id));
-        return [...currentCache, ...filteredNewItems];
+        const existingIds = new Set(currentCache.map((p) => p.id));
+        const filtered = newItems.filter((p) => !existingIds.has(p.id));
+        return [...currentCache, ...filtered];
       },
-      forceRefetch({ currentArg, previousArg }) {
-        const currentPage = currentArg && 'page' in currentArg ? currentArg.page : 1;
-        const prevPage = previousArg && 'page' in previousArg ? previousArg.page : 1;
-        return currentPage !== prevPage;
-      },
+      forceRefetch: ({ currentArg, previousArg }) =>
+        (currentArg?.page ?? 1) !== (previousArg?.page ?? 1),
       providesTags: (result) =>
         result
           ? [
@@ -96,13 +146,23 @@ export const postsApi = baseApi.injectEndpoints({
           : [{ type: 'Post', id: 'LIST' }],
     }),
 
+    /**
+     * Fetch single post by ID.
+     */
     getPost: builder.query<Post, string>({
       query: (postId) => `/posts/${postId}`,
       transformResponse: (response: any) =>
         normalizePost(response?.data || response?.resource || response),
-      providesTags: (result, error, postId) => [{ type: 'Post', id: postId }],
+      providesTags: (_result, _error, postId) => [{ type: 'Post', id: postId }],
     }),
 
+    // ------------------------------------------------------------------------
+    // Micro-Interactions (Optimistic Updates, No Tag Invalidation)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Toggle like status on a post with instant optimistic feedback.
+     */
     toggleLikePost: builder.mutation<
       { success: boolean; message?: string },
       { postId: string; liked: boolean; likes?: string }
@@ -114,80 +174,45 @@ export const postsApi = baseApi.injectEndpoints({
       async onQueryStarted({ postId, liked }, { dispatch, queryFulfilled }) {
         const nextLiked = !liked;
 
-        // Optimistically update getFeed cache
-        const patchFeed = dispatch(
-          postsApi.util.updateQueryData('getFeed', undefined as any, (draft) => {
-            if (!draft?.posts) return;
-            const post = draft.posts.find((p) => p.id === postId);
-            if (post) {
-              post.liked = nextLiked;
-              const currentNum = parseInt(post.likes || '0', 10) || 0;
-              post.likes = String(nextLiked ? currentNum + 1 : Math.max(0, currentNum - 1));
-            }
-          })
-        );
-
-        // Optimistically update getPosts cache
-        const patchPosts = dispatch(
-          postsApi.util.updateQueryData('getPosts', undefined as any, (draft) => {
-            if (!Array.isArray(draft)) return;
-            const post = draft.find((p) => p.id === postId);
-            if (post) {
-              post.liked = nextLiked;
-              const currentNum = parseInt(post.likes || '0', 10) || 0;
-              post.likes = String(nextLiked ? currentNum + 1 : Math.max(0, currentNum - 1));
-            }
-          })
-        );
-
-        // Optimistically update single getPost cache if present
-        const patchSingle = dispatch(
-          postsApi.util.updateQueryData('getPost', postId, (draft) => {
-            if (draft) {
-              draft.liked = nextLiked;
-              const currentNum = parseInt(draft.likes || '0', 10) || 0;
-              draft.likes = String(nextLiked ? currentNum + 1 : Math.max(0, currentNum - 1));
-            }
-          })
-        );
+        // Optimistically flip liked boolean and adjust like counter
+        const undo = updatePostInCaches(dispatch, postId, (post) => {
+          post.liked = nextLiked;
+          const current = parseInt(post.likes || '0', 10) || 0;
+          post.likes = String(nextLiked ? current + 1 : Math.max(0, current - 1));
+        });
 
         try {
           await queryFulfilled;
         } catch {
-          patchFeed.undo();
-          patchPosts.undo();
-          patchSingle.undo();
+          // Roll back optimistic cache changes if server request fails
+          undo();
         }
       },
     }),
 
+    /**
+     * Optimistically increment comment counter when a new comment is posted.
+     */
     incrementPostCommentCount: builder.mutation<
       void,
       { postId: string; comments?: string }
     >({
       queryFn: () => ({ data: undefined }),
       async onQueryStarted({ postId }, { dispatch }) {
-        dispatch(
-          postsApi.util.updateQueryData('getFeed', undefined as any, (draft) => {
-            const post = draft?.posts?.find((p) => p.id === postId);
-            if (post) {
-              const current = parseInt(post.comments || '0', 10) || 0;
-              post.comments = String(current + 1);
-            }
-          })
-        );
-        dispatch(
-          postsApi.util.updateQueryData('getPosts', undefined as any, (draft) => {
-            const post = draft?.find((p) => p.id === postId);
-            if (post) {
-              const current = parseInt(post.comments || '0', 10) || 0;
-              post.comments = String(current + 1);
-            }
-          })
-        );
+        updatePostInCaches(dispatch, postId, (post) => {
+          const current = parseInt(post.comments || '0', 10) || 0;
+          post.comments = String(current + 1);
+        });
       },
     }),
 
+    // ------------------------------------------------------------------------
+    // Post Publishing & Media Upload Pipeline
+    // ------------------------------------------------------------------------
+
+    /**
+     * Step 1: Request pre-signed direct upload URL for media attachment.
+     */
     getMediaUploadUrl: builder.mutation<UploadUrlResponse, UploadUrlRequest>({
       query: (body) => ({
         url: '/media/upload-url',
@@ -196,6 +221,9 @@ export const postsApi = baseApi.injectEndpoints({
       }),
     }),
 
+    /**
+     * Step 2: Confirm storage upload completion with SHA-256 checksum.
+     */
     confirmMediaUpload: builder.mutation<ConfirmMediaResponse, ConfirmMediaRequest>({
       query: ({ mediaId, checksum }) => ({
         url: `/media/${mediaId}/confirm`,
@@ -204,6 +232,10 @@ export const postsApi = baseApi.injectEndpoints({
       }),
     }),
 
+    /**
+     * Step 3: Create post with content and confirmed media IDs.
+     * Invalidates Feed and Post lists so newly published post appears at top.
+     */
     createPost: builder.mutation<Post, CreatePostRequest>({
       query: (body) => ({
         url: '/posts',
@@ -220,6 +252,10 @@ export const postsApi = baseApi.injectEndpoints({
   }),
   overrideExisting: false,
 });
+
+// ============================================================================
+// Auto-Generated React Hooks
+// ============================================================================
 
 export const {
   useGetFeedQuery,
