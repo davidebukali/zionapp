@@ -9,6 +9,7 @@ import {
 import { useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
+import { globalStyles } from "../../../assets/styles/theme";
 import { MediaItem } from "../../../hooks/useCreatePostComposer";
 
 interface MediaCollageProps {
@@ -34,19 +35,33 @@ export function MediaCollage({ items, onEdit, onRemoveAll }: MediaCollageProps) 
   );
 
   return (
-    <View style={styles.collageContainer}>
-      {/* Floating Action Buttons */}
+    <View
+      style={[
+        styles.collageContainer,
+        { borderRadius: 18 },
+      ]}
+    >
+      {/* Floating Action Controls */}
       <View style={styles.collageControls}>
         <TouchableOpacity
-          style={[styles.controlButton, { backgroundColor: theme.colors.surfaceVariant }]}
+          style={[
+            globalStyles.postIconButton,
+            styles.floatingButton,
+            { backgroundColor: theme.colors.surfaceVariant },
+          ]}
           onPress={onEdit}
           activeOpacity={0.8}
           accessibilityLabel="Edit attached media"
         >
           <Ionicons name="pencil" size={16} color={theme.colors.onSurface} />
         </TouchableOpacity>
+
         <TouchableOpacity
-          style={[styles.controlButton, { backgroundColor: theme.colors.surfaceVariant }]}
+          style={[
+            globalStyles.postIconButton,
+            styles.floatingButton,
+            { backgroundColor: theme.colors.surfaceVariant },
+          ]}
           onPress={onRemoveAll}
           activeOpacity={0.8}
           accessibilityLabel="Remove all attached media"
@@ -55,7 +70,11 @@ export function MediaCollage({ items, onEdit, onRemoveAll }: MediaCollageProps) 
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity activeOpacity={0.9} onPress={onEdit} style={styles.collagePressable}>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={onEdit}
+        style={[styles.collagePressable, { borderRadius: 18 }]}
+      >
         {items.length === 1 && (
           <View style={styles.singleContainer}>
             {renderThumbnail(items[0], 0)}
@@ -97,7 +116,6 @@ const styles = StyleSheet.create({
   collageContainer: {
     marginTop: 16,
     position: "relative",
-    borderRadius: 18,
     overflow: "hidden",
   },
   collageControls: {
@@ -108,12 +126,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
-  controlButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
+  floatingButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     elevation: 4,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
@@ -121,13 +137,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   collagePressable: {
-    borderRadius: 18,
     overflow: "hidden",
   },
   singleContainer: {
     width: "100%",
     height: 240,
-    borderRadius: 18,
     overflow: "hidden",
   },
   twoContainer: {
@@ -135,7 +149,6 @@ const styles = StyleSheet.create({
     height: 200,
     flexDirection: "row",
     gap: 6,
-    borderRadius: 18,
     overflow: "hidden",
   },
   threeContainer: {
@@ -143,7 +156,6 @@ const styles = StyleSheet.create({
     height: 230,
     flexDirection: "row",
     gap: 6,
-    borderRadius: 18,
     overflow: "hidden",
   },
   multiContainer: {
@@ -151,7 +163,6 @@ const styles = StyleSheet.create({
     height: 240,
     flexDirection: "row",
     gap: 6,
-    borderRadius: 18,
     overflow: "hidden",
   },
   heroColumn: {

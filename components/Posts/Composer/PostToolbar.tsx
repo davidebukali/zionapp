@@ -1,8 +1,10 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
+
+import { globalStyles } from "../../../assets/styles/theme";
 
 interface PostToolbarProps {
   onPickMedia: () => void;
@@ -23,17 +25,19 @@ export function PostToolbar({
   return (
     <View
       style={[
-        styles.toolbar,
+        globalStyles.row,
         {
           backgroundColor: theme.colors.background,
+          paddingHorizontal: 20,
+          paddingTop: 12,
           paddingBottom: Math.max(insets.bottom, 12),
         },
       ]}
     >
-      <View style={styles.actionGroup}>
+      <View style={[globalStyles.postActionGroup, { gap: 16 }]}>
         <TouchableOpacity
           accessibilityLabel="Add media from gallery"
-          style={styles.actionButton}
+          style={globalStyles.postIconButton}
           onPress={onPickMedia}
           disabled={disabled}
           activeOpacity={0.7}
@@ -43,7 +47,7 @@ export function PostToolbar({
 
         <TouchableOpacity
           accessibilityLabel="Mention"
-          style={styles.actionButton}
+          style={globalStyles.postIconButton}
           disabled={disabled}
           activeOpacity={0.7}
         >
@@ -52,7 +56,7 @@ export function PostToolbar({
 
         <TouchableOpacity
           accessibilityLabel="Add emoji"
-          style={styles.actionButton}
+          style={globalStyles.postIconButton}
           onPress={onOpenEmoji}
           disabled={disabled}
           activeOpacity={0.7}
@@ -61,34 +65,14 @@ export function PostToolbar({
         </TouchableOpacity>
       </View>
 
-      <Text style={[styles.charCounter, { color: theme.colors.onSurfaceVariant }]}>
+      <Text
+        style={[
+          globalStyles.postActionText,
+          { color: theme.colors.onSurfaceVariant, fontSize: 14, fontWeight: "500" },
+        ]}
+      >
         {remainingChars}
       </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  toolbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 12,
-  },
-  actionGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 20,
-  },
-  actionButton: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  charCounter: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-});

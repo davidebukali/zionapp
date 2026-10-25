@@ -10,8 +10,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
+import { globalStyles } from "../../../assets/styles/theme";
 import { MediaItem } from "../../../hooks/useCreatePostComposer";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -34,6 +36,7 @@ export function MediaReviewModal({
   onDeleteItem,
 }: MediaReviewModalProps) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
 
   return (
     <Modal
@@ -44,34 +47,54 @@ export function MediaReviewModal({
     >
       <View
         style={[
-          styles.container,
-          { paddingTop: insets.top, paddingBottom: insets.bottom },
+          globalStyles.screen,
+          {
+            backgroundColor: "#000000",
+            paddingTop: insets.top,
+            paddingBottom: insets.bottom,
+          },
         ]}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[globalStyles.row, { height: 54, paddingHorizontal: 16 }]}>
           <TouchableOpacity
             onPress={onClose}
-            style={styles.closeButton}
+            style={globalStyles.postIconButton}
             accessibilityLabel="Close media review"
           >
             <Ionicons name="close" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
-          <Text style={styles.counterText}>
+          <Text
+            style={[
+              globalStyles.postActionText,
+              { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+            ]}
+          >
             {items.length > 0 ? `${currentIndex + 1} / ${items.length}` : ""}
           </Text>
 
-          <View style={styles.actions}>
+          <View style={[globalStyles.postActionGroup, { gap: 14 }]}>
             <TouchableOpacity
               onPress={onDeleteItem}
-              style={styles.deleteButton}
+              style={globalStyles.postIconButton}
               accessibilityLabel="Delete item"
             >
               <Ionicons name="trash-outline" size={22} color="#FF6B6B" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={onClose} style={styles.doneButton}>
-              <Text style={styles.doneText}>Done</Text>
+
+            <TouchableOpacity
+              onPress={onClose}
+              style={{
+                backgroundColor: theme.colors.primary,
+                paddingHorizontal: 16,
+                paddingVertical: 7,
+                borderRadius: 16,
+              }}
+            >
+              <Text style={[globalStyles.primaryButtonText, { fontSize: 14 }]}>
+                Done
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -95,7 +118,11 @@ export function MediaReviewModal({
           }}
           renderItem={({ item }) => (
             <View style={[styles.page, { width: SCREEN_WIDTH }]}>
-              <Image source={{ uri: item.uri }} style={styles.fullImage} resizeMode="contain" />
+              <Image
+                source={{ uri: item.uri }}
+                style={styles.fullImage}
+                resizeMode="contain"
+              />
             </View>
           )}
         />
@@ -105,47 +132,6 @@ export function MediaReviewModal({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000000",
-  },
-  header: {
-    height: 54,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  counterText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  actions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  deleteButton: {
-    padding: 6,
-  },
-  doneButton: {
-    backgroundColor: "#DE3A3A",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  doneText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
-  },
   page: {
     flex: 1,
     alignItems: "center",

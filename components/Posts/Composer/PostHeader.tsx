@@ -1,13 +1,14 @@
 import React from "react";
 import {
   ActivityIndicator,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
+
+import { globalStyles } from "../../../assets/styles/theme";
 
 interface PostHeaderProps {
   onClose: () => void;
@@ -27,15 +28,16 @@ export function PostHeader({
   const theme = useTheme();
 
   return (
-    <View style={styles.header}>
+    <View style={[globalStyles.row, { height: 56, paddingHorizontal: 16 }]}>
       <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel="Close"
         disabled={isPosting}
         onPress={onClose}
         style={[
-          styles.closeButton,
+          globalStyles.postIconButton,
           {
+            borderRadius: 20,
             backgroundColor: theme.colors.surfaceVariant,
             opacity: isPosting ? 0.5 : 1,
           },
@@ -45,7 +47,12 @@ export function PostHeader({
         <Ionicons name="close" size={22} color={theme.colors.onSurface} />
       </TouchableOpacity>
 
-      <Text style={[styles.headerTitle, { color: theme.colors.onBackground }]}>
+      <Text
+        style={[
+          globalStyles.commentsHeaderTitle,
+          { color: theme.colors.onBackground, textAlign: "center" },
+        ]}
+      >
         New post
       </Text>
 
@@ -54,29 +61,35 @@ export function PostHeader({
         accessibilityLabel="Post"
         disabled={disabled}
         onPress={onPublish}
-        style={[
-          styles.postButton,
-          {
-            backgroundColor: theme.colors.primary,
-            shadowColor: theme.colors.primary,
-            opacity: disabled ? 0.6 : 1,
-          },
-        ]}
+        style={{
+          minHeight: 40,
+          paddingHorizontal: 18,
+          borderRadius: 20,
+          backgroundColor: theme.colors.primary,
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: disabled ? 0.6 : 1,
+          elevation: 4,
+          shadowColor: theme.colors.primary,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 6,
+        }}
         activeOpacity={0.8}
       >
         {isPosting ? (
-          <View style={styles.postingContainer}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
             <ActivityIndicator
               size="small"
               color={theme.colors.onPrimary}
-              style={styles.spinner}
+              style={{ marginRight: 6 }}
             />
-            <Text style={[styles.postButtonText, { color: theme.colors.onPrimary }]}>
+            <Text style={[globalStyles.primaryButtonText, { fontSize: 15 }]}>
               {postingStatus || "Posting..."}
             </Text>
           </View>
         ) : (
-          <Text style={[styles.postButtonText, { color: theme.colors.onPrimary }]}>
+          <Text style={[globalStyles.primaryButtonText, { fontSize: 15 }]}>
             Post
           </Text>
         )}
@@ -84,47 +97,3 @@ export function PostHeader({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    height: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  postButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 4,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    minHeight: 40,
-  },
-  postingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  spinner: {
-    marginRight: 6,
-  },
-  postButtonText: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-});
