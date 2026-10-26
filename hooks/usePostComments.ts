@@ -34,6 +34,7 @@ export function usePostComments(postId: string) {
       .toUpperCase() || "M";
 
     return {
+      id: authUser?.id ? String(authUser.id) : undefined,
       name: displayName,
       username:
         authUser?.profile?.username ||
@@ -128,8 +129,8 @@ export function usePostComments(postId: string) {
 
       setDraft("");
       setAccumulatedComments((prev) => {
-        if (prev.some((c) => c.id === created.id)) return prev;
-        return [created, ...prev];
+        const filtered = prev.filter((c) => c.id !== created.id);
+        return [created, ...filtered];
       });
     } catch {
       // Error handled by mutation state

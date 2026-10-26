@@ -55,6 +55,7 @@ export interface SingleCommentResponse {
 export interface Comment {
   id: string;
   postId: string;
+  userId?: string | null;
   author: string;
   username: string;
   body: string;
@@ -95,6 +96,7 @@ export function normalizeComment(raw: LaravelComment): Comment {
   return {
     id: String(raw.id),
     postId: String(raw.post_id),
+    userId: raw.user_id ? String(raw.user_id) : null,
     author: authorName,
     username,
     body: raw.content || "",

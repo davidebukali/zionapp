@@ -73,6 +73,7 @@ export const commentsApi = baseApi.injectEndpoints({
 
         try {
           const { data: newComment } = await queryFulfilled;
+
           // Optimistically insert new comment into active comments list cache
           dispatch(
             commentsApi.util.updateQueryData(
