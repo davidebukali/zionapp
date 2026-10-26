@@ -10,11 +10,15 @@ import { RootState } from "../store/store";
 import {
   useGetMediaUploadUrlMutation,
   useConfirmMediaUploadMutation,
+  useLazyGetMediaStatusQuery,
   useCreatePostMutation,
 } from "../features/posts/api";
-
-const MAX_CHARACTERS = 3000;
-const MAX_MEDIA = 10;
+import {
+  MAX_CHARACTERS,
+  MAX_MEDIA,
+  MAX_POLL_ATTEMPTS,
+  POLL_INTERVAL_MS,
+} from "../constants";
 
 export interface MediaItem {
   uri: string;
@@ -52,6 +56,7 @@ export function useCreatePostComposer() {
 
   const [getMediaUploadUrl] = useGetMediaUploadUrlMutation();
   const [confirmMediaUpload] = useConfirmMediaUploadMutation();
+  const [getMediaStatus] = useLazyGetMediaStatusQuery();
   const [createPost] = useCreatePostMutation();
 
   const user = useSelector((state: RootState) => state.auth.user);
@@ -159,21 +164,21 @@ export function useCreatePostComposer() {
       let mediaIds: string[] = [];
 
       if (mediaItems.length > 0) {
-        setPostingStatus(`Uploading 1 of ${mediaItems.length}...`);
-        let completed = 0;
+        const total = mediaItems.length;
+        setPostingStatus(total === 1 ? "Uploading..." : `Uploading 1/${total}...`);
+        let uploadCompleted = 0;
 
+        // 1. Upload raw bytes to storage and confirm
         const uploadPromises = mediaItems.map(async (item) => {
           const mimeType = getMimeType(item.uri, item.mimeType);
           const filename = getFilename(item.uri, item.filename);
 
-          // 1. Get exact file size directly from device filesystem
           const fileInfo = await FileSystem.getInfoAsync(item.uri);
           if (!fileInfo.exists) {
             throw new Error(`Media file not found: ${filename}`);
           }
           const exactSize = fileInfo.size;
 
-          // 2. Request pre-signed upload URL with exact disk byte count
           const uploadUrlRes = await getMediaUploadUrl({
             filename,
             mime_type: mimeType,
@@ -183,7 +188,6 @@ export function useCreatePostComposer() {
           const mediaId = uploadUrlRes.data.id;
           const uploadUrl = uploadUrlRes.data.upload_url;
 
-          // 3. Upload raw binary bytes directly from disk to storage
           const uploadResult = await FileSystem.uploadAsync(uploadUrl, item.uri, {
             httpMethod: "PUT",
             uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
@@ -196,20 +200,53 @@ export function useCreatePostComposer() {
             throw new Error(`Storage upload failed (HTTP ${uploadResult.status})`);
           }
 
-          // 4. Confirm upload (R2 ContentLength matches exactSize exactly)
           await confirmMediaUpload({ mediaId }).unwrap();
 
-          completed++;
-          setPostingStatus(
-            `Uploading ${Math.min(completed + 1, mediaItems.length)} of ${mediaItems.length}...`
-          );
+          uploadCompleted++;
+          if (uploadCompleted < total) {
+            setPostingStatus(`Uploading ${uploadCompleted + 1}/${total}...`);
+          }
           return mediaId;
         });
 
         mediaIds = await Promise.all(uploadPromises);
+
+        // 2. Poll until Horizon background job finishes variant generation
+        setPostingStatus("Processing...");
+
+        const pollUntilReady = async (mediaId: string) => {
+          for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+            try {
+              const res = await getMediaStatus(mediaId, false).unwrap();
+              const status = res?.data?.status;
+
+              if (status === "ready") {
+                return res.data;
+              }
+
+              if (status === "failed") {
+                throw new Error("Media processing failed on the server.");
+              }
+            } catch (err: any) {
+              if (err?.message === "Media processing failed on the server.") {
+                throw err;
+              }
+              // Allow transient network errors during polling attempts
+              if (attempt === MAX_POLL_ATTEMPTS - 1) {
+                throw err;
+              }
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+          }
+          throw new Error("Media processing timed out. Please try again.");
+        };
+
+        await Promise.all(mediaIds.map(pollUntilReady));
       }
 
-      setPostingStatus("Publishing post...");
+      // 3. Create post now that all media files are confirmed and ready
+      setPostingStatus("Posting...");
       await createPost({
         content: content.trim(),
         ...(mediaIds.length > 0 ? { media_ids: mediaIds } : {}),

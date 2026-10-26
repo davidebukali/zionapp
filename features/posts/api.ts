@@ -12,6 +12,7 @@ import {
   ConfirmMediaResponse,
   CreatePostRequest,
   CreatePostResponse,
+  MediaStatusResponse,
 } from './types';
 
 // ============================================================================
@@ -233,7 +234,17 @@ export const postsApi = baseApi.injectEndpoints({
     }),
 
     /**
-     * Step 3: Create post with content and confirmed media IDs.
+     * Step 3: Fetch media status to verify background processing (variants generation) is complete.
+     */
+    getMediaStatus: builder.query<MediaStatusResponse, string>({
+      query: (mediaId) => ({
+        url: `/media/${mediaId}`,
+        method: 'GET',
+      }),
+    }),
+
+    /**
+     * Step 4: Create post with content and confirmed media IDs.
      * Invalidates Feed and Post lists so newly published post appears at top.
      */
     createPost: builder.mutation<Post, CreatePostRequest>({
@@ -265,5 +276,7 @@ export const {
   useIncrementPostCommentCountMutation,
   useGetMediaUploadUrlMutation,
   useConfirmMediaUploadMutation,
+  useGetMediaStatusQuery,
+  useLazyGetMediaStatusQuery,
   useCreatePostMutation,
 } = postsApi;

@@ -147,3 +147,34 @@ export interface CreatePostResponse {
   message?: string;
   data: LaravelPost;
 }
+
+export type MediaProcessingStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'processing'
+  | 'ready'
+  | 'failed';
+
+export interface MediaDetail {
+  id: string;
+  user_id?: string;
+  status: MediaProcessingStatus | string;
+  type?: string;
+  mime_type?: string;
+  size?: number;
+  width?: number;
+  height?: number;
+  url?: string;
+  metadata?: {
+    variants?: Record<string, string>;
+    [key: string]: any;
+  };
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MediaStatusResponse {
+  success: boolean;
+  message?: string;
+  data: MediaDetail;
+}
