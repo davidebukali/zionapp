@@ -3,7 +3,7 @@ import { Alert } from "react-native";
 import { router } from "expo-router";
 import { useSelector } from "react-redux";
 import * as ImagePicker from "expo-image-picker";
-import * as Crypto from "expo-crypto";
+import * as FileSystem from "expo-file-system";
 import { EmojiType } from "rn-emoji-keyboard";
 
 import { RootState } from "../store/store";
@@ -23,12 +23,7 @@ export interface MediaItem {
   fileSize?: number;
 }
 
-function bufferToHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
+// Helper: Resolve valid MIME type for upload
 function getMimeType(uri: string, rawMime?: string): string {
   if (rawMime && ["image/jpeg", "image/png", "image/webp"].includes(rawMime)) {
     return rawMime;
@@ -171,41 +166,38 @@ export function useCreatePostComposer() {
           const mimeType = getMimeType(item.uri, item.mimeType);
           const filename = getFilename(item.uri, item.filename);
 
-          // 1. Fetch file bytes
-          const res = await fetch(item.uri);
-          const blob = await res.blob();
-          const arrayBuffer = await new Response(blob).arrayBuffer();
-          const size = item.fileSize || blob.size || arrayBuffer.byteLength;
+          // 1. Get exact file size directly from device filesystem
+          const fileInfo = await FileSystem.getInfoAsync(item.uri);
+          if (!fileInfo.exists) {
+            throw new Error(`Media file not found: ${filename}`);
+          }
+          const exactSize = fileInfo.size;
 
-          // 2. Compute SHA-256 Checksum
-          const hashBuffer = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, arrayBuffer);
-          const checksum = bufferToHex(hashBuffer);
-
-          // 3. Request pre-signed upload URL
+          // 2. Request pre-signed upload URL with exact disk byte count
           const uploadUrlRes = await getMediaUploadUrl({
             filename,
             mime_type: mimeType,
-            size,
+            size: exactSize,
           }).unwrap();
 
           const mediaId = uploadUrlRes.data.id;
           const uploadUrl = uploadUrlRes.data.upload_url;
 
-          // 4. Direct upload to Storage URL
-          const storageRes = await fetch(uploadUrl, {
-            method: "PUT",
-            body: blob,
+          // 3. Upload raw binary bytes directly from disk to storage
+          const uploadResult = await FileSystem.uploadAsync(uploadUrl, item.uri, {
+            httpMethod: "PUT",
+            uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
             headers: {
               "Content-Type": mimeType,
             },
           });
 
-          if (!storageRes.ok) {
-            throw new Error(`Failed to upload to storage (HTTP ${storageRes.status})`);
+          if (uploadResult.status < 200 || uploadResult.status >= 300) {
+            throw new Error(`Storage upload failed (HTTP ${uploadResult.status})`);
           }
 
-          // 5. Confirm upload with checksum
-          await confirmMediaUpload({ mediaId, checksum }).unwrap();
+          // 4. Confirm upload (R2 ContentLength matches exactSize exactly)
+          await confirmMediaUpload({ mediaId }).unwrap();
 
           completed++;
           setPostingStatus(

@@ -125,7 +125,7 @@ export interface UploadUrlResponse {
 
 export interface ConfirmMediaRequest {
   mediaId: string;
-  checksum: string;
+  checksum?: string | null;
 }
 
 export interface ConfirmMediaResponse {

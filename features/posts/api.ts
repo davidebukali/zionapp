@@ -222,13 +222,13 @@ export const postsApi = baseApi.injectEndpoints({
     }),
 
     /**
-     * Step 2: Confirm storage upload completion with SHA-256 checksum.
+     * Step 2: Confirm storage upload completion (backend verifies R2/S3 ETag automatically).
      */
     confirmMediaUpload: builder.mutation<ConfirmMediaResponse, ConfirmMediaRequest>({
       query: ({ mediaId, checksum }) => ({
         url: `/media/${mediaId}/confirm`,
         method: 'POST',
-        body: { checksum },
+        body: checksum ? { checksum } : {},
       }),
     }),
 
