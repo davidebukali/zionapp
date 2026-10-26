@@ -94,9 +94,11 @@ export function CommentItem({ comment, onLike, onReply, onMore }: CommentItemPro
               size={17}
               color={actionColor}
             />
-            <Text style={[globalStyles.commentActionText, { color: actionColor }]}>
-              {comment.likes}
-            </Text>
+            {comment.likes > 0 ? (
+              <Text style={[globalStyles.commentActionText, { color: actionColor }]}>
+                {comment.likes}
+              </Text>
+            ) : null}
           </TouchableOpacity>
           <TouchableOpacity
             accessibilityRole="button"

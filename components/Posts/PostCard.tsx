@@ -50,6 +50,11 @@ const PostCard = ({
   const mediaSource = imageSource ?? (imageUrl ? { uri: imageUrl } : undefined);
   const actionColor = liked ? postTokens.activeActionColor : postTokens.actionColor;
 
+  const likesCount = parseInt(likes, 10) || 0;
+  const commentsCount = parseInt(comments, 10) || 0;
+  const likesLabel = likesCount > 0 ? likes : undefined;
+  const commentsLabel = commentsCount > 0 ? comments : undefined;
+
   // Adaptive aspect ratio clamped between 4:5 (0.8 portrait) and 16:9 (1.78 landscape)
   const rawRatio =
     mediaWidth && mediaHeight ? mediaWidth / mediaHeight : postTokens.imageAspectRatio;
@@ -156,16 +161,16 @@ const PostCard = ({
         <View style={globalStyles.postActionGroup}>
           <PostAction
             icon={liked ? "heart" : "heart-outline"}
-            label={likes}
+            label={likesLabel}
             color={actionColor}
-            accessibilityLabel={`${likes} likes`}
+            accessibilityLabel={`${likes || "0"} likes`}
             onPress={onLike}
           />
           <PostAction
             icon="chatbox-outline"
-            label={comments}
+            label={commentsLabel}
             color={postTokens.actionColor}
-            accessibilityLabel={`${comments} comments`}
+            accessibilityLabel={`${comments || "0"} comments`}
             onPress={onComment}
           />
           <PostAction
