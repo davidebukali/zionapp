@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { ImageSourcePropType, Text, TouchableOpacity, View } from "react-native";
+import { Image, ImageSourcePropType, Text, TouchableOpacity, View } from "react-native";
 import { Avatar, Card, useTheme } from "react-native-paper";
 
 import { globalStyles, postTokens } from "../../assets/styles/theme";
@@ -12,6 +12,8 @@ interface PostCardProps {
   body?: string;
   avatarUrl?: string;
   imageUrl?: string;
+  mediaWidth?: number;
+  mediaHeight?: number;
   imageSource?: ImageSourcePropType;
   likes?: string;
   comments?: string;
@@ -32,6 +34,8 @@ const PostCard = ({
   body = defaultBody,
   avatarUrl = fallbackAvatar,
   imageUrl,
+  mediaWidth,
+  mediaHeight,
   imageSource,
   likes = "1.2k",
   comments = "48",
@@ -42,6 +46,11 @@ const PostCard = ({
   const theme = useTheme();
   const mediaSource = imageSource ?? (imageUrl ? { uri: imageUrl } : undefined);
   const actionColor = liked ? postTokens.activeActionColor : postTokens.actionColor;
+
+  // Adaptive aspect ratio clamped between 4:5 (0.8 portrait) and 16:9 (1.78 landscape)
+  const rawRatio =
+    mediaWidth && mediaHeight ? mediaWidth / mediaHeight : postTokens.imageAspectRatio;
+  const clampedAspectRatio = Math.max(0.8, Math.min(1.78, rawRatio));
 
   return (
     <Card
@@ -95,30 +104,32 @@ const PostCard = ({
         rightStyle={globalStyles.postTitleRight}
       />
 
-      {!mediaSource ? (
-        <Card.Content style={globalStyles.postBodyContent}>
+      {/* 1. Body Text (Appears before image, at the top) */}
+      {body ? (
+        <Card.Content
+          style={[
+            globalStyles.postBodyContent,
+            mediaSource ? { paddingBottom: 12 } : null,
+          ]}
+        >
           <Text style={[globalStyles.postBodyText, { color: theme.colors.onSurface }]}>
             {body}
           </Text>
         </Card.Content>
       ) : null}
 
+      {/* 2. Media: Edge-to-edge full width with adaptive ratio */}
       {mediaSource ? (
-        <>
-          <Card.Cover source={mediaSource} style={globalStyles.postMedia} />
-          {body ? (
-            <Card.Content style={globalStyles.postCaptionContent}>
-              <Text
-                style={[
-                  globalStyles.postCaptionText,
-                  { color: theme.colors.onSurface },
-                ]}
-              >
-                {body}
-              </Text>
-            </Card.Content>
-          ) : null}
-        </>
+        <View style={{ width: "100%", overflow: "hidden" }}>
+          <Image
+            source={mediaSource}
+            style={{
+              width: "100%",
+              aspectRatio: clampedAspectRatio,
+            }}
+            resizeMode="cover"
+          />
+        </View>
       ) : null}
 
       <Card.Actions style={globalStyles.postFooter}>

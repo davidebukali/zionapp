@@ -98,6 +98,8 @@ export default function Index() {
           body={item.content}
           avatarUrl={item.avatarUrl}
           imageUrl={item.imageUrl}
+          mediaWidth={item.mediaWidth}
+          mediaHeight={item.mediaHeight}
           likes={item.likes}
           comments={item.comments}
           liked={item.liked}

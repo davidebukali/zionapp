@@ -71,6 +71,8 @@ export interface Post {
   author: string;
   avatarUrl?: string;
   imageUrl?: string;
+  mediaWidth?: number;
+  mediaHeight?: number;
   likes?: string;
   comments?: string;
   liked?: boolean;
@@ -89,7 +91,10 @@ export interface PostState {
 
 export function normalizePost(raw: LaravelPost, fallbackDate?: string): Post {
   const authorName = raw.user?.name || raw.author?.name || 'Zion Member';
-  const imageUrl = raw.media && raw.media.length > 0 ? raw.media[0].url : undefined;
+  const firstMedia = raw.media && raw.media.length > 0 ? raw.media[0] : undefined;
+  const imageUrl = firstMedia?.url;
+  const mediaWidth = firstMedia?.width;
+  const mediaHeight = firstMedia?.height;
   const createdAt = raw.created_at || fallbackDate || new Date().toISOString();
   const updatedAt = raw.updated_at || createdAt;
 
@@ -100,6 +105,8 @@ export function normalizePost(raw: LaravelPost, fallbackDate?: string): Post {
     author: authorName,
     avatarUrl: undefined,
     imageUrl,
+    mediaWidth,
+    mediaHeight,
     likes: typeof raw.likes_count === 'number' ? String(raw.likes_count) : '0',
     comments: typeof raw.comments_count === 'number' ? String(raw.comments_count) : '0',
     liked: Boolean(raw.is_liked ?? raw.liked ?? false),
