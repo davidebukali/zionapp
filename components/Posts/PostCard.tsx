@@ -22,23 +22,26 @@ interface PostCardProps {
   onComment?: () => void;
 }
 
-const fallbackAvatar =
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=80";
-
-const defaultBody =
-  "Just finished drafting the new visual direction for the design system. We're prioritizing high-contrast bold elements and deep emotional minimalism. Can't wait to share more!";
+const getInitials = (name?: string): string => {
+  if (!name) return "AR";
+  const parts = name.trim().split(" ").filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+};
 
 const PostCard = ({
   title,
   createdAt,
-  body = defaultBody,
-  avatarUrl = fallbackAvatar,
+  body,
+  avatarUrl,
   imageUrl,
   mediaWidth,
   mediaHeight,
   imageSource,
-  likes = "1.2k",
-  comments = "48",
+  likes = "0",
+  comments = "0",
   liked = false,
   onLike,
   onComment,
@@ -79,14 +82,31 @@ const PostCard = ({
           globalStyles.postTimestampText,
           { color: theme.colors.onSurfaceVariant },
         ]}
-        left={(props) => (
-          <Avatar.Image
-            {...props}
-            size={54}
-            source={{ uri: avatarUrl }}
-            style={globalStyles.postAvatar}
-          />
-        )}
+        left={(props) =>
+          avatarUrl ? (
+            <Avatar.Image
+              {...props}
+              size={54}
+              source={{ uri: avatarUrl }}
+              style={globalStyles.postAvatar}
+            />
+          ) : (
+            <Avatar.Text
+              {...props}
+              size={54}
+              label={getInitials(title)}
+              color={theme.colors.onPrimaryContainer}
+              style={[
+                globalStyles.postAvatar,
+                {
+                  paddingRight: 0,
+                  backgroundColor: theme.colors.primaryContainer,
+                },
+              ]}
+              labelStyle={{ fontSize: 18, fontWeight: "700" }}
+            />
+          )
+        }
         right={() => (
           <TouchableOpacity
             accessibilityRole="button"
