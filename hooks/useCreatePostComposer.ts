@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Alert } from "react-native";
 import { router } from "expo-router";
 import { useSelector } from "react-redux";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
 import { EmojiType } from "rn-emoji-keyboard";
 
 import { RootState } from "../store/store";
@@ -13,38 +12,22 @@ import {
   useLazyGetMediaStatusQuery,
   useCreatePostMutation,
 } from "../features/posts/api";
+import { MAX_CHARACTERS, MAX_MEDIA } from "../constants";
 import {
-  MAX_CHARACTERS,
-  MAX_MEDIA,
-  MAX_POLL_ATTEMPTS,
-  POLL_INTERVAL_MS,
-} from "../constants";
+  MediaItem,
+  uploadAndProcessMedia,
+} from "../utils/mediaUploader";
 
-export interface MediaItem {
-  uri: string;
-  filename?: string;
-  mimeType?: string;
-  fileSize?: number;
-}
+export type { MediaItem };
 
-// Helper: Resolve valid MIME type for upload
-function getMimeType(uri: string, rawMime?: string): string {
-  if (rawMime && ["image/jpeg", "image/png", "image/webp"].includes(rawMime)) {
-    return rawMime;
-  }
-  const ext = uri.split(".").pop()?.toLowerCase();
-  if (ext === "png") return "image/png";
-  if (ext === "webp") return "image/webp";
-  return "image/jpeg";
-}
-
-function getFilename(uri: string, rawName?: string): string {
-  if (rawName) return rawName;
-  const parts = uri.split("/");
-  return parts[parts.length - 1] || "photo.jpg";
-}
-
+/**
+ * Custom hook orchestrating the Create Post composer UI state,
+ * media picker, review modal, and publish pipeline.
+ */
 export function useCreatePostComposer() {
+  // ---------------------------------------------------------------------------
+  // 1. Core State
+  // ---------------------------------------------------------------------------
   const [content, setContent] = useState("");
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
@@ -54,6 +37,9 @@ export function useCreatePostComposer() {
   const [isPosting, setIsPosting] = useState(false);
   const [postingStatus, setPostingStatus] = useState<string | null>(null);
 
+  // ---------------------------------------------------------------------------
+  // 2. API Mutations & Selectors
+  // ---------------------------------------------------------------------------
   const [getMediaUploadUrl] = useGetMediaUploadUrlMutation();
   const [confirmMediaUpload] = useConfirmMediaUploadMutation();
   const [getMediaStatus] = useLazyGetMediaStatusQuery();
@@ -61,7 +47,10 @@ export function useCreatePostComposer() {
 
   const user = useSelector((state: RootState) => state.auth.user);
 
-  const getInitials = () => {
+  // ---------------------------------------------------------------------------
+  // 3. User Avatar & Initials (Memoized)
+  // ---------------------------------------------------------------------------
+  const initials = useMemo(() => {
     if (user?.name) {
       const parts = user.name.trim().split(" ");
       if (parts.length >= 2) {
@@ -73,10 +62,14 @@ export function useCreatePostComposer() {
       return user.email.slice(0, 2).toUpperCase();
     }
     return "AR";
-  };
+  }, [user?.name, user?.email]);
 
+  // ---------------------------------------------------------------------------
+  // 4. Draft & Dismissal Handlers
+  // ---------------------------------------------------------------------------
   const handleClose = () => {
-    if (content.trim().length > 0 || mediaItems.length > 0) {
+    const hasDraft = content.trim().length > 0 || mediaItems.length > 0;
+    if (hasDraft) {
       Alert.alert(
         "Discard post?",
         "Your draft will be lost if you leave.",
@@ -94,6 +87,9 @@ export function useCreatePostComposer() {
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // 5. Media Selection & Review Modal Handlers
+  // ---------------------------------------------------------------------------
   const pickMedia = async () => {
     if (mediaItems.length >= MAX_MEDIA) {
       Alert.alert("Limit Reached", `You can attach up to ${MAX_MEDIA} images.`);
@@ -131,17 +127,19 @@ export function useCreatePostComposer() {
     setMediaItems([]);
   };
 
+  /**
+   * Deletes the currently reviewed item without triggering nested state updater side-effects.
+   */
   const deleteReviewItem = () => {
-    setMediaItems((prev) => {
-      const updated = prev.filter((_, idx) => idx !== reviewIndex);
-      if (updated.length === 0) {
-        setIsReviewModalVisible(false);
-        setReviewIndex(0);
-      } else if (reviewIndex >= updated.length) {
-        setReviewIndex(updated.length - 1);
-      }
-      return updated;
-    });
+    const updated = mediaItems.filter((_, idx) => idx !== reviewIndex);
+    setMediaItems(updated);
+
+    if (updated.length === 0) {
+      setIsReviewModalVisible(false);
+      setReviewIndex(0);
+    } else if (reviewIndex >= updated.length) {
+      setReviewIndex(updated.length - 1);
+    }
   };
 
   const openReviewModal = (initialIndex = 0) => {
@@ -149,10 +147,16 @@ export function useCreatePostComposer() {
     setIsReviewModalVisible(true);
   };
 
+  // ---------------------------------------------------------------------------
+  // 6. Text & Emoji Handlers
+  // ---------------------------------------------------------------------------
   const handleEmojiSelected = (emojiObject: EmojiType) => {
     setContent((prev) => (prev + emojiObject.emoji).slice(0, MAX_CHARACTERS));
   };
 
+  // ---------------------------------------------------------------------------
+  // 7. Post Publishing Pipeline
+  // ---------------------------------------------------------------------------
   const handlePublish = async () => {
     if (!content.trim() && mediaItems.length === 0) {
       Alert.alert("Empty Post", "Please write some text or attach an image.");
@@ -161,91 +165,14 @@ export function useCreatePostComposer() {
 
     setIsPosting(true);
     try {
-      let mediaIds: string[] = [];
+      // Step 1: Upload and verify media attachments via pipeline utility
+      const mediaIds = await uploadAndProcessMedia(
+        mediaItems,
+        { getMediaUploadUrl, confirmMediaUpload, getMediaStatus },
+        setPostingStatus
+      );
 
-      if (mediaItems.length > 0) {
-        const total = mediaItems.length;
-        setPostingStatus(total === 1 ? "Uploading..." : `Uploading 1/${total}...`);
-        let uploadCompleted = 0;
-
-        // 1. Upload raw bytes to storage and confirm
-        const uploadPromises = mediaItems.map(async (item) => {
-          const mimeType = getMimeType(item.uri, item.mimeType);
-          const filename = getFilename(item.uri, item.filename);
-
-          const fileInfo = await FileSystem.getInfoAsync(item.uri);
-          if (!fileInfo.exists) {
-            throw new Error(`Media file not found: ${filename}`);
-          }
-          const exactSize = fileInfo.size;
-
-          const uploadUrlRes = await getMediaUploadUrl({
-            filename,
-            mime_type: mimeType,
-            size: exactSize,
-          }).unwrap();
-
-          const mediaId = uploadUrlRes.data.id;
-          const uploadUrl = uploadUrlRes.data.upload_url;
-
-          const uploadResult = await FileSystem.uploadAsync(uploadUrl, item.uri, {
-            httpMethod: "PUT",
-            uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-            headers: {
-              "Content-Type": mimeType,
-            },
-          });
-
-          if (uploadResult.status < 200 || uploadResult.status >= 300) {
-            throw new Error(`Storage upload failed (HTTP ${uploadResult.status})`);
-          }
-
-          await confirmMediaUpload({ mediaId }).unwrap();
-
-          uploadCompleted++;
-          if (uploadCompleted < total) {
-            setPostingStatus(`Uploading ${uploadCompleted + 1}/${total}...`);
-          }
-          return mediaId;
-        });
-
-        mediaIds = await Promise.all(uploadPromises);
-
-        // 2. Poll until Horizon background job finishes variant generation
-        setPostingStatus("Processing...");
-
-        const pollUntilReady = async (mediaId: string) => {
-          for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-            try {
-              const res = await getMediaStatus(mediaId, false).unwrap();
-              const status = res?.data?.status;
-
-              if (status === "ready") {
-                return res.data;
-              }
-
-              if (status === "failed") {
-                throw new Error("Media processing failed on the server.");
-              }
-            } catch (err: any) {
-              if (err?.message === "Media processing failed on the server.") {
-                throw err;
-              }
-              // Allow transient network errors during polling attempts
-              if (attempt === MAX_POLL_ATTEMPTS - 1) {
-                throw err;
-              }
-            }
-
-            await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-          }
-          throw new Error("Media processing timed out. Please try again.");
-        };
-
-        await Promise.all(mediaIds.map(pollUntilReady));
-      }
-
-      // 3. Create post now that all media files are confirmed and ready
+      // Step 2: Finalize post creation
       setPostingStatus("Posting...");
       await createPost({
         content: content.trim(),
@@ -264,6 +191,9 @@ export function useCreatePostComposer() {
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // 8. Computed Values & Return Object
+  // ---------------------------------------------------------------------------
   const remainingChars = MAX_CHARACTERS - content.length;
   const isPostDisabled = isPosting || (!content.trim() && mediaItems.length === 0);
 
@@ -288,6 +218,6 @@ export function useCreatePostComposer() {
     handleClose,
     remainingChars,
     isPostDisabled,
-    initials: getInitials(),
+    initials,
   };
 }
