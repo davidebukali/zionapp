@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { Avatar, useTheme } from "react-native-paper";
 
 import { globalStyles } from "../../assets/styles/theme";
-import type { Comment } from "../../features/comments/commentSlice";
+import type { Comment } from "../../features/comments/types";
 import { formatRelativeTime } from "../../utils/date";
 
 type CommentItemProps = {

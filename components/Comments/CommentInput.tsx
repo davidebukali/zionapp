@@ -8,6 +8,7 @@ import { globalStyles } from "../../assets/styles/theme";
 type CommentPageProps = {
   value: string;
   initials: string;
+  avatarUrl?: string;
   isSubmitting?: boolean;
   onChangeText: (value: string) => void;
   onSubmit: () => void;
@@ -16,6 +17,7 @@ type CommentPageProps = {
 export function CommentInput({
   value,
   initials,
+  avatarUrl,
   isSubmitting = false,
   onChangeText,
   onSubmit,
@@ -35,13 +37,17 @@ export function CommentInput({
         },
       ]}
     >
-      <Avatar.Text
-        size={40}
-        label={initials}
-        color="#FFFFFF"
-        style={{ backgroundColor: "#278CCB" }}
-        labelStyle={{ fontSize: 13, fontWeight: "700" }}
-      />
+      {avatarUrl ? (
+        <Avatar.Image size={40} source={{ uri: avatarUrl }} />
+      ) : (
+        <Avatar.Text
+          size={40}
+          label={initials}
+          color={theme.colors.onPrimary}
+          style={{ backgroundColor: theme.colors.primary }}
+          labelStyle={{ fontSize: 13, fontWeight: "700" }}
+        />
+      )}
       <View
         style={[
           globalStyles.commentComposerInputShell,

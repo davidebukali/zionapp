@@ -191,21 +191,6 @@ export const postsApi = baseApi.injectEndpoints({
       },
     }),
 
-    /**
-     * Optimistically increment comment counter when a new comment is posted.
-     */
-    incrementPostCommentCount: builder.mutation<
-      void,
-      { postId: string; comments?: string }
-    >({
-      queryFn: () => ({ data: undefined }),
-      async onQueryStarted({ postId }, { dispatch }) {
-        updatePostInCaches(dispatch, postId, (post) => {
-          const current = parseInt(post.comments || '0', 10) || 0;
-          post.comments = String(current + 1);
-        });
-      },
-    }),
 
     // ------------------------------------------------------------------------
     // Post Publishing & Media Upload Pipeline
@@ -273,7 +258,6 @@ export const {
   useGetPostsQuery,
   useGetPostQuery,
   useToggleLikePostMutation,
-  useIncrementPostCommentCountMutation,
   useGetMediaUploadUrlMutation,
   useConfirmMediaUploadMutation,
   useGetMediaStatusQuery,
