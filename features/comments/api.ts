@@ -127,6 +127,7 @@ export const commentsApi = baseApi.injectEndpoints({
       },
     }),
   }),
+  overrideExisting: true,
 });
 
 export const {

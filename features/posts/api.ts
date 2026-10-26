@@ -246,7 +246,7 @@ export const postsApi = baseApi.injectEndpoints({
       ],
     }),
   }),
-  overrideExisting: false,
+  overrideExisting: true,
 });
 
 // ============================================================================
