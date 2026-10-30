@@ -2,7 +2,9 @@ import React, { useEffect, useCallback, useState } from "react";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
 import { useTheme } from "react-native-paper";
+import { useSelector } from "react-redux";
 
+import { RootState } from "../../../store/store";
 import { globalStyles } from "../../../assets/styles/theme";
 import PostCard from "../../../components/Posts/PostCard";
 import PostFeedSkeleton from "../../../components/Posts/PostFeedSkeleton";
@@ -14,12 +16,14 @@ import {
   useGetFeedQuery,
   useGetPostsQuery,
   useToggleLikePostMutation,
+  useToggleRepostPostMutation,
 } from "../../../features/posts/api";
 import { isNetworkError } from "../../../utils/network";
 
 export default function Index() {
   const theme = useTheme();
   const router = useRouter();
+  const currentUser = useSelector((state: RootState) => state.auth.user);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -49,6 +53,7 @@ export default function Index() {
   } = useGetPostsQuery(undefined, { skip: !shouldFallbackToPosts });
 
   const [toggleLikePost] = useToggleLikePostMutation();
+  const [toggleRepostPost] = useToggleRepostPostMutation();
 
   const isFetching = isFetchingFeed || isFetchingPosts;
   const posts =
@@ -91,6 +96,17 @@ export default function Index() {
 
   const renderPostItem = useCallback(
     ({ item }: { item: Post }) => {
+      const isOwnPost = Boolean(
+        currentUser?.id &&
+          (String(item.authorId) === String(currentUser.id) ||
+            item.author === currentUser.name)
+      );
+
+      const resolvedActor =
+        item.activityActor === currentUser?.name
+          ? "You"
+          : item.activityActor;
+
       return (
         <PostCard
           title={item.title}
@@ -103,6 +119,11 @@ export default function Index() {
           likes={item.likes}
           comments={item.comments}
           liked={item.liked}
+          isReposted={item.isReposted}
+          repostsCount={item.repostsCount}
+          isOwnPost={isOwnPost}
+          activityType={item.activityType}
+          activityActor={resolvedActor}
           onLike={() =>
             toggleLikePost({
               postId: item.id,
@@ -115,10 +136,16 @@ export default function Index() {
               params: { postId: item.id },
             })
           }
+          onPressRepost={() =>
+            toggleRepostPost({
+              postId: item.id,
+              reposted: !!item.isReposted,
+            })
+          }
         />
       );
     },
-    [router, toggleLikePost]
+    [currentUser?.id, currentUser?.name, router, toggleLikePost, toggleRepostPost]
   );
 
   return (
@@ -136,6 +163,7 @@ export default function Index() {
       ) : (
         <InfiniteScrollList
           data={posts}
+          keyExtractor={(item: Post) => String(item.feedItemId ?? item.id)}
           renderItem={renderPostItem}
           onLoadMore={handleLoadMore}
           isLoadingMore={isFetching && !!cursor}

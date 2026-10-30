@@ -27,6 +27,9 @@ export function PostCard({
   isFollowingAuthor = false,
   isReposted = false,
   repostsCount = 0,
+  activityType,
+  activityActor,
+  activity,
   onLike,
   onComment,
   onPressThreeDots,
@@ -67,6 +70,9 @@ export function PostCard({
     }, 100);
   }, [onPressShareSystem, title, body, imageUrl]);
 
+  const resolvedActivityType = activityType ?? activity?.type;
+  const resolvedActivityActor = activityActor ?? activity?.actor?.name;
+
   return (
     <Card
       mode="contained"
@@ -86,6 +92,8 @@ export function PostCard({
         avatarUrl={avatarUrl}
         isOwnPost={isOwnPost}
         isFollowingAuthor={isFollowingAuthor}
+        activityType={resolvedActivityType}
+        activityActor={resolvedActivityActor}
         onPressThreeDots={onPressThreeDots}
         onPressEdit={onPressEdit}
         onPressDelete={onPressDelete}

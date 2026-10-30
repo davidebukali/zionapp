@@ -13,6 +13,7 @@ import {
   CreatePostRequest,
   CreatePostResponse,
   MediaStatusResponse,
+  RepostResponse,
 } from './types';
 
 // ============================================================================
@@ -30,11 +31,12 @@ function updatePostInCaches(
   postId: string,
   updater: (post: Post) => void
 ): () => void {
-  // 1. Patch personalized feed cache
+  // 1. Patch personalized feed cache (may contain multiple items for same post)
   const patchFeed = dispatch(
     postsApi.util.updateQueryData('getFeed', undefined as any, (draft) => {
-      const post = draft?.posts?.find((p) => p.id === postId);
-      if (post) updater(post);
+      draft?.posts?.forEach((p) => {
+        if (p.id === postId) updater(p);
+      });
     })
   );
 
@@ -42,8 +44,9 @@ function updatePostInCaches(
   const patchPosts = dispatch(
     postsApi.util.updateQueryData('getPosts', undefined as any, (draft) => {
       if (!Array.isArray(draft)) return;
-      const post = draft.find((p) => p.id === postId);
-      if (post) updater(post);
+      draft.forEach((p) => {
+        if (p.id === postId) updater(p);
+      });
     })
   );
 
@@ -85,18 +88,38 @@ export const postsApi = baseApi.injectEndpoints({
       transformResponse: (response: FeedResponse): FeedResult => {
         const items = response?.data || [];
         return {
-          posts: items.map((item) => normalizePost(item.post, item.published_at)),
+          posts: items.map((item) => {
+            const hasActivity = Boolean(
+              item.type && item.type !== 'post' && item.actor
+            );
+            return normalizePost(
+              item.post,
+              item.published_at,
+              hasActivity
+                ? {
+                    type: item.type!,
+                    actor: item.actor!,
+                    publishedAt: item.published_at,
+                  }
+                : undefined,
+              item.id
+            );
+          }),
           nextCursor: response?.meta?.next_cursor ?? null,
         };
       },
       serializeQueryArgs: ({ endpointName }) => endpointName,
-      // Merge subsequent pages into existing feed without duplicating post IDs
+      // Merge subsequent pages into existing feed without duplicating item IDs
       merge: (currentCache, newItems, { arg }) => {
         if (!arg?.cursor) {
           return newItems;
         }
-        const existingIds = new Set(currentCache.posts.map((p) => p.id));
-        const filtered = newItems.posts.filter((p) => !existingIds.has(p.id));
+        const existingIds = new Set(
+          currentCache.posts.map((p) => String(p.feedItemId || p.id))
+        );
+        const filtered = newItems.posts.filter(
+          (p) => !existingIds.has(String(p.feedItemId || p.id))
+        );
         currentCache.posts.push(...filtered);
         currentCache.nextCursor = newItems.nextCursor;
       },
@@ -191,6 +214,80 @@ export const postsApi = baseApi.injectEndpoints({
       },
     }),
 
+    /**
+     * Toggle repost status on a post with instant optimistic feedback.
+     */
+    toggleRepostPost: builder.mutation<
+      RepostResponse,
+      { postId: string; reposted: boolean }
+    >({
+      query: ({ postId, reposted }) => ({
+        url: `/posts/${postId}/repost`,
+        method: reposted ? 'DELETE' : 'POST',
+      }),
+      async onQueryStarted({ postId, reposted }, { dispatch, queryFulfilled }) {
+        const nextReposted = !reposted;
+
+        const undo = updatePostInCaches(dispatch, postId, (post) => {
+          post.isReposted = nextReposted;
+          post.reposted = nextReposted;
+          const current = post.repostsCount ?? 0;
+          post.repostsCount = nextReposted ? current + 1 : Math.max(0, current - 1);
+        });
+
+        try {
+          await queryFulfilled;
+        } catch {
+          undo();
+        }
+      },
+    }),
+
+    /**
+     * Direct Repost mutation.
+     */
+    repostPost: builder.mutation<RepostResponse, string>({
+      query: (postId) => ({
+        url: `/posts/${postId}/repost`,
+        method: 'POST',
+      }),
+      async onQueryStarted(postId, { dispatch, queryFulfilled }) {
+        const undo = updatePostInCaches(dispatch, postId, (post) => {
+          post.isReposted = true;
+          post.reposted = true;
+          post.repostsCount = (post.repostsCount ?? 0) + 1;
+        });
+
+        try {
+          await queryFulfilled;
+        } catch {
+          undo();
+        }
+      },
+    }),
+
+    /**
+     * Direct Undo Repost mutation.
+     */
+    unrepostPost: builder.mutation<RepostResponse, string>({
+      query: (postId) => ({
+        url: `/posts/${postId}/repost`,
+        method: 'DELETE',
+      }),
+      async onQueryStarted(postId, { dispatch, queryFulfilled }) {
+        const undo = updatePostInCaches(dispatch, postId, (post) => {
+          post.isReposted = false;
+          post.reposted = false;
+          post.repostsCount = Math.max(0, (post.repostsCount ?? 0) - 1);
+        });
+
+        try {
+          await queryFulfilled;
+        } catch {
+          undo();
+        }
+      },
+    }),
 
     // ------------------------------------------------------------------------
     // Post Publishing & Media Upload Pipeline
@@ -258,6 +355,9 @@ export const {
   useGetPostsQuery,
   useGetPostQuery,
   useToggleLikePostMutation,
+  useToggleRepostPostMutation,
+  useRepostPostMutation,
+  useUnrepostPostMutation,
   useGetMediaUploadUrlMutation,
   useConfirmMediaUploadMutation,
   useGetMediaStatusQuery,

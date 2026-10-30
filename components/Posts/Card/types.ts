@@ -1,4 +1,5 @@
 import { ImageSourcePropType } from "react-native";
+import { PostActivity } from "../../../features/posts/types";
 
 export interface PostCardActionsProps {
   // Ownership & Flags
@@ -38,9 +39,11 @@ export interface PostCardProps extends Partial<PostCardActionsProps> {
   comments?: string;
   liked?: boolean;
   bookmarked?: boolean;
+  activityType?: "post" | "repost" | "like" | "comment";
+  activityActor?: string;
+  activity?: PostActivity;
 
   // Legacy callback aliases for seamless backwards-compatibility
   onLike?: () => void;
   onComment?: () => void;
 }
-

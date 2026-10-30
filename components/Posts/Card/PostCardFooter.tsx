@@ -38,7 +38,7 @@ export function PostCardFooter({
   const repostsLabel = repostsCount > 0 ? String(repostsCount) : undefined;
 
   const likeColor = liked ? postTokens.activeActionColor : postTokens.actionColor;
-  const repostColor = isReposted ? postTokens.activeActionColor : postTokens.actionColor;
+  const repostColor = isReposted ? "#34C759" : postTokens.actionColor;
   const bookmarkColor = bookmarked ? postTokens.activeActionColor : postTokens.actionColor;
 
   return (
@@ -59,7 +59,7 @@ export function PostCardFooter({
           onPress={onPressComment}
         />
         <PostAction
-          icon="repeat-sharp"
+          icon={isReposted ? "repeat" : "repeat-outline"}
           label={repostsLabel}
           color={repostColor}
           accessibilityLabel={`${repostsCount} reposts`}
@@ -76,4 +76,3 @@ export function PostCardFooter({
     </Card.Actions>
   );
 }
-

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Avatar, Card, useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
@@ -13,6 +13,8 @@ interface PostCardHeaderProps {
   avatarUrl?: string;
   isOwnPost?: boolean;
   isFollowingAuthor?: boolean;
+  activityType?: "post" | "repost" | "like" | "comment";
+  activityActor?: string;
   onPressThreeDots?: () => void;
   onPressEdit?: () => void;
   onPressDelete?: () => void;
@@ -37,6 +39,8 @@ export function PostCardHeader({
   avatarUrl,
   isOwnPost = false,
   isFollowingAuthor = false,
+  activityType,
+  activityActor,
   onPressThreeDots,
   onPressEdit,
   onPressDelete,
@@ -62,8 +66,47 @@ export function PostCardHeader({
     }
   };
 
+  const hasActivity = Boolean(
+    activityType && activityType !== "post" && activityActor
+  );
+
   return (
     <>
+      {hasActivity ? (
+        <View style={styles.activityRow}>
+          <Ionicons
+            name={
+              activityType === "repost"
+                ? "repeat"
+                : activityType === "like"
+                ? "heart"
+                : "chatbubble-ellipses"
+            }
+            size={14}
+            color={
+              activityType === "repost"
+                ? "#34C759"
+                : activityType === "like"
+                ? theme.colors.primary
+                : theme.colors.onSurfaceVariant
+            }
+            style={styles.activityIcon}
+          />
+          <Text
+            numberOfLines={1}
+            style={[styles.activityText, { color: theme.colors.onSurfaceVariant }]}
+          >
+            {`${activityActor} ${
+              activityType === "repost"
+                ? "reposted"
+                : activityType === "like"
+                ? "liked"
+                : "commented"
+            }`}
+          </Text>
+        </View>
+      ) : null}
+
       <Card.Title
         title={title}
         subtitle={formatRelativeTime(createdAt)}
@@ -139,3 +182,19 @@ export function PostCardHeader({
   );
 }
 
+const styles = StyleSheet.create({
+  activityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 26,
+    paddingTop: 12,
+    paddingBottom: 2,
+  },
+  activityIcon: {
+    marginRight: 6,
+  },
+  activityText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+});
