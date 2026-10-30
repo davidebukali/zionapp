@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 
 import {
@@ -10,13 +10,12 @@ import {
 import { Comment } from "../features/comments/types";
 import { postsApi, useGetPostQuery } from "../features/posts/api";
 import { RootState } from "../store/store";
+import { getUserAvatarUrl, getUserInitials } from "../utils/user";
 
 const selectCachedFeed = postsApi.endpoints.getFeed.select();
 
 export function usePostComments(postId: string) {
   const [draft, setDraft] = useState("");
-  const [accumulatedComments, setAccumulatedComments] = useState<Comment[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
@@ -25,13 +24,8 @@ export function usePostComments(postId: string) {
   const currentUser = useMemo(() => {
     const displayName =
       authUser?.profile?.display_name || authUser?.name || "Member";
-    const initials = displayName
-      .split(" ")
-      .map((part) => part[0])
-      .filter(Boolean)
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() || "M";
+    const initials = getUserInitials(displayName, authUser?.email, "M");
+    const avatarUrl = getUserAvatarUrl(authUser);
 
     return {
       id: authUser?.id ? String(authUser.id) : undefined,
@@ -41,7 +35,7 @@ export function usePostComments(postId: string) {
         authUser?.name?.toLowerCase().replace(/\s+/g, "") ||
         "member",
       initials,
-      avatarUrl: authUser?.profile?.avatar_media_id ? undefined : undefined,
+      avatarUrl,
     };
   }, [authUser]);
 
@@ -53,11 +47,10 @@ export function usePostComments(postId: string) {
   const post = fetchedPost || feedPosts?.find((item) => item.id === postId);
   const displayedCount = post?.comments ?? "";
 
-  // Initial comments query
+  // Paginated comments query (cache-managed)
   const {
-    data: initialData,
+    data: commentsResult,
     isLoading: isInitialLoading,
-    isFetching: isInitialFetching,
     error: initialError,
     refetch,
   } = useGetCommentsQuery({ postId }, { skip: !postId });
@@ -66,24 +59,15 @@ export function usePostComments(postId: string) {
   const [createComment, { isLoading: isSubmitting }] = useCreateCommentMutation();
   const [toggleLikeComment] = useToggleLikeCommentMutation();
 
-  // Sync initial query results into accumulated list
-  useEffect(() => {
-    if (initialData?.comments) {
-      setAccumulatedComments(initialData.comments);
-      setNextCursor(initialData.nextCursor ?? null);
-    }
-  }, [initialData]);
+  const comments = commentsResult?.comments ?? [];
+  const hasMore = Boolean(commentsResult?.nextCursor);
 
   // Pull-to-refresh
   const handleRefresh = useCallback(async () => {
     if (!postId || isRefreshing) return;
     setIsRefreshing(true);
     try {
-      const result = await refetch().unwrap();
-      if (result?.comments) {
-        setAccumulatedComments(result.comments);
-        setNextCursor(result.nextCursor ?? null);
-      }
+      await refetch().unwrap();
     } catch {
       // Handled by RTK Query error state
     } finally {
@@ -93,28 +77,26 @@ export function usePostComments(postId: string) {
 
   // Infinite scroll load more
   const handleLoadMore = useCallback(async () => {
+    const nextCursor = commentsResult?.nextCursor;
     if (!postId || !nextCursor || isLoadingMore || isRefreshing) return;
     setIsLoadingMore(true);
     try {
-      const response = await lazyFetchComments({
+      await lazyFetchComments({
         postId,
         cursor: nextCursor,
       }).unwrap();
-
-      if (response?.comments) {
-        setAccumulatedComments((prev) => {
-          const existingIds = new Set(prev.map((c) => c.id));
-          const uniqueNew = response.comments.filter((c) => !existingIds.has(c.id));
-          return [...prev, ...uniqueNew];
-        });
-        setNextCursor(response.nextCursor ?? null);
-      }
     } catch {
-      // Error handling
+      // Handled by RTK Query error state
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, isRefreshing, lazyFetchComments, nextCursor, postId]);
+  }, [
+    commentsResult?.nextCursor,
+    isLoadingMore,
+    isRefreshing,
+    lazyFetchComments,
+    postId,
+  ]);
 
   // Submit comment
   const handleSubmitComment = useCallback(async () => {
@@ -122,18 +104,13 @@ export function usePostComments(postId: string) {
     if (!trimmed || isSubmitting || !postId) return;
 
     try {
-      const created = await createComment({
+      await createComment({
         postId,
         content: trimmed,
       }).unwrap();
-
       setDraft("");
-      setAccumulatedComments((prev) => {
-        const filtered = prev.filter((c) => c.id !== created.id);
-        return [created, ...filtered];
-      });
     } catch {
-      // Error handled by mutation state
+      // Handled by mutation error state
     }
   }, [createComment, draft, isSubmitting, postId]);
 
@@ -141,21 +118,6 @@ export function usePostComments(postId: string) {
   const handleLikeComment = useCallback(
     async (comment: Comment) => {
       if (!postId) return;
-      // Optimistic update in local list
-      setAccumulatedComments((prev) =>
-        prev.map((c) => {
-          if (c.id === comment.id) {
-            const nextLiked = !c.liked;
-            return {
-              ...c,
-              liked: nextLiked,
-              likes: Math.max(0, c.likes + (nextLiked ? 1 : -1)),
-            };
-          }
-          return c;
-        })
-      );
-
       try {
         await toggleLikeComment({
           commentId: comment.id,
@@ -163,22 +125,19 @@ export function usePostComments(postId: string) {
           liked: comment.liked,
         }).unwrap();
       } catch {
-        // Rollback on failure
-        setAccumulatedComments((prev) =>
-          prev.map((c) => (c.id === comment.id ? comment : c))
-        );
+        // Rollback handled by toggleLikeComment onQueryStarted
       }
     },
     [postId, toggleLikeComment]
   );
 
   return {
-    comments: accumulatedComments,
+    comments,
     displayedCount,
     currentUser,
     draft,
     setDraft,
-    hasMore: Boolean(nextCursor),
+    hasMore,
     isInitialLoading,
     isLoadingMore,
     isRefreshing,

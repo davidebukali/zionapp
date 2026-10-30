@@ -5,6 +5,7 @@ import { Avatar, useTheme } from "react-native-paper";
 import { globalStyles } from "../../assets/styles/theme";
 import type { Comment } from "../../features/comments/types";
 import { formatRelativeTime } from "../../utils/date";
+import { getUserInitials } from "../../utils/user";
 
 type CommentItemProps = {
   comment: Comment;
@@ -12,14 +13,6 @@ type CommentItemProps = {
   onReply?: (comment: Comment) => void;
   onMore?: (comment: Comment) => void;
 };
-
-const getInitials = (name: string) =>
-  name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
 export function CommentItem({ comment, onLike, onReply, onMore }: CommentItemProps) {
   const theme = useTheme();
@@ -41,7 +34,7 @@ export function CommentItem({ comment, onLike, onReply, onMore }: CommentItemPro
       ) : (
         <Avatar.Text
           size={42}
-          label={getInitials(comment.author)}
+          label={getUserInitials(comment.author)}
           color="#FFFFFF"
           style={[
             globalStyles.commentAvatar,

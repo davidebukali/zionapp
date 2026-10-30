@@ -9,6 +9,7 @@ import {
 } from './types';
 import {
   normalizeComment,
+  mergeCommentsCache,
   updateCommentInCache,
   insertCommentInCache,
   incrementPostCommentCount,
@@ -38,6 +39,12 @@ export const commentsApi = baseApi.injectEndpoints({
           nextCursor: response?.meta?.meta?.next_cursor ?? null,
         };
       },
+      serializeQueryArgs: ({ queryArgs }) => queryArgs.postId,
+      merge: (currentCache, newItems, { arg }) => {
+        mergeCommentsCache(currentCache, newItems, arg?.cursor);
+      },
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.cursor !== previousArg?.cursor,
       providesTags: (result, error, { postId }) => [
         { type: 'Comment', id: `LIST_${postId}` },
       ],

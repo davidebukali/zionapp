@@ -5,6 +5,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { globalStyles, postTokens } from "../../../assets/styles/theme";
 import { formatRelativeTime } from "../../../utils/date";
+import { getUserInitials } from "../../../utils/user";
 import { AnchorPosition, PostCardMenu } from "./PostCardMenu";
 
 interface PostCardHeaderProps {
@@ -23,15 +24,6 @@ interface PostCardHeaderProps {
   onPressShareDM?: () => void;
   onPressShareSystem?: () => void;
 }
-
-const getInitials = (name?: string): string => {
-  if (!name) return "AR";
-  const parts = name.trim().split(" ").filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-};
 
 export function PostCardHeader({
   title,
@@ -131,7 +123,7 @@ export function PostCardHeader({
             <Avatar.Text
               {...props}
               size={54}
-              label={getInitials(title)}
+              label={getUserInitials(title)}
               color={theme.colors.onPrimaryContainer}
               style={[
                 globalStyles.postAvatar,

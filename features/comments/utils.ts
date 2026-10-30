@@ -1,4 +1,4 @@
-import { Comment, LaravelComment } from './types';
+import { Comment, CommentsResult, LaravelComment } from './types';
 import { updatePostInCaches } from '../posts/utils';
 import { Post } from '../posts/types';
 
@@ -35,6 +35,28 @@ export function normalizeComment(raw: LaravelComment): Comment {
 }
 
 /**
+ * Merges paginated comments results into the active RTK Query cache draft.
+ * If cursor is falsy, replaces the comments cache (initial load or refresh).
+ * If cursor is present, appends unique comments by id and updates nextCursor.
+ */
+export function mergeCommentsCache(
+  currentCache: CommentsResult,
+  newItems: CommentsResult,
+  cursor?: string | null
+): void {
+  if (!cursor) {
+    currentCache.comments = newItems.comments;
+    currentCache.nextCursor = newItems.nextCursor;
+    return;
+  }
+
+  const existingIds = new Set(currentCache.comments.map((c) => c.id));
+  const uniqueIncoming = newItems.comments.filter((c) => !existingIds.has(c.id));
+  currentCache.comments.push(...uniqueIncoming);
+  currentCache.nextCursor = newItems.nextCursor;
+}
+
+/**
  * Optimistically updates a comment in the active getComments cache.
  * Returns an undo function to rollback if the mutation fails.
  */
@@ -48,7 +70,7 @@ export function updateCommentInCache(
   const patchResult = dispatch(
     api.util.updateQueryData(
       'getComments',
-      { postId, cursor: undefined, perPage: 15 },
+      { postId } as any,
       (draft: any) => {
         const comment = draft?.comments?.find((c: Comment) => c.id === commentId);
         if (comment) updater(comment);
@@ -73,7 +95,7 @@ export function insertCommentInCache(
   dispatch(
     api.util.updateQueryData(
       'getComments',
-      { postId, cursor: undefined, perPage: 15 },
+      { postId } as any,
       (draft: any) => {
         if (draft && draft.comments) {
           draft.comments.unshift(newComment);

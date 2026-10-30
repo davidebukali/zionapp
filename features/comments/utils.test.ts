@@ -1,10 +1,11 @@
 import {
   normalizeComment,
+  mergeCommentsCache,
   updateCommentInCache,
   insertCommentInCache,
   incrementPostCommentCount,
 } from './utils';
-import { LaravelComment } from './types';
+import { CommentsResult, LaravelComment } from './types';
 
 describe('features/comments/utils', () => {
   describe('normalizeComment', () => {
@@ -94,6 +95,106 @@ describe('features/comments/utils', () => {
     });
   });
 
+  describe('mergeCommentsCache', () => {
+    it('replaces comments and nextCursor when cursor is not provided (initial or refresh)', () => {
+      const currentCache: CommentsResult = {
+        comments: [
+          {
+            id: 'c1',
+            postId: 'p1',
+            userId: 'u1',
+            author: 'A',
+            username: 'a',
+            body: 'Old',
+            likes: 0,
+            liked: false,
+            replies: 0,
+            createdAt: '2026-10-30T10:00:00Z',
+          },
+        ],
+        nextCursor: 'old-cursor',
+      };
+
+      const newItems: CommentsResult = {
+        comments: [
+          {
+            id: 'c2',
+            postId: 'p1',
+            userId: 'u2',
+            author: 'B',
+            username: 'b',
+            body: 'New',
+            likes: 0,
+            liked: false,
+            replies: 0,
+            createdAt: '2026-10-30T11:00:00Z',
+          },
+        ],
+        nextCursor: 'cursor-2',
+      };
+
+      mergeCommentsCache(currentCache, newItems);
+      expect(currentCache.comments).toEqual(newItems.comments);
+      expect(currentCache.nextCursor).toBe('cursor-2');
+    });
+
+    it('merges unique comments and updates nextCursor when cursor is provided (load more)', () => {
+      const currentCache: CommentsResult = {
+        comments: [
+          {
+            id: 'c1',
+            postId: 'p1',
+            userId: 'u1',
+            author: 'A',
+            username: 'a',
+            body: 'First',
+            likes: 0,
+            liked: false,
+            replies: 0,
+            createdAt: '2026-10-30T10:00:00Z',
+          },
+        ],
+        nextCursor: 'cursor-1',
+      };
+
+      const newItems: CommentsResult = {
+        comments: [
+          {
+            id: 'c1', // duplicate
+            postId: 'p1',
+            userId: 'u1',
+            author: 'A',
+            username: 'a',
+            body: 'First duplicate',
+            likes: 0,
+            liked: false,
+            replies: 0,
+            createdAt: '2026-10-30T10:00:00Z',
+          },
+          {
+            id: 'c2', // new
+            postId: 'p1',
+            userId: 'u2',
+            author: 'B',
+            username: 'b',
+            body: 'Second',
+            likes: 0,
+            liked: false,
+            replies: 0,
+            createdAt: '2026-10-30T11:00:00Z',
+          },
+        ],
+        nextCursor: 'cursor-2',
+      };
+
+      mergeCommentsCache(currentCache, newItems, 'cursor-1');
+      expect(currentCache.comments).toHaveLength(2);
+      expect(currentCache.comments[0].id).toBe('c1');
+      expect(currentCache.comments[1].id).toBe('c2');
+      expect(currentCache.nextCursor).toBe('cursor-2');
+    });
+  });
+
   describe('updateCommentInCache', () => {
     it('updates comment in getComments draft and rolls back on undo', () => {
       const undoMock = jest.fn();
@@ -116,7 +217,7 @@ describe('features/comments/utils', () => {
 
       expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
         'getComments',
-        { postId: 'post-1', cursor: undefined, perPage: 15 },
+        { postId: 'post-1' },
         expect.any(Function)
       );
 
@@ -168,7 +269,7 @@ describe('features/comments/utils', () => {
 
       expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
         'getComments',
-        { postId: 'post-1', cursor: undefined, perPage: 15 },
+        { postId: 'post-1' },
         expect.any(Function)
       );
 

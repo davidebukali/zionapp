@@ -17,6 +17,7 @@ import {
   MediaItem,
   uploadAndProcessMedia,
 } from "../utils/mediaUploader";
+import { getUserInitials } from "../utils/user";
 
 export type { MediaItem };
 
@@ -50,19 +51,10 @@ export function useCreatePostComposer() {
   // ---------------------------------------------------------------------------
   // 3. User Avatar & Initials (Memoized)
   // ---------------------------------------------------------------------------
-  const initials = useMemo(() => {
-    if (user?.name) {
-      const parts = user.name.trim().split(" ");
-      if (parts.length >= 2) {
-        return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-      }
-      return parts[0].slice(0, 2).toUpperCase();
-    }
-    if (user?.email) {
-      return user.email.slice(0, 2).toUpperCase();
-    }
-    return "AR";
-  }, [user?.name, user?.email]);
+  const initials = useMemo(
+    () => getUserInitials(user?.name, user?.email),
+    [user?.name, user?.email]
+  );
 
   // ---------------------------------------------------------------------------
   // 4. Draft & Dismissal Handlers
