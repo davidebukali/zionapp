@@ -84,9 +84,7 @@ export function PostCardHeader({
             }
             size={14}
             color={
-              activityType === "repost"
-                ? "#34C759"
-                : activityType === "like"
+              activityType === "repost" || activityType === "like"
                 ? theme.colors.primary
                 : theme.colors.onSurfaceVariant
             }

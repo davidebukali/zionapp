@@ -38,7 +38,7 @@ export function PostCardFooter({
   const repostsLabel = repostsCount > 0 ? String(repostsCount) : undefined;
 
   const likeColor = liked ? postTokens.activeActionColor : postTokens.actionColor;
-  const repostColor = isReposted ? "#34C759" : postTokens.actionColor;
+  const repostColor = isReposted ? postTokens.activeActionColor : postTokens.actionColor;
   const bookmarkColor = bookmarked ? postTokens.activeActionColor : postTokens.actionColor;
 
   return (
