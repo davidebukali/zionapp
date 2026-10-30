@@ -17,6 +17,7 @@ import {
 import {
   normalizePost,
   updatePostInCaches,
+  removePostFromCaches,
   mergeUniquePosts,
 } from './utils';
 
@@ -294,6 +295,30 @@ export const postsApi = baseApi.injectEndpoints({
         { type: 'Post', id: 'LIST' },
       ],
     }),
+
+    /**
+     * Delete post by ID.
+     * Optimistically removes post from active feed and posts caches.
+     */
+    deletePost: builder.mutation<{ success: boolean } | void, string>({
+      query: (postId) => ({
+        url: `/posts/${postId}`,
+        method: 'DELETE',
+      }),
+      async onQueryStarted(postId, { dispatch, queryFulfilled }) {
+        const undo = removePostFromCaches(postsApi, dispatch, postId);
+        try {
+          await queryFulfilled;
+        } catch {
+          undo();
+        }
+      },
+      invalidatesTags: (result, error, postId) => [
+        { type: 'Post', id: postId },
+        { type: 'Feed', id: 'LIST' },
+        { type: 'Post', id: 'LIST' },
+      ],
+    }),
   }),
   overrideExisting: true,
 });
@@ -315,4 +340,5 @@ export const {
   useGetMediaStatusQuery,
   useLazyGetMediaStatusQuery,
   useCreatePostMutation,
+  useDeletePostMutation,
 } = postsApi;

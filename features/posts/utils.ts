@@ -107,3 +107,34 @@ export function mergeUniquePosts<T>(
   return [...currentList, ...uniqueIncoming];
 }
 
+/**
+ * Optimistically removes a post from active RTK Query caches (getFeed, getPosts).
+ * Returns an undo function that restores previous cache states if deletion fails.
+ */
+export function removePostFromCaches(
+  api: any,
+  dispatch: any,
+  postId: string
+): () => void {
+  const patchFeed = dispatch(
+    api.util.updateQueryData('getFeed', undefined as any, (draft: any) => {
+      if (draft?.posts) {
+        draft.posts = draft.posts.filter((p: Post) => p.id !== postId);
+      }
+    })
+  );
+
+  const patchPosts = dispatch(
+    api.util.updateQueryData('getPosts', undefined as any, (draft: any) => {
+      if (Array.isArray(draft)) {
+        return draft.filter((p: Post) => p.id !== postId);
+      }
+    })
+  );
+
+  return () => {
+    patchFeed.undo();
+    patchPosts.undo();
+  };
+}
+

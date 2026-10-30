@@ -1,4 +1,9 @@
-import { normalizePost, mergeUniquePosts, updatePostInCaches } from './utils';
+import {
+  normalizePost,
+  mergeUniquePosts,
+  updatePostInCaches,
+  removePostFromCaches,
+} from './utils';
 import { LaravelPost, PostActivity } from './types';
 
 describe('features/posts/utils', () => {
@@ -101,6 +106,57 @@ describe('features/posts/utils', () => {
       expect(undoFeed).toHaveBeenCalledTimes(1);
       expect(undoPosts).toHaveBeenCalledTimes(1);
       expect(undoSingle).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('removePostFromCaches', () => {
+    it('removes post from getFeed and getPosts drafts and reverts on undo', () => {
+      const undoFeed = jest.fn();
+      const undoPosts = jest.fn();
+      const callbacks: Record<string, any> = {};
+
+      const mockApi = {
+        util: {
+          updateQueryData: jest.fn((endpoint: string, args: any, callback: any) => {
+            callbacks[endpoint] = callback;
+            if (endpoint === 'getFeed') return { undo: undoFeed };
+            return { undo: undoPosts };
+          }),
+        },
+      };
+
+      const dispatch = jest.fn((action: any) => action);
+
+      const undo = removePostFromCaches(mockApi, dispatch, 'post-remove');
+
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        'getFeed',
+        undefined,
+        expect.any(Function)
+      );
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        'getPosts',
+        undefined,
+        expect.any(Function)
+      );
+
+      // Verify feed draft filtering
+      const feedDraft = {
+        posts: [{ id: 'post-remove' }, { id: 'post-keep' }],
+      };
+      callbacks['getFeed'](feedDraft);
+      expect(feedDraft.posts).toHaveLength(1);
+      expect(feedDraft.posts[0].id).toBe('post-keep');
+
+      // Verify posts draft filtering
+      const postsDraft = [{ id: 'post-remove' }, { id: 'post-keep' }];
+      const filteredPosts = callbacks['getPosts'](postsDraft);
+      expect(filteredPosts).toHaveLength(1);
+      expect(filteredPosts[0].id).toBe('post-keep');
+
+      undo();
+      expect(undoFeed).toHaveBeenCalledTimes(1);
+      expect(undoPosts).toHaveBeenCalledTimes(1);
     });
   });
 });

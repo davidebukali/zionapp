@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback, useState } from "react";
 import { useRouter } from "expo-router";
-import { View } from "react-native";
+import { Alert, View } from "react-native";
 import { useTheme } from "react-native-paper";
 import { useSelector } from "react-redux";
 
@@ -17,6 +17,7 @@ import {
   useGetPostsQuery,
   useToggleLikePostMutation,
   useToggleRepostPostMutation,
+  useDeletePostMutation,
 } from "../../../features/posts/api";
 import { isNetworkError } from "../../../utils/network";
 
@@ -54,6 +55,7 @@ export default function Index() {
 
   const [toggleLikePost] = useToggleLikePostMutation();
   const [toggleRepostPost] = useToggleRepostPostMutation();
+  const [deletePost] = useDeletePostMutation();
 
   const isFetching = isFetchingFeed || isFetchingPosts;
   const posts =
@@ -93,6 +95,30 @@ export default function Index() {
       refetchPosts();
     }
   }, [refetchFeed, refetchPosts, shouldFallbackToPosts]);
+
+  const handleDeletePost = useCallback(
+    (postId: string) => {
+      Alert.alert(
+        "Delete Post?",
+        "Are you sure you want to delete this post? This action cannot be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await deletePost(postId).unwrap();
+              } catch {
+                Alert.alert("Error", "Failed to delete post. Please try again.");
+              }
+            },
+          },
+        ]
+      );
+    },
+    [deletePost]
+  );
 
   const renderPostItem = useCallback(
     ({ item }: { item: Post }) => {
@@ -142,10 +168,18 @@ export default function Index() {
               reposted: !!item.isReposted,
             })
           }
+          onPressDelete={() => handleDeletePost(item.id)}
         />
       );
     },
-    [currentUser?.id, currentUser?.name, router, toggleLikePost, toggleRepostPost]
+    [
+      currentUser?.id,
+      currentUser?.name,
+      handleDeletePost,
+      router,
+      toggleLikePost,
+      toggleRepostPost,
+    ]
   );
 
   return (
