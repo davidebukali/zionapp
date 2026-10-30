@@ -1,15 +1,14 @@
 import React from "react";
 import { CommonActions } from "@react-navigation/native";
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Text, TouchableOpacity, useColorScheme, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
-import { darkTheme, lightTheme } from "../assets/styles/theme";
+import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export function CustomTabBar({ state, descriptors, navigation }: any) {
-  const colorScheme = useColorScheme();
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const theme = colorScheme === "dark" ? darkTheme : lightTheme;
 
   const activeColor = theme.colors.primary;
   const inactiveColor = theme.colors.onSurfaceVariant;
@@ -41,7 +40,7 @@ export function CustomTabBar({ state, descriptors, navigation }: any) {
       });
     };
 
-    let iconName: any = 'home-outline';
+    let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
     let label = 'Home';
 
     if (route.name === 'index') {
@@ -50,9 +49,9 @@ export function CustomTabBar({ state, descriptors, navigation }: any) {
     } else if (route.name === 'discover') {
       iconName = isFocused ? 'search' : 'search-outline';
       label = 'Discover';
-    } else if (route.name === 'notifications') {
-      iconName = isFocused ? 'notifications' : 'notifications-outline';
-      label = 'Alerts';
+    } else if (route.name === 'messages') {
+      iconName = isFocused ? 'paper-plane' : 'paper-plane-outline';
+      label = 'Messages';
     } else if (route.name === 'settings') {
       iconName = isFocused ? 'person' : 'person-outline';
       label = 'Me';
@@ -63,13 +62,14 @@ export function CustomTabBar({ state, descriptors, navigation }: any) {
     return (
       <TouchableOpacity
         key={route.key}
+        accessibilityRole="button"
+        accessibilityLabel={label}
         onPress={onPress}
         onLongPress={onLongPress}
         style={styles.tabButton}
         activeOpacity={0.7}
       >
-        <Ionicons name={iconName} size={24} color={color} />
-        <Text style={[styles.tabLabel, { color }]}>{label}</Text>
+        <Ionicons name={iconName} size={28} color={color} />
       </TouchableOpacity>
     );
   };
@@ -77,6 +77,8 @@ export function CustomTabBar({ state, descriptors, navigation }: any) {
   const renderAddButton = () => (
     <TouchableOpacity
       key="custom-add-button"
+      accessibilityRole="button"
+      accessibilityLabel="Create post"
       onPress={() => router.push('/new-post')}
       style={styles.addButtonContainer}
       activeOpacity={0.8}
@@ -113,7 +115,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderTopWidth: StyleSheet.hairlineWidth,
     elevation: 8,
-    shadowColor: '#000000',
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.05,
     shadowRadius: 5,
@@ -126,11 +127,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 60,
-  },
-  tabLabel: {
-    fontSize: 10,
-    marginTop: 4,
-    fontWeight: '600',
   },
   addButtonContainer: {
     width: 60,
@@ -146,7 +142,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     top: -16, // floats above the bar
-    // Shadow / Glow
     elevation: 10,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,

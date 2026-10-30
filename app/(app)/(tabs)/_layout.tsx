@@ -40,9 +40,9 @@ export default function RootLayout() {
           }}
         />
         <Tabs.Screen
-          name="notifications"
+          name="messages"
           options={{
-            title: 'Alerts',
+            title: 'Messages',
           }}
         />
         <Tabs.Screen
