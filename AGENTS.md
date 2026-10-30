@@ -27,5 +27,5 @@
 ---
 
 ## 4. Workflow & Verification
-- Prioritize design alignment and requirement gathering before code execution when requested ("ask questions, do not code").
+- Always prioritize design alignment and requirement gathering before code execution ("ask questions, do not code").
 - Verify all changes with `npx tsc --noEmit` to maintain strict TypeScript compliance.
