@@ -26,6 +26,19 @@
 
 ---
 
-## 4. Workflow & Verification
+## 4. Feature Module Architecture (`features/<feature>/`)
+- **Strict Separation of Concerns**:
+  - **`types.ts` (Pure Declarations Only):** Must strictly contain TypeScript interfaces, types, and enums. Never place runtime functions, transformations, or executable logic in `types.ts`.
+  - **`utils.ts` (Pure Functions & Helpers):** Houses data normalization/mapping (e.g. `normalizePost`), list deduplication helpers (e.g. `mergeUniquePosts`), and optimistic cache update logic (e.g. `updatePostInCaches`).
+  - **`api.ts` (Declarative RTK Query Slices):** Must be lean and declarative, strictly defining endpoint queries, mutations, tag invalidations, and exported hooks.
+- **Circular Dependency Prevention (Dependency Injection):**
+  - Cache-update utilities must accept the RTK Query `api` slice as a parameter (`updatePostInCaches(api, dispatch, id, updater)`). Never allow `utils.ts` to import `api.ts` directly.
+- **Dedicated Utility Test Coverage:**
+  - Every utility module (`utils.ts`) must have a corresponding unit test file (`utils.test.ts`) covering data mappings, edge cases, and cache update/rollback behavior.
+
+---
+
+## 5. Workflow & Verification
 - Always prioritize design alignment and requirement gathering before code execution ("ask questions, do not code").
 - Verify all changes with `npx tsc --noEmit` to maintain strict TypeScript compliance.
+- Run the full test suite (`npm test -- --watchAll=false`) after code changes to guarantee zero regressions.

@@ -4,7 +4,6 @@ import {
   FeedResult,
   FeedResponse,
   PostsListResponse,
-  normalizePost,
   LaravelPost,
   UploadUrlRequest,
   UploadUrlResponse,
@@ -15,54 +14,11 @@ import {
   MediaStatusResponse,
   RepostResponse,
 } from './types';
-
-// ============================================================================
-// Cache Helper: Synchronize Post Changes Across Feeds & Detail Caches
-// ============================================================================
-
-/**
- * Optimistically updates a post across all active RTK Query caches
- * (feed list, public posts list, and single post query).
- *
- * Returns an undo function that reverts all patched caches if an API call fails.
- */
-function updatePostInCaches(
-  dispatch: any,
-  postId: string,
-  updater: (post: Post) => void
-): () => void {
-  // 1. Patch personalized feed cache (may contain multiple items for same post)
-  const patchFeed = dispatch(
-    postsApi.util.updateQueryData('getFeed', undefined as any, (draft) => {
-      draft?.posts?.forEach((p) => {
-        if (p.id === postId) updater(p);
-      });
-    })
-  );
-
-  // 2. Patch public posts cache (used as fallback when feed is empty)
-  const patchPosts = dispatch(
-    postsApi.util.updateQueryData('getPosts', undefined as any, (draft) => {
-      if (!Array.isArray(draft)) return;
-      draft.forEach((p) => {
-        if (p.id === postId) updater(p);
-      });
-    })
-  );
-
-  // 3. Patch single post detail cache (if currently open)
-  const patchSingle = dispatch(
-    postsApi.util.updateQueryData('getPost', postId, (draft) => {
-      if (draft) updater(draft);
-    })
-  );
-
-  return () => {
-    patchFeed.undo();
-    patchPosts.undo();
-    patchSingle.undo();
-  };
-}
+import {
+  normalizePost,
+  updatePostInCaches,
+  mergeUniquePosts,
+} from './utils';
 
 // ============================================================================
 // Posts API Slice Endpoints
@@ -114,13 +70,11 @@ export const postsApi = baseApi.injectEndpoints({
         if (!arg?.cursor) {
           return newItems;
         }
-        const existingIds = new Set(
-          currentCache.posts.map((p) => String(p.feedItemId || p.id))
+        currentCache.posts = mergeUniquePosts(
+          currentCache.posts,
+          newItems.posts,
+          (p) => String(p.feedItemId || p.id)
         );
-        const filtered = newItems.posts.filter(
-          (p) => !existingIds.has(String(p.feedItemId || p.id))
-        );
-        currentCache.posts.push(...filtered);
         currentCache.nextCursor = newItems.nextCursor;
       },
       forceRefetch: ({ currentArg, previousArg }) => currentArg?.cursor !== previousArg?.cursor,
@@ -155,9 +109,7 @@ export const postsApi = baseApi.injectEndpoints({
         if ((arg?.page ?? 1) === 1) {
           return newItems;
         }
-        const existingIds = new Set(currentCache.map((p) => p.id));
-        const filtered = newItems.filter((p) => !existingIds.has(p.id));
-        return [...currentCache, ...filtered];
+        return mergeUniquePosts(currentCache, newItems, (p) => p.id);
       },
       forceRefetch: ({ currentArg, previousArg }) =>
         (currentArg?.page ?? 1) !== (previousArg?.page ?? 1),
@@ -199,7 +151,7 @@ export const postsApi = baseApi.injectEndpoints({
         const nextLiked = !liked;
 
         // Optimistically flip liked boolean and adjust like counter
-        const undo = updatePostInCaches(dispatch, postId, (post) => {
+        const undo = updatePostInCaches(postsApi, dispatch, postId, (post) => {
           post.liked = nextLiked;
           const current = parseInt(post.likes || '0', 10) || 0;
           post.likes = String(nextLiked ? current + 1 : Math.max(0, current - 1));
@@ -228,7 +180,7 @@ export const postsApi = baseApi.injectEndpoints({
       async onQueryStarted({ postId, reposted }, { dispatch, queryFulfilled }) {
         const nextReposted = !reposted;
 
-        const undo = updatePostInCaches(dispatch, postId, (post) => {
+        const undo = updatePostInCaches(postsApi, dispatch, postId, (post) => {
           post.isReposted = nextReposted;
           post.reposted = nextReposted;
           const current = post.repostsCount ?? 0;
@@ -252,7 +204,7 @@ export const postsApi = baseApi.injectEndpoints({
         method: 'POST',
       }),
       async onQueryStarted(postId, { dispatch, queryFulfilled }) {
-        const undo = updatePostInCaches(dispatch, postId, (post) => {
+        const undo = updatePostInCaches(postsApi, dispatch, postId, (post) => {
           post.isReposted = true;
           post.reposted = true;
           post.repostsCount = (post.repostsCount ?? 0) + 1;
@@ -275,7 +227,7 @@ export const postsApi = baseApi.injectEndpoints({
         method: 'DELETE',
       }),
       async onQueryStarted(postId, { dispatch, queryFulfilled }) {
-        const undo = updatePostInCaches(dispatch, postId, (post) => {
+        const undo = updatePostInCaches(postsApi, dispatch, postId, (post) => {
           post.isReposted = false;
           post.reposted = false;
           post.repostsCount = Math.max(0, (post.repostsCount ?? 0) - 1);

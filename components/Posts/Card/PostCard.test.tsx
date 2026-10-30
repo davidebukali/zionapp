@@ -27,7 +27,7 @@ import PostCard from "../PostCard";
 import { PostCardMenu } from "./PostCardMenu";
 import { PostCardFooter } from "./PostCardFooter";
 import { PostCardHeader } from "./PostCardHeader";
-import { normalizePost } from "../../../features/posts/types";
+import { normalizePost } from "../../../features/posts/utils";
 
 describe("PostCard & Action components", () => {
   it("renders post card with author, title and body text", () => {
