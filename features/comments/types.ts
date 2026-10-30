@@ -79,31 +79,4 @@ export interface CreateCommentRequest {
   parent_comment_id?: string;
 }
 
-export function normalizeComment(raw: LaravelComment): Comment {
-  const authorName =
-    raw.user?.profile?.display_name ||
-    raw.user?.name ||
-    (raw.user_id ? "Member" : "Deleted User");
 
-  const username =
-    raw.user?.profile?.username ||
-    (raw.user?.name
-      ? raw.user.name.toLowerCase().replace(/\s+/g, "")
-      : "member");
-
-  const avatarUrl = raw.user?.profile?.avatar?.url ?? undefined;
-
-  return {
-    id: String(raw.id),
-    postId: String(raw.post_id),
-    userId: raw.user_id ? String(raw.user_id) : null,
-    author: authorName,
-    username,
-    body: raw.content || "",
-    avatarUrl,
-    likes: typeof raw.likes_count === "number" ? raw.likes_count : 0,
-    liked: Boolean(raw.is_liked ?? false),
-    replies: typeof raw.replies_count === "number" ? raw.replies_count : 0,
-    createdAt: raw.created_at || new Date().toISOString(),
-  };
-}

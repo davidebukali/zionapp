@@ -18,3 +18,5 @@
 ## 4. Workflow
 - Always align on plan and questions before coding when prompted.
 - Validate all changes with `npx tsc --noEmit`.
+- **Always ask for permission before coding**
+- **Never commit code**

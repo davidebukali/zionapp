@@ -6,8 +6,13 @@ import {
   CommentsResult,
   CreateCommentRequest,
   SingleCommentResponse,
-  normalizeComment,
 } from './types';
+import {
+  normalizeComment,
+  updateCommentInCache,
+  insertCommentInCache,
+  incrementPostCommentCount,
+} from './utils';
 
 export const commentsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -51,44 +56,13 @@ export const commentsApi = baseApi.injectEndpoints({
       transformResponse: (response: SingleCommentResponse): Comment =>
         normalizeComment(response.data),
       async onQueryStarted({ postId }, { dispatch, queryFulfilled }) {
-        // Optimistically increment post comment count in Feed and Single Post caches
-        const patchPost = dispatch(
-          postsApi.util.updateQueryData('getPost', postId, (draft) => {
-            if (draft) {
-              const current = parseInt(draft.comments || '0', 10) || 0;
-              draft.comments = String(current + 1);
-            }
-          })
-        );
-
-        const patchFeed = dispatch(
-          postsApi.util.updateQueryData('getFeed', undefined as any, (draft) => {
-            const post = draft?.posts?.find((p) => p.id === postId);
-            if (post) {
-              const current = parseInt(post.comments || '0', 10) || 0;
-              post.comments = String(current + 1);
-            }
-          })
-        );
+        const undoPostIncrement = incrementPostCommentCount(postsApi, dispatch, postId);
 
         try {
           const { data: newComment } = await queryFulfilled;
-
-          // Optimistically insert new comment into active comments list cache
-          dispatch(
-            commentsApi.util.updateQueryData(
-              'getComments',
-              { postId, cursor: undefined, perPage: 15 },
-              (draft) => {
-                if (draft && draft.comments) {
-                  draft.comments.unshift(newComment);
-                }
-              }
-            )
-          );
+          insertCommentInCache(commentsApi, dispatch, postId, newComment);
         } catch {
-          patchPost.undo();
-          patchFeed.undo();
+          undoPostIncrement();
         }
       },
       invalidatesTags: (result, error, { postId }) => [
@@ -105,25 +79,16 @@ export const commentsApi = baseApi.injectEndpoints({
         method: liked ? 'DELETE' : 'POST',
       }),
       async onQueryStarted({ commentId, postId, liked }, { dispatch, queryFulfilled }) {
-        // Optimistically update comment like state in comments list
-        const patchResult = dispatch(
-          commentsApi.util.updateQueryData(
-            'getComments',
-            { postId, cursor: undefined, perPage: 15 },
-            (draft) => {
-              const comment = draft?.comments?.find((c) => c.id === commentId);
-              if (comment) {
-                comment.liked = !liked;
-                comment.likes = Math.max(0, comment.likes + (!liked ? 1 : -1));
-              }
-            }
-          )
-        );
+        const nextLiked = !liked;
+        const undo = updateCommentInCache(commentsApi, dispatch, postId, commentId, (comment) => {
+          comment.liked = nextLiked;
+          comment.likes = Math.max(0, comment.likes + (nextLiked ? 1 : -1));
+        });
 
         try {
           await queryFulfilled;
         } catch {
-          patchResult.undo();
+          undo();
         }
       },
     }),

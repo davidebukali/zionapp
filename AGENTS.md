@@ -42,3 +42,5 @@
 - Always prioritize design alignment and requirement gathering before code execution ("ask questions, do not code").
 - Verify all changes with `npx tsc --noEmit` to maintain strict TypeScript compliance.
 - Run the full test suite (`npm test -- --watchAll=false`) after code changes to guarantee zero regressions.
+- **Always ask for permission before coding**
+- **Never commit code**
