@@ -44,6 +44,7 @@ export default function NewPostScreen() {
     remainingChars,
     isPostDisabled,
     initials,
+    avatarUrl,
   } = useCreatePostComposer();
 
   const handleOpenEmoji = () => {
@@ -80,12 +81,19 @@ export default function NewPostScreen() {
         >
           {/* Author Avatar Row */}
           <View style={globalStyles.row}>
-            <Avatar.Text
-              size={48}
-              label={initials}
-              style={{ backgroundColor: "#3B82F6" }}
-              labelStyle={{ color: "#FFFFFF", fontWeight: "700" }}
-            />
+            {avatarUrl ? (
+              <Avatar.Image
+                size={48}
+                source={{ uri: avatarUrl }}
+              />
+            ) : (
+              <Avatar.Text
+                size={48}
+                label={initials}
+                style={{ backgroundColor: theme.colors.primaryContainer }}
+                labelStyle={{ color: theme.colors.onPrimaryContainer, fontWeight: "700" }}
+              />
+            )}
           </View>
 
           {/* Multiline Composer */}

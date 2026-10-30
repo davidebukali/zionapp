@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Alert } from "react-native";
 import { router } from "expo-router";
 import { useSelector } from "react-redux";
@@ -17,7 +17,7 @@ import {
   MediaItem,
   uploadAndProcessMedia,
 } from "../utils/mediaUploader";
-import { getUserInitials } from "../utils/user";
+import { getUserInitials, getUserAvatarUrl } from "../utils/user";
 
 export type { MediaItem };
 
@@ -55,11 +55,12 @@ export function useCreatePostComposer() {
     () => getUserInitials(user?.name, user?.email),
     [user?.name, user?.email]
   );
+  const avatarUrl = useMemo(() => getUserAvatarUrl(user), [user]);
 
   // ---------------------------------------------------------------------------
   // 4. Draft & Dismissal Handlers
   // ---------------------------------------------------------------------------
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     const hasDraft = content.trim().length > 0 || mediaItems.length > 0;
     if (hasDraft) {
       Alert.alert(
@@ -77,12 +78,12 @@ export function useCreatePostComposer() {
     } else {
       router.back();
     }
-  };
+  }, [content, mediaItems.length]);
 
   // ---------------------------------------------------------------------------
   // 5. Media Selection & Review Modal Handlers
   // ---------------------------------------------------------------------------
-  const pickMedia = async () => {
+  const pickMedia = useCallback(async () => {
     if (mediaItems.length >= MAX_MEDIA) {
       Alert.alert("Limit Reached", `You can attach up to ${MAX_MEDIA} images.`);
       return;
@@ -113,43 +114,44 @@ export function useCreatePostComposer() {
       }));
       setMediaItems((prev) => [...prev, ...newItems].slice(0, MAX_MEDIA));
     }
-  };
+  }, [mediaItems.length]);
 
-  const removeAllMedia = () => {
+  const removeAllMedia = useCallback(() => {
     setMediaItems([]);
-  };
+  }, []);
 
   /**
    * Deletes the currently reviewed item without triggering nested state updater side-effects.
    */
-  const deleteReviewItem = () => {
-    const updated = mediaItems.filter((_, idx) => idx !== reviewIndex);
-    setMediaItems(updated);
+  const deleteReviewItem = useCallback(() => {
+    setMediaItems((prev) => {
+      const updated = prev.filter((_, idx) => idx !== reviewIndex);
+      if (updated.length === 0) {
+        setIsReviewModalVisible(false);
+        setReviewIndex(0);
+      } else if (reviewIndex >= updated.length) {
+        setReviewIndex(updated.length - 1);
+      }
+      return updated;
+    });
+  }, [reviewIndex]);
 
-    if (updated.length === 0) {
-      setIsReviewModalVisible(false);
-      setReviewIndex(0);
-    } else if (reviewIndex >= updated.length) {
-      setReviewIndex(updated.length - 1);
-    }
-  };
-
-  const openReviewModal = (initialIndex = 0) => {
+  const openReviewModal = useCallback((initialIndex = 0) => {
     setReviewIndex(initialIndex);
     setIsReviewModalVisible(true);
-  };
+  }, []);
 
   // ---------------------------------------------------------------------------
   // 6. Text & Emoji Handlers
   // ---------------------------------------------------------------------------
-  const handleEmojiSelected = (emojiObject: EmojiType) => {
+  const handleEmojiSelected = useCallback((emojiObject: EmojiType) => {
     setContent((prev) => (prev + emojiObject.emoji).slice(0, MAX_CHARACTERS));
-  };
+  }, []);
 
   // ---------------------------------------------------------------------------
   // 7. Post Publishing Pipeline
   // ---------------------------------------------------------------------------
-  const handlePublish = async () => {
+  const handlePublish = useCallback(async () => {
     if (!content.trim() && mediaItems.length === 0) {
       Alert.alert("Empty Post", "Please write some text or attach an image.");
       return;
@@ -181,7 +183,14 @@ export function useCreatePostComposer() {
       setIsPosting(false);
       setPostingStatus(null);
     }
-  };
+  }, [
+    confirmMediaUpload,
+    content,
+    createPost,
+    getMediaStatus,
+    getMediaUploadUrl,
+    mediaItems,
+  ]);
 
   // ---------------------------------------------------------------------------
   // 8. Computed Values & Return Object
@@ -211,5 +220,6 @@ export function useCreatePostComposer() {
     remainingChars,
     isPostDisabled,
     initials,
+    avatarUrl,
   };
 }
