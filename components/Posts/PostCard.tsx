@@ -1,37 +1,16 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { Image, ImageSourcePropType, Text, TouchableOpacity, View } from "react-native";
-import { Avatar, Card, useTheme } from "react-native-paper";
+import React, { useCallback } from "react";
+import { Share } from "react-native";
+import { Card, useTheme } from "react-native-paper";
 
-import { globalStyles, postTokens } from "../../assets/styles/theme";
-import { formatRelativeTime } from "../../utils/date";
-import { PostAction } from "./PostAction";
+import { globalStyles } from "../../assets/styles/theme";
+import {
+  PostCardBody,
+  PostCardFooter,
+  PostCardHeader,
+  PostCardProps,
+} from "./Card";
 
-interface PostCardProps {
-  title: string;
-  createdAt: string | Date;
-  body?: string;
-  avatarUrl?: string;
-  imageUrl?: string;
-  mediaWidth?: number;
-  mediaHeight?: number;
-  imageSource?: ImageSourcePropType;
-  likes?: string;
-  comments?: string;
-  liked?: boolean;
-  onLike?: () => void;
-  onComment?: () => void;
-}
-
-const getInitials = (name?: string): string => {
-  if (!name) return "AR";
-  const parts = name.trim().split(" ").filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-};
-
-const PostCard = ({
+export function PostCard({
   title,
   createdAt,
   body,
@@ -40,25 +19,53 @@ const PostCard = ({
   mediaWidth,
   mediaHeight,
   imageSource,
-  likes = "",
-  comments = "",
+  likes,
+  comments,
   liked = false,
+  bookmarked = false,
+  isOwnPost = false,
+  isFollowingAuthor = false,
+  isReposted = false,
+  repostsCount = 0,
   onLike,
   onComment,
-}: PostCardProps) => {
+  onPressThreeDots,
+  onPressEdit,
+  onPressDelete,
+  onPressFollowToggle,
+  onPressReport,
+  onPressLike,
+  onPressComment,
+  onPressRepost,
+  onPressBookmark,
+  onPressShareDM,
+  onPressShareSystem,
+}: PostCardProps) {
   const theme = useTheme();
-  const mediaSource = imageSource ?? (imageUrl ? { uri: imageUrl } : undefined);
-  const actionColor = liked ? postTokens.activeActionColor : postTokens.actionColor;
 
-  const likesCount = parseInt(likes, 10) || 0;
-  const commentsCount = parseInt(comments, 10) || 0;
-  const likesLabel = likesCount > 0 ? likes : undefined;
-  const commentsLabel = commentsCount > 0 ? comments : undefined;
-
-  // Adaptive aspect ratio clamped between 4:5 (0.8 portrait) and 16:9 (1.78 landscape)
-  const rawRatio =
-    mediaWidth && mediaHeight ? mediaWidth / mediaHeight : postTokens.imageAspectRatio;
-  const clampedAspectRatio = Math.max(0.8, Math.min(1.78, rawRatio));
+  const handleShareSystem = useCallback(async () => {
+    onPressShareSystem?.();
+    setTimeout(async () => {
+      try {
+        const shareText =
+          [title, body].filter(Boolean).join("\n\n") || "Check out this post on Zion";
+        await Share.share(
+          imageUrl && imageUrl.startsWith("http")
+            ? {
+                title: title || "Share Post",
+                message: shareText,
+                url: imageUrl,
+              }
+            : {
+                title: title || "Share Post",
+                message: shareText,
+              }
+        );
+      } catch {
+        // User dismissed or share error
+      }
+    }, 100);
+  }, [onPressShareSystem, title, body, imageUrl]);
 
   return (
     <Card
@@ -73,121 +80,44 @@ const PostCard = ({
         },
       ]}
     >
-      <Card.Title
+      <PostCardHeader
         title={title}
-        subtitle={formatRelativeTime(createdAt)}
-        titleNumberOfLines={1}
-        subtitleNumberOfLines={1}
-        style={globalStyles.postTitle}
-        titleStyle={[
-          globalStyles.postAuthorText,
-          { color: theme.colors.onSurface },
-        ]}
-        subtitleStyle={[
-          globalStyles.postTimestampText,
-          { color: theme.colors.onSurfaceVariant },
-        ]}
-        left={(props) =>
-          avatarUrl ? (
-            <Avatar.Image
-              {...props}
-              size={54}
-              source={{ uri: avatarUrl }}
-              style={globalStyles.postAvatar}
-            />
-          ) : (
-            <Avatar.Text
-              {...props}
-              size={54}
-              label={getInitials(title)}
-              color={theme.colors.onPrimaryContainer}
-              style={[
-                globalStyles.postAvatar,
-                {
-                  paddingRight: 0,
-                  backgroundColor: theme.colors.primaryContainer,
-                },
-              ]}
-              labelStyle={{ fontSize: 18, fontWeight: "700" }}
-            />
-          )
-        }
-        right={() => (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="More post options"
-            hitSlop={12}
-            style={globalStyles.postIconButton}
-          >
-            <Ionicons
-              name="ellipsis-vertical"
-              size={26}
-              color={postTokens.actionColor}
-            />
-          </TouchableOpacity>
-        )}
-        rightStyle={globalStyles.postTitleRight}
+        createdAt={createdAt}
+        avatarUrl={avatarUrl}
+        isOwnPost={isOwnPost}
+        isFollowingAuthor={isFollowingAuthor}
+        onPressThreeDots={onPressThreeDots}
+        onPressEdit={onPressEdit}
+        onPressDelete={onPressDelete}
+        onPressFollowToggle={onPressFollowToggle}
+        onPressReport={onPressReport}
+        onPressShareDM={onPressShareDM}
+        onPressShareSystem={handleShareSystem}
       />
 
-      {/* 1. Body Text (Appears before image, at the top) */}
-      {body ? (
-        <Card.Content
-          style={[
-            globalStyles.postBodyContent,
-            mediaSource ? { paddingBottom: 12 } : null,
-          ]}
-        >
-          <Text style={[globalStyles.postBodyText, { color: theme.colors.onSurface }]}>
-            {body}
-          </Text>
-        </Card.Content>
-      ) : null}
+      <PostCardBody
+        body={body}
+        imageUrl={imageUrl}
+        mediaWidth={mediaWidth}
+        mediaHeight={mediaHeight}
+        imageSource={imageSource}
+      />
 
-      {/* 2. Media: Edge-to-edge full width with adaptive ratio */}
-      {mediaSource ? (
-        <View style={{ width: "100%", overflow: "hidden" }}>
-          <Image
-            source={mediaSource}
-            style={{
-              width: "100%",
-              aspectRatio: clampedAspectRatio,
-            }}
-            resizeMode="cover"
-          />
-        </View>
-      ) : null}
-
-      <Card.Actions style={globalStyles.postFooter}>
-        <View style={globalStyles.postActionGroup}>
-          <PostAction
-            icon={liked ? "heart" : "heart-outline"}
-            label={likesLabel}
-            color={actionColor}
-            accessibilityLabel={`${likes || "0"} likes`}
-            onPress={onLike}
-          />
-          <PostAction
-            icon="chatbox-outline"
-            label={commentsLabel}
-            color={postTokens.actionColor}
-            accessibilityLabel={`${comments || "0"} comments`}
-            onPress={onComment}
-          />
-          <PostAction
-            icon="share-social-outline"
-            color={postTokens.actionColor}
-            accessibilityLabel="Share post"
-          />
-        </View>
-
-        <PostAction
-          icon="bookmark-outline"
-          color={postTokens.actionColor}
-          accessibilityLabel="Save post"
-        />
-      </Card.Actions>
+      <PostCardFooter
+        likes={likes}
+        comments={comments}
+        liked={liked}
+        isReposted={isReposted}
+        repostsCount={repostsCount}
+        bookmarked={bookmarked}
+        onPressLike={onPressLike ?? onLike}
+        onPressComment={onPressComment ?? onComment}
+        onPressRepost={onPressRepost}
+        onPressBookmark={onPressBookmark}
+      />
     </Card>
   );
-};
+}
 
 export default PostCard;
+export * from "./Card/types";
