@@ -4,12 +4,12 @@ import {
   updatePostInCaches,
   removePostFromCaches,
 } from './utils';
-import { LaravelPost, PostActivity } from './types';
+import { BackendPost, LaravelPost, PostActivity } from './types';
 
 describe('features/posts/utils', () => {
   describe('normalizePost', () => {
     it('normalizes a basic raw Laravel post with default values', () => {
-      const raw: LaravelPost = {
+      const raw: BackendPost = {
         id: 42,
         content: 'Hello world',
         user: { id: 1, name: 'Alice' },
@@ -27,8 +27,30 @@ describe('features/posts/utils', () => {
       expect(normalized.likes).toBe('5');
       expect(normalized.comments).toBe('2');
       expect(normalized.isReposted).toBe(false);
+      expect(normalized.isBookmarked).toBe(false);
+      expect(normalized.bookmarked).toBe(false);
       expect(normalized.activityType).toBeUndefined();
       expect(normalized.media).toBeUndefined();
+    });
+
+    it('correctly maps is_bookmarked and bookmarked flags', () => {
+      const bookmarkedRaw: BackendPost = {
+        id: 99,
+        content: 'Bookmarked post',
+        is_bookmarked: true,
+      };
+      const normalized = normalizePost(bookmarkedRaw);
+      expect(normalized.isBookmarked).toBe(true);
+      expect(normalized.bookmarked).toBe(true);
+
+      const altBookmarkedRaw: BackendPost = {
+        id: 100,
+        content: 'Alt bookmarked post',
+        bookmarked: true,
+      };
+      const altNormalized = normalizePost(altBookmarkedRaw);
+      expect(altNormalized.isBookmarked).toBe(true);
+      expect(altNormalized.bookmarked).toBe(true);
     });
 
     it('preserves media array when present', () => {

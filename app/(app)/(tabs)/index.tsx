@@ -17,6 +17,7 @@ import {
   useGetPostsQuery,
   useToggleLikePostMutation,
   useToggleRepostPostMutation,
+  useToggleBookmarkPostMutation,
   useDeletePostMutation,
 } from "../../../features/posts/api";
 import { isNetworkError } from "../../../utils/network";
@@ -50,6 +51,7 @@ export default function Index() {
 
   const [toggleLikePost] = useToggleLikePostMutation();
   const [toggleRepostPost] = useToggleRepostPostMutation();
+  const [toggleBookmarkPost] = useToggleBookmarkPostMutation();
   const [deletePost] = useDeletePostMutation();
 
   const isFetching = isFetchingFeed || isFetchingPosts;
@@ -145,6 +147,7 @@ export default function Index() {
           liked={item.liked}
           isReposted={item.isReposted}
           repostsCount={item.repostsCount}
+          bookmarked={Boolean(item.isBookmarked ?? item.bookmarked)}
           isOwnPost={isOwnPost}
           activityType={item.activityType}
           activityActor={resolvedActor}
@@ -166,6 +169,12 @@ export default function Index() {
               reposted: !!item.isReposted,
             })
           }
+          onPressBookmark={() =>
+            toggleBookmarkPost({
+              postId: item.id,
+              bookmarked: Boolean(item.isBookmarked ?? item.bookmarked),
+            })
+          }
           onPressEdit={() =>
             router.push({
               pathname: "/posts/[postId]/edit",
@@ -181,6 +190,7 @@ export default function Index() {
       currentUser?.name,
       handleDeletePost,
       router,
+      toggleBookmarkPost,
       toggleLikePost,
       toggleRepostPost,
     ]

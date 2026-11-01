@@ -4,6 +4,7 @@ import {
   FeedResult,
   FeedResponse,
   PostsListResponse,
+  BackendPost,
   LaravelPost,
   UploadUrlRequest,
   UploadUrlResponse,
@@ -243,6 +244,33 @@ export const postsApi = baseApi.injectEndpoints({
       },
     }),
 
+    /**
+     * Toggle bookmark status on a post with instant optimistic feedback.
+     */
+    toggleBookmarkPost: builder.mutation<
+      { success: boolean; message?: string },
+      { postId: string; bookmarked: boolean }
+    >({
+      query: ({ postId, bookmarked }) => ({
+        url: `/posts/${postId}/bookmark`,
+        method: bookmarked ? 'DELETE' : 'POST',
+      }),
+      async onQueryStarted({ postId, bookmarked }, { dispatch, queryFulfilled }) {
+        const nextBookmarked = !bookmarked;
+
+        const undo = updatePostInCaches(postsApi, dispatch, postId, (post) => {
+          post.isBookmarked = nextBookmarked;
+          post.bookmarked = nextBookmarked;
+        });
+
+        try {
+          await queryFulfilled;
+        } catch {
+          undo();
+        }
+      },
+    }),
+
     // ------------------------------------------------------------------------
     // Post Publishing & Media Upload Pipeline
     // ------------------------------------------------------------------------
@@ -368,6 +396,7 @@ export const {
   useGetPostQuery,
   useToggleLikePostMutation,
   useToggleRepostPostMutation,
+  useToggleBookmarkPostMutation,
   useRepostPostMutation,
   useUnrepostPostMutation,
   useGetMediaUploadUrlMutation,

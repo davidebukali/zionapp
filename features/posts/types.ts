@@ -21,7 +21,7 @@ export interface LaravelUser {
   } | null;
 }
 
-export interface LaravelPost {
+export interface BackendPost {
   id: string | number;
   content: string;
   visibility?: string;
@@ -35,16 +35,20 @@ export interface LaravelPost {
   liked?: boolean;
   is_reposted?: boolean;
   reposted?: boolean;
+  is_bookmarked?: boolean;
+  bookmarked?: boolean;
   created_at?: string;
   updated_at?: string;
 }
+
+export type LaravelPost = BackendPost;
 
 export interface FeedItem {
   id: string | number;
   type?: FeedItemType;
   published_at?: string;
   actor?: LaravelUser | null;
-  post: LaravelPost;
+  post: BackendPost;
   created_at?: string;
   updated_at?: string;
 }
@@ -63,7 +67,7 @@ export interface FeedResponse {
 export interface PostsListResponse {
   success?: boolean;
   message?: string;
-  data: LaravelPost[];
+  data: BackendPost[];
   meta?: {
     current_page?: number;
     last_page?: number;
@@ -104,6 +108,8 @@ export interface Post {
   isReposted?: boolean;
   reposted?: boolean;
   repostsCount?: number;
+  isBookmarked?: boolean;
+  bookmarked?: boolean;
   activityType?: FeedItemType;
   activityActor?: string;
   activity?: PostActivity;
@@ -158,7 +164,7 @@ export interface CreatePostRequest {
 export interface CreatePostResponse {
   success: boolean;
   message?: string;
-  data: LaravelPost;
+  data: BackendPost;
 }
 
 export type MediaProcessingStatus =

@@ -1,11 +1,11 @@
-import { Post, LaravelPost, PostActivity } from './types';
+import { Post, BackendPost, LaravelPost, PostActivity } from './types';
 
 /**
  * Normalizes a raw Laravel Post model and optional activity metadata
  * into a strongly typed client Post model.
  */
 export function normalizePost(
-  raw: LaravelPost,
+  raw: BackendPost,
   fallbackDate?: string,
   activity?: PostActivity,
   feedItemId?: string | number
@@ -20,6 +20,7 @@ export function normalizePost(
   const updatedAt = raw.updated_at || createdAt;
   const isReposted = Boolean(raw.is_reposted ?? raw.reposted ?? false);
   const repostsCount = typeof raw.reposts_count === 'number' ? raw.reposts_count : 0;
+  const isBookmarked = Boolean(raw.is_bookmarked ?? raw.bookmarked ?? false);
   const activityType =
     activity?.type && activity.type !== 'post' ? activity.type : undefined;
   const activityActor = activity?.actor?.name;
@@ -41,6 +42,8 @@ export function normalizePost(
     isReposted,
     reposted: isReposted,
     repostsCount,
+    isBookmarked,
+    bookmarked: isBookmarked,
     activityType,
     activityActor,
     activity,
