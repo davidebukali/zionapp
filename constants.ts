@@ -16,3 +16,5 @@ export const MAX_CHARACTERS = 3000;
 export const MAX_MEDIA = 10;
 export const MAX_POLL_ATTEMPTS = 12;
 export const POLL_INTERVAL_MS = 800;
+
+export const DEBOUNCE_DELAY_MS = 300;
