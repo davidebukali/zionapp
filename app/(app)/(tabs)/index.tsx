@@ -93,24 +93,27 @@ export default function Index() {
 
   const handleDeletePost = useCallback(
     (postId: string) => {
-      Alert.alert(
-        "Delete Post?",
-        "Are you sure you want to delete this post? This action cannot be undone.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                await deletePost(postId).unwrap();
-              } catch {
-                Alert.alert("Error", "Failed to delete post. Please try again.");
-              }
+      // Delay alert slightly so the menu modal finishes its dismissal animation on iOS
+      setTimeout(() => {
+        Alert.alert(
+          "Delete Post?",
+          "Are you sure you want to delete this post? This action cannot be undone.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Delete",
+              style: "destructive",
+              onPress: async () => {
+                try {
+                  await deletePost(postId).unwrap();
+                } catch {
+                  Alert.alert("Error", "Failed to delete post. Please try again.");
+                }
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      }, 100);
     },
     [deletePost]
   );
