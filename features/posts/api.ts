@@ -13,6 +13,7 @@ import {
   CreatePostResponse,
   MediaStatusResponse,
   RepostResponse,
+  UpdatePostRequest,
 } from './types';
 import {
   normalizePost,
@@ -319,6 +320,40 @@ export const postsApi = baseApi.injectEndpoints({
         { type: 'Post', id: 'LIST' },
       ],
     }),
+
+    /**
+     * Update post text and/or media attachments.
+     */
+    updatePost: builder.mutation<Post, UpdatePostRequest>({
+      query: ({ postId, ...body }) => ({
+        url: `/posts/${postId}`,
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (response: any): Post =>
+        normalizePost(response?.data || response),
+      async onQueryStarted({ postId, content }, { dispatch, queryFulfilled }) {
+        const undo = updatePostInCaches(postsApi, dispatch, postId, (post) => {
+          if (content !== undefined) {
+            post.content = content;
+          }
+        });
+
+        try {
+          const { data: updatedPost } = await queryFulfilled;
+          updatePostInCaches(postsApi, dispatch, postId, (post) => {
+            Object.assign(post, updatedPost);
+          });
+        } catch {
+          undo();
+        }
+      },
+      invalidatesTags: (result, error, { postId }) => [
+        { type: 'Post', id: postId },
+        { type: 'Feed', id: 'LIST' },
+        { type: 'Post', id: 'LIST' },
+      ],
+    }),
   }),
   overrideExisting: true,
 });
@@ -341,4 +376,5 @@ export const {
   useLazyGetMediaStatusQuery,
   useCreatePostMutation,
   useDeletePostMutation,
+  useUpdatePostMutation,
 } = postsApi;

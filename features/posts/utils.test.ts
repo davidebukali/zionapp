@@ -28,6 +28,18 @@ describe('features/posts/utils', () => {
       expect(normalized.comments).toBe('2');
       expect(normalized.isReposted).toBe(false);
       expect(normalized.activityType).toBeUndefined();
+      expect(normalized.media).toBeUndefined();
+    });
+
+    it('preserves media array when present', () => {
+      const raw: LaravelPost = {
+        id: 'post-media',
+        content: 'Post with photo',
+        media: [{ id: 'm-1', url: 'https://example.com/photo.jpg' }],
+      };
+      const normalized = normalizePost(raw);
+      expect(normalized.media).toEqual([{ id: 'm-1', url: 'https://example.com/photo.jpg' }]);
+      expect(normalized.imageUrl).toBe('https://example.com/photo.jpg');
     });
 
     it('attaches activity metadata when provided', () => {

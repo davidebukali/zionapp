@@ -97,6 +97,7 @@ export interface Post {
   imageUrl?: string;
   mediaWidth?: number;
   mediaHeight?: number;
+  media?: LaravelMedia[];
   likes?: string;
   comments?: string;
   liked?: boolean;
@@ -189,4 +190,11 @@ export interface MediaStatusResponse {
   success: boolean;
   message?: string;
   data: MediaDetail;
+}
+
+export interface UpdatePostRequest {
+  postId: string;
+  content?: string;
+  visibility?: 'public' | 'followers' | 'private';
+  media_ids?: string[];
 }

@@ -37,13 +37,8 @@ export default function Index() {
     refetch: refetchFeed,
   } = useGetFeedQuery({ cursor });
 
-  // Skip public posts fallback if feed failed specifically due to a network connection error
-  const isFeedNetworkError = isNetworkError(feedError);
-
-  const shouldFallbackToPosts =
-    !isFetchingFeed &&
-    !isFeedNetworkError &&
-    (isFeedError || (feedData?.posts && feedData.posts.length === 0));
+  // Public posts fallback (temporarily disabled to display empty feed for new users)
+  const shouldFallbackToPosts = false;
 
   const {
     data: publicPosts = [],
@@ -166,6 +161,12 @@ export default function Index() {
             toggleRepostPost({
               postId: item.id,
               reposted: !!item.isReposted,
+            })
+          }
+          onPressEdit={() =>
+            router.push({
+              pathname: "/posts/[postId]/edit",
+              params: { postId: item.id },
             })
           }
           onPressDelete={() => handleDeletePost(item.id)}

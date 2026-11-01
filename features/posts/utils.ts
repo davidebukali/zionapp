@@ -34,6 +34,7 @@ export function normalizePost(
     imageUrl,
     mediaWidth,
     mediaHeight,
+    media: raw.media,
     likes: typeof raw.likes_count === 'number' ? String(raw.likes_count) : '0',
     comments: typeof raw.comments_count === 'number' ? String(raw.comments_count) : '0',
     liked: Boolean(raw.is_liked ?? raw.liked ?? false),

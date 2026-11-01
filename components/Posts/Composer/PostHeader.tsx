@@ -16,6 +16,8 @@ interface PostHeaderProps {
   isPosting: boolean;
   postingStatus: string | null;
   disabled: boolean;
+  title?: string;
+  actionLabel?: string;
 }
 
 export function PostHeader({
@@ -24,6 +26,8 @@ export function PostHeader({
   isPosting,
   postingStatus,
   disabled,
+  title = "New post",
+  actionLabel = "Post",
 }: PostHeaderProps) {
   const theme = useTheme();
 
@@ -53,12 +57,12 @@ export function PostHeader({
           { color: theme.colors.onBackground, textAlign: "center" },
         ]}
       >
-        New post
+        {title}
       </Text>
 
       <TouchableOpacity
         accessibilityRole="button"
-        accessibilityLabel="Post"
+        accessibilityLabel={actionLabel}
         disabled={disabled}
         onPress={onPublish}
         style={{
@@ -90,7 +94,7 @@ export function PostHeader({
           </View>
         ) : (
           <Text style={[globalStyles.primaryButtonText, { fontSize: 15 }]}>
-            Post
+            {actionLabel}
           </Text>
         )}
       </TouchableOpacity>

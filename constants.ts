@@ -9,7 +9,6 @@ export const ips = {
 
 export const current_ip = ips["pece"];
 
-export const API_PORT = 8000;
 export const BASE_URL = `http://${current_ip}`;
 export const API_BASE_URL = `${BASE_URL}/api/v1`;
 

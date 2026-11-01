@@ -10,6 +10,7 @@ import {
 import { MAX_POLL_ATTEMPTS, POLL_INTERVAL_MS } from "../constants";
 
 export interface MediaItem {
+  id?: string;
   uri: string;
   filename?: string;
   mimeType?: string;
