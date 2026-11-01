@@ -4,7 +4,7 @@ import {
   updatePostInCaches,
   removePostFromCaches,
 } from './utils';
-import { BackendPost, LaravelPost, PostActivity } from './types';
+import { BackendPost, PostActivity } from './types';
 
 describe('features/posts/utils', () => {
   describe('normalizePost', () => {
@@ -54,7 +54,7 @@ describe('features/posts/utils', () => {
     });
 
     it('preserves media array when present', () => {
-      const raw: LaravelPost = {
+      const raw: BackendPost = {
         id: 'post-media',
         content: 'Post with photo',
         media: [{ id: 'm-1', url: 'https://example.com/photo.jpg' }],
@@ -65,7 +65,7 @@ describe('features/posts/utils', () => {
     });
 
     it('attaches activity metadata when provided', () => {
-      const raw: LaravelPost = {
+      const raw: BackendPost = {
         id: 'post-1',
         content: 'Activity post',
         user: { id: 'u1', name: 'Author' },

@@ -1,4 +1,4 @@
-import { Post, BackendPost, LaravelPost, PostActivity } from './types';
+import { Post, BackendPost, PostActivity } from './types';
 
 /**
  * Normalizes a raw Laravel Post model and optional activity metadata

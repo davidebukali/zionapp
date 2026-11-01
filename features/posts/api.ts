@@ -5,7 +5,6 @@ import {
   FeedResponse,
   PostsListResponse,
   BackendPost,
-  LaravelPost,
   UploadUrlRequest,
   UploadUrlResponse,
   ConfirmMediaRequest,
@@ -101,11 +100,11 @@ export const postsApi = baseApi.injectEndpoints({
           per_page: arg?.limit ?? 15,
         },
       }),
-      transformResponse: (response: PostsListResponse | LaravelPost[] | any): Post[] => {
+      transformResponse: (response: PostsListResponse | BackendPost[] | any): Post[] => {
         const rawPosts = Array.isArray(response)
           ? response
           : (response?.data || response?.resource || []);
-        return rawPosts.map((p: LaravelPost) => normalizePost(p));
+        return rawPosts.map((p: BackendPost) => normalizePost(p));
       },
       serializeQueryArgs: ({ endpointName }) => endpointName,
       merge: (currentCache, newItems, { arg }) => {

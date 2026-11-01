@@ -41,8 +41,6 @@ export interface BackendPost {
   updated_at?: string;
 }
 
-export type LaravelPost = BackendPost;
-
 export interface FeedItem {
   id: string | number;
   type?: FeedItemType;
