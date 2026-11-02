@@ -1,6 +1,56 @@
 import { DiscoverAccount } from "../../components/Discover/types";
 import { getUserAvatarUrl, getUserInitials } from "../../utils/user";
-import { BackendUser } from "./types";
+import { BackendProfile, BackendUser, UserProfileData } from "./types";
+
+/**
+ * Normalizes a raw BackendProfile or BackendUser into a strongly typed UserProfileData model.
+ */
+export function normalizeUserProfile(
+  rawProfile?: BackendProfile | null,
+  rawUser?: BackendUser | null,
+  counts?: { followers?: number; following?: number }
+): UserProfileData {
+  const id = String(rawProfile?.id || rawUser?.id || "");
+  const userId = String(rawProfile?.user_id || rawUser?.id || id);
+  const displayName =
+    rawProfile?.display_name?.trim() ||
+    rawUser?.name?.trim() ||
+    "Member";
+  const username =
+    rawProfile?.username?.trim() ||
+    rawUser?.name?.toLowerCase().replace(/\s+/g, "") ||
+    "user";
+  const bio = rawProfile?.bio?.trim() || "";
+  const website = rawProfile?.website?.trim() || null;
+  const location = rawProfile?.location?.trim() || null;
+  const joinedAt = rawProfile?.created_at || rawUser?.created_at || null;
+  const avatarUrl =
+    rawProfile?.avatar?.url ||
+    (rawUser ? getUserAvatarUrl(rawUser) : null) ||
+    null;
+  const coverUrl = rawProfile?.cover?.url || null;
+  const isFollowing = Boolean(
+    rawProfile?.is_following ?? rawUser?.is_following ?? false
+  );
+  const followersCount = counts?.followers ?? 0;
+  const followingCount = counts?.following ?? 0;
+
+  return {
+    id,
+    userId,
+    displayName,
+    username,
+    bio,
+    website,
+    location,
+    joinedAt,
+    avatarUrl,
+    coverUrl,
+    isFollowing,
+    followersCount,
+    followingCount,
+  };
+}
 
 /**
  * Normalizes a raw BackendUser from the API into a DiscoverAccount model.
@@ -77,4 +127,39 @@ export function updateUserInCaches(
     patches.forEach((p) => p.undo());
   };
 }
+
+/**
+ * Optimistically updates user profile follow status and follower counts in RTK Query caches.
+ */
+export function updateProfileFollowInCaches(
+  api: any,
+  dispatch: any,
+  userId: string,
+  isFollowing: boolean
+): () => void {
+  const patches: Array<{ undo: () => void }> = [];
+
+  const patchProfile = dispatch(
+    api.util.updateQueryData("getUserProfile", userId, (draft: any) => {
+      if (draft) {
+        draft.is_following = isFollowing;
+      }
+    })
+  );
+  patches.push(patchProfile);
+
+  const patchFollowers = dispatch(
+    api.util.updateQueryData("getUserFollowersCount", userId, (draft: any) => {
+      if (draft && typeof draft.total === "number") {
+        draft.total = Math.max(0, draft.total + (isFollowing ? 1 : -1));
+      }
+    })
+  );
+  patches.push(patchFollowers);
+
+  return () => {
+    patches.forEach((p) => p.undo());
+  };
+}
+
 

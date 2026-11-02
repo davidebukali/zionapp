@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { router } from "expo-router";
 import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -44,7 +45,10 @@ export default function Discover() {
   } = useDiscoverAccounts();
 
   const handlePressProfile = useCallback((_accountId: string) => {
-    // Navigation stub for future profile integration
+    router.push({
+      pathname: "/profile",
+      params: { userId: _accountId },
+    });
   }, []);
 
   const renderHeader = () => (

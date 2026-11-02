@@ -5,6 +5,8 @@ export interface BackendMedia {
   url?: string;
   width?: number;
   height?: number;
+  type?: string;
+  mime_type?: string;
 }
 
 export interface BackendProfile {
@@ -19,6 +21,7 @@ export interface BackendProfile {
   cover_media_id?: string | null;
   cover?: BackendMedia | null;
   website?: string | null;
+  location?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -31,6 +34,49 @@ export interface BackendUser {
   profile?: BackendProfile | null;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface UserProfileData {
+  id: string;
+  userId: string;
+  displayName: string;
+  username: string;
+  bio: string;
+  website: string | null;
+  location: string | null;
+  joinedAt: string | null;
+  avatarUrl: string | null;
+  coverUrl: string | null;
+  isFollowing: boolean;
+  followersCount: number;
+  followingCount: number;
+}
+
+export interface UpdateProfilePayload {
+  username?: string | null;
+  display_name?: string | null;
+  bio?: string | null;
+  avatar_media_id?: string | null;
+  cover_media_id?: string | null;
+  website?: string | null;
+}
+
+export interface UpdateProfileResponse {
+  data: BackendProfile;
+  message?: string;
+}
+
+export interface FollowListResponse {
+  success?: boolean;
+  message?: string;
+  data?: BackendUser[];
+  meta?: {
+    meta?: {
+      total?: number;
+      next_cursor?: string | null;
+    };
+    total?: number;
+  };
 }
 
 export interface SearchUsersParams {

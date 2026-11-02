@@ -30,6 +30,19 @@ export default function AppGroupLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="profile"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="edit-profile"
+        options={{
+          presentation: "card",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

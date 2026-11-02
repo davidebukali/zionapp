@@ -1,16 +1,58 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, RefreshControl, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { router } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
-import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { globalStyles } from "../../assets/styles/theme";
+import {
+  ProfileFeed,
+  ProfileHeader,
+  ProfileInfo,
+  ProfileSkeleton,
+  ProfileTabs,
+} from "../../components/profile";
+import { useUserProfile } from "../../hooks/useUserProfile";
 
 export default function ProfileScreen() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const {
+    profile,
+    isOwnProfile,
+    isLoading,
+    isRefreshing,
+    isFollowLoading,
+    activeTab,
+    setActiveTab,
+    posts,
+    isPostsLoading,
+    currentUserId,
+    handleToggleFollow,
+    handleRefresh,
+    handlePressBack,
+    handlePressEditProfile,
+    handlePressMessage,
+    handleLikePost,
+    handleRepostPost,
+    handleBookmarkPost,
+  } = useUserProfile();
+
+  if (isLoading) {
+    return (
+      <View
+        style={[
+          globalStyles.screen,
+          { backgroundColor: theme.colors.background },
+        ]}
+      >
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          style={theme.dark ? "light" : "dark"}
+        />
+        <ProfileSkeleton />
+      </View>
+    );
+  }
 
   return (
     <View
@@ -20,91 +62,50 @@ export default function ProfileScreen() {
       ]}
     >
       <StatusBar
-        backgroundColor={theme.colors.surface}
-        style={theme.dark ? "light" : "dark"}
+        translucent
+        backgroundColor="transparent"
+        style="light"
       />
 
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: theme.colors.surface,
-            borderBottomColor: theme.colors.outlineVariant,
-            paddingTop: insets.top,
-            height: insets.top + 60,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          style={[
-            styles.backButton,
-            { backgroundColor: theme.colors.surfaceVariant },
-          ]}
-          onPress={() => router.back()}
-        >
-          <Ionicons
-            name="arrow-back"
-            size={22}
-            color={theme.colors.onSurface}
+      <FlatList
+        data={activeTab === "posts" ? posts : []}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={null}
+        ListHeaderComponent={
+          <>
+            <ProfileHeader
+              profile={profile}
+              isOwnProfile={isOwnProfile}
+              isFollowing={profile.isFollowing}
+              isFollowLoading={isFollowLoading}
+              onPressBack={handlePressBack}
+              onPressEditProfile={handlePressEditProfile}
+              onPressMessage={handlePressMessage}
+              onPressToggleFollow={handleToggleFollow}
+            />
+            <ProfileInfo profile={profile} />
+            <ProfileTabs activeTab={activeTab} onSelectTab={setActiveTab} />
+            <ProfileFeed
+              activeTab={activeTab}
+              posts={posts}
+              isPostsLoading={isPostsLoading}
+              currentUserId={currentUserId}
+              onLikePost={handleLikePost}
+              onRepostPost={handleRepostPost}
+              onBookmarkPost={handleBookmarkPost}
+            />
+          </>
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
           />
-        </TouchableOpacity>
-        <Text
-          style={[
-            styles.headerTitle,
-            { color: theme.colors.onSurface },
-          ]}
-        >
-          Profile
-        </Text>
-        <View style={styles.backButtonPlaceholder} />
-      </View>
-
-      <View style={styles.content}>
-        <Text
-          style={[
-            styles.placeholderText,
-            { color: theme.colors.onSurfaceVariant },
-          ]}
-        >
-          User profile view
-        </Text>
-      </View>
+        }
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  backButtonPlaceholder: {
-    width: 40,
-  },
-  content: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
-  placeholderText: {
-    fontSize: 15,
-  },
-});
-

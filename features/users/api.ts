@@ -1,13 +1,21 @@
 import { baseApi } from "../../services/baseApi";
 import { DiscoverAccount } from "../../components/Discover/types";
+import { FeedResult } from "../posts/types";
+import { normalizePost } from "../posts/utils";
 import {
+  BackendProfile,
   BackendUser,
   FollowResponse,
   SearchUsersParams,
   SearchUsersResponse,
   UnfollowResponse,
+  UpdateProfilePayload,
 } from "./types";
-import { normalizeDiscoverAccount, updateUserInCaches } from "./utils";
+import {
+  normalizeDiscoverAccount,
+  updateProfileFollowInCaches,
+  updateUserInCaches,
+} from "./utils";
 
 export const usersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -58,7 +66,7 @@ export const usersApi = baseApi.injectEndpoints({
         method: "POST",
       }),
       async onQueryStarted({ userId, searchArgs }, { dispatch, queryFulfilled }) {
-        const undo = updateUserInCaches(
+        const undoDiscover = updateUserInCaches(
           usersApi,
           dispatch,
           userId,
@@ -67,15 +75,23 @@ export const usersApi = baseApi.injectEndpoints({
           },
           searchArgs
         );
+        const undoProfile = updateProfileFollowInCaches(
+          usersApi,
+          dispatch,
+          userId,
+          true
+        );
 
         try {
           await queryFulfilled;
         } catch {
-          undo();
+          undoDiscover();
+          undoProfile();
         }
       },
       invalidatesTags: (_result, _error, { userId }) => [
         { type: "User", id: userId },
+        { type: "User", id: `${userId}_followers` },
       ],
     }),
 
@@ -88,7 +104,7 @@ export const usersApi = baseApi.injectEndpoints({
         method: "DELETE",
       }),
       async onQueryStarted({ userId, searchArgs }, { dispatch, queryFulfilled }) {
-        const undo = updateUserInCaches(
+        const undoDiscover = updateUserInCaches(
           usersApi,
           dispatch,
           userId,
@@ -97,16 +113,102 @@ export const usersApi = baseApi.injectEndpoints({
           },
           searchArgs
         );
+        const undoProfile = updateProfileFollowInCaches(
+          usersApi,
+          dispatch,
+          userId,
+          false
+        );
 
         try {
           await queryFulfilled;
         } catch {
-          undo();
+          undoDiscover();
+          undoProfile();
         }
       },
       invalidatesTags: (_result, _error, { userId }) => [
         { type: "User", id: userId },
+        { type: "User", id: `${userId}_followers` },
       ],
+    }),
+
+    getUserProfile: builder.query<BackendProfile, string>({
+      query: (userId) => `/users/${userId}/profile`,
+      transformResponse: (response: { data: BackendProfile } | BackendProfile) => {
+        return (response as { data: BackendProfile })?.data || response;
+      },
+      providesTags: (_result, _error, userId) => [{ type: "User", id: userId }],
+    }),
+
+    getUserFollowersCount: builder.query<{ total: number }, string>({
+      query: (userId) => ({
+        url: `/users/${userId}/followers`,
+        params: { per_page: 1 },
+      }),
+      transformResponse: (response: any) => {
+        const total = response?.meta?.meta?.total ?? response?.meta?.total ?? 0;
+        return { total };
+      },
+      providesTags: (_result, _error, userId) => [
+        { type: "User", id: `${userId}_followers` },
+      ],
+    }),
+
+    getUserFollowingCount: builder.query<{ total: number }, string>({
+      query: (userId) => ({
+        url: `/users/${userId}/following`,
+        params: { per_page: 1 },
+      }),
+      transformResponse: (response: any) => {
+        const total = response?.meta?.meta?.total ?? response?.meta?.total ?? 0;
+        return { total };
+      },
+      providesTags: (_result, _error, userId) => [
+        { type: "User", id: `${userId}_following` },
+      ],
+    }),
+
+    getUserPosts: builder.query<
+      FeedResult,
+      { userId: string; cursor?: string; perPage?: number }
+    >({
+      query: ({ userId, cursor, perPage = 15 }) => ({
+        url: `/users/${userId}/posts`,
+        params: {
+          cursor,
+          per_page: perPage,
+        },
+      }),
+      transformResponse: (response: any): FeedResult => {
+        const items = response?.data || [];
+        return {
+          posts: items.map((item: any) => {
+            const rawPost = item.post || item;
+            const publishedAt = item.published_at || rawPost.created_at;
+            return normalizePost(rawPost, publishedAt);
+          }),
+          nextCursor:
+            response?.meta?.meta?.next_cursor ??
+            response?.meta?.next_cursor ??
+            null,
+        };
+      },
+      providesTags: (_result, _error, { userId }) => [
+        { type: "Post", id: `USER_${userId}` },
+      ],
+    }),
+
+    updateProfile: builder.mutation<BackendProfile, UpdateProfilePayload>({
+      query: (body) => ({
+        url: "/profile",
+        method: "PUT",
+        body,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      invalidatesTags: ["User"],
     }),
   }),
   overrideExisting: true,
@@ -117,5 +219,12 @@ export const {
   useLazySearchUsersQuery,
   useFollowUserMutation,
   useUnfollowUserMutation,
+  useGetUserProfileQuery,
+  useLazyGetUserProfileQuery,
+  useGetUserFollowersCountQuery,
+  useGetUserFollowingCountQuery,
+  useGetUserPostsQuery,
+  useLazyGetUserPostsQuery,
+  useUpdateProfileMutation,
 } = usersApi;
 

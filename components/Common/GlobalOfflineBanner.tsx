@@ -18,8 +18,8 @@ export function GlobalOfflineBanner() {
   const wasOffline = useRef(false);
   const [bannerState, setBannerState] = useState<"hidden" | "offline" | "restored">("hidden");
 
-  // Animation shared value: 0 = hidden (offscreen), 1 = visible
-  const translateY = useSharedValue(-60);
+  // Animation shared value: -150 = hidden (safely offscreen for all device insets), 0 = visible
+  const translateY = useSharedValue(-150);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
@@ -32,14 +32,14 @@ export function GlobalOfflineBanner() {
       // Transition from offline -> online: show "Back online" briefly
       setBannerState("restored");
       timeoutId = setTimeout(() => {
-        translateY.value = withTiming(-60, { duration: 350 }, (finished) => {
+        translateY.value = withTiming(-150, { duration: 350 }, (finished) => {
           if (finished) {
             wasOffline.current = false;
           }
         });
       }, 2500);
     } else {
-      translateY.value = -60;
+      translateY.value = -150;
       setBannerState("hidden");
     }
 

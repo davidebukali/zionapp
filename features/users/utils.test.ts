@@ -1,5 +1,10 @@
-import { normalizeDiscoverAccount, updateUserInCaches } from "./utils";
-import { BackendUser } from "./types";
+import {
+  normalizeDiscoverAccount,
+  normalizeUserProfile,
+  updateProfileFollowInCaches,
+  updateUserInCaches,
+} from "./utils";
+import { BackendProfile, BackendUser } from "./types";
 import { DiscoverAccount } from "../../components/Discover/types";
 
 describe("features/users/utils", () => {
@@ -115,6 +120,96 @@ describe("features/users/utils", () => {
       // Trigger undo
       undo();
       expect(undoMock).toHaveBeenCalled();
+    });
+  });
+
+  describe("normalizeUserProfile", () => {
+    it("normalizes backend profile and counts into UserProfileData", () => {
+      const profile: BackendProfile = {
+        id: "prof-10",
+        user_id: "user-10",
+        username: "peterokwi",
+        display_name: "Peter Okwi",
+        bio: "Bio goes here",
+        website: "https://example.com",
+        location: "Kampala",
+        created_at: "2026-01-01T00:00:00Z",
+        avatar: {
+          id: "med-1",
+          url: "https://example.com/avatar.jpg",
+        },
+        is_following: true,
+      };
+
+      const normalized = normalizeUserProfile(profile, null, {
+        followers: 342,
+        following: 128,
+      });
+
+      expect(normalized.id).toBe("prof-10");
+      expect(normalized.userId).toBe("user-10");
+      expect(normalized.displayName).toBe("Peter Okwi");
+      expect(normalized.username).toBe("peterokwi");
+      expect(normalized.bio).toBe("Bio goes here");
+      expect(normalized.website).toBe("https://example.com");
+      expect(normalized.location).toBe("Kampala");
+      expect(normalized.avatarUrl).toBe("https://example.com/avatar.jpg");
+      expect(normalized.isFollowing).toBe(true);
+      expect(normalized.followersCount).toBe(342);
+      expect(normalized.followingCount).toBe(128);
+    });
+
+    it("falls back to user object when profile is null", () => {
+      const user: BackendUser = {
+        id: "user-20",
+        name: "Jane Doe",
+        email: "jane@example.com",
+        is_following: false,
+      };
+
+      const normalized = normalizeUserProfile(null, user);
+
+      expect(normalized.id).toBe("user-20");
+      expect(normalized.userId).toBe("user-20");
+      expect(normalized.displayName).toBe("Jane Doe");
+      expect(normalized.username).toBe("janedoe");
+      expect(normalized.followersCount).toBe(0);
+      expect(normalized.followingCount).toBe(0);
+      expect(normalized.isFollowing).toBe(false);
+    });
+  });
+
+  describe("updateProfileFollowInCaches", () => {
+    it("dispatches cache updates for profile and followers count", () => {
+      const undoMock = jest.fn();
+      const mockDispatch = jest.fn(() => ({ undo: undoMock }));
+      const mockApi = {
+        util: {
+          updateQueryData: jest.fn(),
+        },
+      };
+
+      const undo = updateProfileFollowInCaches(
+        mockApi,
+        mockDispatch,
+        "user-10",
+        true
+      );
+
+      expect(mockDispatch).toHaveBeenCalledTimes(2);
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        "getUserProfile",
+        "user-10",
+        expect.any(Function)
+      );
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        "getUserFollowersCount",
+        "user-10",
+        expect.any(Function)
+      );
+
+      undo();
+      expect(undoMock).toHaveBeenCalledTimes(2);
     });
   });
 });
