@@ -5,7 +5,10 @@ import { normalizePost } from "../posts/utils";
 import {
   BackendProfile,
   BackendUser,
+  Church,
+  ChurchesResponse,
   FollowResponse,
+  GetChurchesParams,
   SearchUsersParams,
   SearchUsersResponse,
   UnfollowResponse,
@@ -210,6 +213,27 @@ export const usersApi = baseApi.injectEndpoints({
       },
       invalidatesTags: ["User"],
     }),
+
+    getChurches: builder.query<Church[], GetChurchesParams | void>({
+      query: (params) => {
+        const queryParams: Record<string, any> = {
+          per_page: params?.per_page ?? 50,
+        };
+        if (params?.search && params.search.trim()) {
+          queryParams.search = params.search.trim();
+        }
+        return {
+          url: "/churches",
+          params: queryParams,
+        };
+      },
+      transformResponse: (response: ChurchesResponse | any): Church[] => {
+        if (Array.isArray(response)) return response;
+        if (Array.isArray(response?.data)) return response.data;
+        if (Array.isArray(response?.data?.data)) return response.data.data;
+        return [];
+      },
+    }),
   }),
   overrideExisting: true,
 });
@@ -226,5 +250,7 @@ export const {
   useGetUserPostsQuery,
   useLazyGetUserPostsQuery,
   useUpdateProfileMutation,
+  useGetChurchesQuery,
+  useLazyGetChurchesQuery,
 } = usersApi;
 

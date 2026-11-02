@@ -1,4 +1,5 @@
 import z from "zod";
+import { Church } from "../users/types";
 
 export interface UserProfile {
   id?: string;
@@ -9,6 +10,11 @@ export interface UserProfile {
   avatar_media_id?: string | null;
   cover_media_id?: string | null;
   website?: string | null;
+  location?: string | null;
+  account_type?: 'individual' | 'organization' | null;
+  category?: string | null;
+  church_id?: string | null;
+  church?: Church | null;
   created_at?: string;
   updated_at?: string;
 }

@@ -2,6 +2,7 @@ import React from "react";
 import ReactTestRenderer, { act } from "react-test-renderer";
 
 jest.mock("@expo/vector-icons/Ionicons", () => "Ionicons");
+jest.mock("@expo/vector-icons/MaterialCommunityIcons", () => "MaterialCommunityIcons");
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 40, bottom: 20, left: 0, right: 0 }),
 }));
@@ -32,6 +33,10 @@ jest.mock("react-native-paper", () => {
 import { ProfileHeader } from "./ProfileHeader";
 import { ProfileInfo } from "./ProfileInfo";
 import { ProfileTabs } from "./ProfileTabs";
+import { EditProfileBanner } from "./edit/EditProfileBanner";
+import { ProfileInputField } from "./edit/ProfileInputField";
+import { AccountClassificationCardRow } from "./edit/AccountClassificationCardRow";
+import { AccountClassificationBottomSheet } from "./edit/AccountClassificationBottomSheet";
 import { UserProfileData } from "../../features/users/types";
 
 const mockProfile: UserProfileData = {
@@ -172,6 +177,143 @@ describe("components/profile", () => {
         likesTab.props.onPress();
       });
       expect(onSelect).toHaveBeenCalledWith("likes");
+    });
+  });
+
+  describe("EditProfileBanner", () => {
+    it("renders initials fallback and triggers pick callbacks", () => {
+      const onPickCover = jest.fn();
+      const onPickAvatar = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <EditProfileBanner
+            coverUri={null}
+            avatarUri={null}
+            initials="PO"
+            isUploadingCover={false}
+            isUploadingAvatar={false}
+            onPickCover={onPickCover}
+            onRemoveCover={jest.fn()}
+            onPickAvatar={onPickAvatar}
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("PO");
+
+      const root = renderer!.root;
+      const avatarBtn = root.findByProps({
+        accessibilityLabel: "Change avatar photo",
+      });
+      act(() => {
+        avatarBtn.props.onPress();
+      });
+      expect(onPickAvatar).toHaveBeenCalled();
+
+      const coverBtn = root.findByProps({
+        accessibilityLabel: "Change cover photo",
+      });
+      act(() => {
+        coverBtn.props.onPress();
+      });
+      expect(onPickCover).toHaveBeenCalled();
+    });
+  });
+
+  describe("AccountClassificationCardRow", () => {
+    it("renders personal and organization cards with correct selection", () => {
+      const onPressCard = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <AccountClassificationCardRow
+            accountType="individual"
+            onPressCard={onPressCard}
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Personal Account");
+      expect(json).toContain("Church / Ministry");
+
+      const root = renderer!.root;
+      const churchCard = root.findByProps({
+        accessibilityLabel: "Church or Ministry Account",
+      });
+      act(() => {
+        churchCard.props.onPress();
+      });
+      expect(onPressCard).toHaveBeenCalledWith("organization");
+    });
+  });
+
+  describe("AccountClassificationBottomSheet", () => {
+    it("renders options and triggers onConfirm", () => {
+      const onConfirm = jest.fn();
+      const onClose = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <AccountClassificationBottomSheet
+            visible={true}
+            initialAccountType="individual"
+            initialCategory="Believer"
+            onClose={onClose}
+            onConfirm={onConfirm}
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Account Classification");
+      expect(json).toContain("Believer");
+      expect(json).toContain("Pastor / Elder");
+
+      const root = renderer!.root;
+      const confirmButton = root.findByProps({
+        accessibilityLabel: "Confirm Classification",
+      });
+      expect(confirmButton).toBeDefined();
+      act(() => {
+        confirmButton.props.onPress();
+      });
+      expect(onConfirm).toHaveBeenCalledWith("individual", "Believer");
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  describe("ProfileInputField", () => {
+    it("renders label, placeholder, and triggers onChangeText", () => {
+      const onChangeText = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ProfileInputField
+            label="Location"
+            value="Kampala"
+            onChangeText={onChangeText}
+            placeholder="e.g. Kampala, Uganda"
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Location");
+      expect(json).toContain("Kampala");
+
+      const root = renderer!.root;
+      const textInput = root.findByProps({
+        placeholder: "e.g. Kampala, Uganda",
+      });
+      expect(textInput).toBeDefined();
+
+      act(() => {
+        textInput.props.onChangeText("Entebbe");
+      });
+      expect(onChangeText).toHaveBeenCalledWith("Entebbe");
     });
   });
 });

@@ -1,4 +1,4 @@
-import { getUserInitials, getUserAvatarUrl } from './user';
+import { getUserInitials, getUserAvatarUrl, getUserCoverUrl } from './user';
 
 describe('utils/user', () => {
   describe('getUserInitials', () => {
@@ -63,6 +63,47 @@ describe('utils/user', () => {
       expect(getUserAvatarUrl({})).toBeUndefined();
       expect(getUserAvatarUrl({ profile: {} })).toBeUndefined();
       expect(getUserAvatarUrl({ profile: { avatar: null } })).toBeUndefined();
+    });
+  });
+
+  describe('getUserCoverUrl', () => {
+    it('extracts cover url from profile cover object', () => {
+      const user = {
+        profile: {
+          cover: { url: 'https://example.com/cover.jpg' },
+        },
+      };
+      expect(getUserCoverUrl(user)).toBe('https://example.com/cover.jpg');
+    });
+
+    it('extracts cover url from direct profile object', () => {
+      const profile = {
+        cover: { url: 'https://example.com/cover-direct.jpg' },
+      };
+      expect(getUserCoverUrl(profile)).toBe('https://example.com/cover-direct.jpg');
+    });
+
+    it('extracts cover when cover is a direct string', () => {
+      const user = {
+        profile: {
+          cover: 'https://example.com/cover-str.jpg',
+        },
+      };
+      expect(getUserCoverUrl(user)).toBe('https://example.com/cover-str.jpg');
+    });
+
+    it('extracts cover from cover_url field', () => {
+      const profile = {
+        cover_url: 'https://example.com/cover-fallback.jpg',
+      };
+      expect(getUserCoverUrl(profile)).toBe('https://example.com/cover-fallback.jpg');
+    });
+
+    it('returns undefined when no cover is present', () => {
+      expect(getUserCoverUrl(undefined)).toBeUndefined();
+      expect(getUserCoverUrl({})).toBeUndefined();
+      expect(getUserCoverUrl({ profile: {} })).toBeUndefined();
+      expect(getUserCoverUrl({ profile: { cover: null } })).toBeUndefined();
     });
   });
 });

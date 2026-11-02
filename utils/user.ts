@@ -51,3 +51,29 @@ export function getUserAvatarUrl(user?: any): string | undefined {
   return undefined;
 }
 
+/**
+ * Resolves cover photo URL from a user or profile object if available.
+ * Returns undefined if no cover URL is found.
+ */
+export function getUserCoverUrl(userOrProfile?: any): string | undefined {
+  if (!userOrProfile) return undefined;
+
+  // Direct cover on profile or nested under profile
+  const cover = userOrProfile?.cover ?? userOrProfile?.profile?.cover;
+  if (typeof cover === 'string' && cover.trim()) {
+    return cover.trim();
+  }
+  if (cover?.url && typeof cover.url === 'string' && cover.url.trim()) {
+    return cover.url.trim();
+  }
+
+  const coverUrl =
+    userOrProfile?.cover_url ?? userOrProfile?.profile?.cover_url;
+  if (typeof coverUrl === 'string' && coverUrl.trim()) {
+    return coverUrl.trim();
+  }
+
+  return undefined;
+}
+
+

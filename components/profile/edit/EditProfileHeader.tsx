@@ -9,11 +9,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
 
-interface EditProfileHeaderProps {
-  isSaving: boolean;
-  onCancel: () => void;
-  onSave: () => void;
-}
+import { EditProfileHeaderProps } from "./types";
 
 export function EditProfileHeader({
   isSaving,
@@ -57,17 +53,13 @@ export function EditProfileHeader({
         disabled={isSaving}
         accessibilityRole="button"
         accessibilityLabel="Save profile"
-        style={[
-          styles.saveButton,
-          { backgroundColor: theme.colors.primary },
-          isSaving && styles.disabledButton,
-        ]}
+        style={styles.textButton}
       >
         {isSaving ? (
-          <ActivityIndicator size="small" color={theme.colors.onPrimary} />
+          <ActivityIndicator size="small" color={theme.colors.primary} />
         ) : (
           <Text
-            style={[styles.saveText, { color: theme.colors.onPrimary }]}
+            style={[styles.saveText, { color: theme.colors.primary }]}
           >
             Save
           </Text>
@@ -89,6 +81,9 @@ const styles = StyleSheet.create({
   textButton: {
     paddingVertical: 6,
     paddingHorizontal: 8,
+    minWidth: 48,
+    alignItems: "center",
+    justifyContent: "center",
   },
   cancelText: {
     fontSize: 16,
@@ -98,19 +93,8 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
   },
-  saveButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 64,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
   saveText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "700",
   },
 });

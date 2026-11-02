@@ -32,6 +32,9 @@ export function normalizeUserProfile(
   const isFollowing = Boolean(
     rawProfile?.is_following ?? rawUser?.is_following ?? false
   );
+  const accountType = rawProfile?.account_type || null;
+  const category = rawProfile?.category?.trim() || null;
+  const church = rawProfile?.church || null;
   const followersCount = counts?.followers ?? 0;
   const followingCount = counts?.following ?? 0;
 
@@ -43,6 +46,9 @@ export function normalizeUserProfile(
     bio,
     website,
     location,
+    accountType,
+    category,
+    church,
     joinedAt,
     avatarUrl,
     coverUrl,

@@ -9,6 +9,30 @@ export interface BackendMedia {
   mime_type?: string;
 }
 
+export interface Church {
+  id: string;
+  name: string;
+  location?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface GetChurchesParams {
+  search?: string;
+  per_page?: number;
+}
+
+export interface ChurchesResponse {
+  success?: boolean;
+  message?: string;
+  data: Church[];
+  meta?: {
+    current_page?: number;
+    per_page?: number;
+    total?: number;
+  };
+}
+
 export interface BackendProfile {
   id?: string;
   user_id?: string;
@@ -16,6 +40,10 @@ export interface BackendProfile {
   display_name?: string;
   bio?: string;
   is_following?: boolean;
+  account_type?: 'individual' | 'organization' | null;
+  category?: string | null;
+  church_id?: string | null;
+  church?: Church | null;
   avatar_media_id?: string | null;
   avatar?: BackendMedia | null;
   cover_media_id?: string | null;
@@ -44,6 +72,9 @@ export interface UserProfileData {
   bio: string;
   website: string | null;
   location: string | null;
+  accountType?: 'individual' | 'organization' | null;
+  category?: string | null;
+  church?: Church | null;
   joinedAt: string | null;
   avatarUrl: string | null;
   coverUrl: string | null;
@@ -59,6 +90,12 @@ export interface UpdateProfilePayload {
   avatar_media_id?: string | null;
   cover_media_id?: string | null;
   website?: string | null;
+  location?: string | null;
+  account_type?: 'individual' | 'organization' | null;
+  category?: string | null;
+  church_id?: string | null;
+  church_name?: string | null;
+  church_location?: string | null;
 }
 
 export interface UpdateProfileResponse {

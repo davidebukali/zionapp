@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { router } from "expo-router";
-import * as ImagePicker from "expo-image-picker";
 
 import type { AppDispatch, RootState } from "../store/store";
 import { useGetMeQuery } from "../features/auth/api";
@@ -12,8 +11,12 @@ import {
   useConfirmMediaUploadMutation,
   useGetMediaUploadUrlMutation,
 } from "../features/posts/api";
-import { uploadSingleMedia } from "../utils/mediaUploader";
-import { getUserAvatarUrl, getUserInitials } from "../utils/user";
+import {
+  getUserAvatarUrl,
+  getUserCoverUrl,
+  getUserInitials,
+  pickAndUploadMedia,
+} from "../utils";
 
 export function useEditProfile() {
   const dispatch = useDispatch<AppDispatch>();
@@ -30,6 +33,7 @@ export function useEditProfile() {
     meData?.data?.profile ||
     currentUser?.profile;
 
+  // Form Fields State
   const [displayName, setDisplayName] = useState(
     activeProfile?.display_name || activeUser?.name || ""
   );
@@ -40,39 +44,56 @@ export function useEditProfile() {
   );
   const [bio, setBio] = useState(activeProfile?.bio || "");
   const [website, setWebsite] = useState(activeProfile?.website || "");
+  const [location, setLocation] = useState(activeProfile?.location || "");
+  const [accountType, setAccountType] = useState<"individual" | "organization">(
+    activeProfile?.account_type || "individual"
+  );
+  const [category, setCategory] = useState(
+    activeProfile?.category || "Believer"
+  );
+  const [churchId, setChurchId] = useState<string | null>(
+    activeProfile?.church_id || null
+  );
+
+  // Avatar & Cover Media State
   const [avatarUri, setAvatarUri] = useState<string | null>(
-    (activeProfile as any)?.avatar?.url ||
-      (activeUser ? getUserAvatarUrl(activeUser) || null : null)
+    getUserAvatarUrl(activeUser) || null
   );
   const [avatarMediaId, setAvatarMediaId] = useState<string | null>(
     activeProfile?.avatar_media_id || null
   );
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
+  const [coverUri, setCoverUri] = useState<string | null>(
+    getUserCoverUrl(activeProfile) || null
+  );
+  const [coverMediaId, setCoverMediaId] = useState<string | null>(
+    activeProfile?.cover_media_id || null
+  );
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+
+  // Seed form values once user/profile data is loaded from API
+  const isInitializedRef = useRef(false);
+
   useEffect(() => {
-    if (activeProfile || activeUser) {
-      if (!displayName) {
-        setDisplayName(activeProfile?.display_name || activeUser?.name || "");
-      }
-      if (!username) {
-        setUsername(
-          activeProfile?.username ||
-            activeUser?.name?.toLowerCase().replace(/\s+/g, "") ||
-            ""
-        );
-      }
-      if (!bio && activeProfile?.bio) {
-        setBio(activeProfile.bio);
-      }
-      if (!website && activeProfile?.website) {
-        setWebsite(activeProfile.website);
-      }
-      if (!avatarUri) {
-        setAvatarUri(
-          (activeProfile as any)?.avatar?.url ||
-            (activeUser ? getUserAvatarUrl(activeUser) || null : null)
-        );
-      }
+    if ((activeProfile || activeUser) && !isInitializedRef.current) {
+      isInitializedRef.current = true;
+      setDisplayName(activeProfile?.display_name || activeUser?.name || "");
+      setUsername(
+        activeProfile?.username ||
+          activeUser?.name?.toLowerCase().replace(/\s+/g, "") ||
+          ""
+      );
+      setBio(activeProfile?.bio || "");
+      setWebsite(activeProfile?.website || "");
+      setLocation(activeProfile?.location || "");
+      setAccountType(activeProfile?.account_type || "individual");
+      setCategory(activeProfile?.category || "Believer");
+      setChurchId(activeProfile?.church_id || null);
+      setAvatarUri(getUserAvatarUrl(activeUser) || null);
+      setAvatarMediaId(activeProfile?.avatar_media_id || null);
+      setCoverUri(getUserCoverUrl(activeProfile) || null);
+      setCoverMediaId(activeProfile?.cover_media_id || null);
     }
   }, [activeProfile, activeUser]);
 
@@ -82,56 +103,51 @@ export function useEditProfile() {
   );
 
   const handlePickAvatar = useCallback(async () => {
+    setIsUploadingMedia(true);
     try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission Denied",
-          "Photo library access is needed to change your profile avatar."
-        );
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: true,
+      const result = await pickAndUploadMedia({
         aspect: [1, 1],
-        quality: 0.85,
+        defaultFilename: "avatar.jpg",
+        permissionRationale:
+          "Photo library access is needed to change your profile avatar.",
+        getMediaUploadUrl,
+        confirmMediaUpload,
+        onUploadStart: (uri) => setAvatarUri(uri),
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        setAvatarUri(asset.uri);
-        setIsUploadingMedia(true);
-
-        try {
-          const mediaId = await uploadSingleMedia(
-            {
-              uri: asset.uri,
-              filename: asset.fileName || "avatar.jpg",
-              mimeType: asset.mimeType || "image/jpeg",
-              fileSize: asset.fileSize,
-            },
-            getMediaUploadUrl,
-            confirmMediaUpload
-          );
-          setAvatarMediaId(mediaId);
-        } catch {
-          Alert.alert(
-            "Upload Error",
-            "Could not upload image. Please try again."
-          );
-          setAvatarMediaId(null);
-        } finally {
-          setIsUploadingMedia(false);
-        }
+      if (result) {
+        setAvatarMediaId(result.mediaId);
       }
-    } catch {
-      Alert.alert("Error", "Failed to select image.");
+    } finally {
       setIsUploadingMedia(false);
     }
   }, [getMediaUploadUrl, confirmMediaUpload]);
+
+  const handlePickCover = useCallback(async () => {
+    setIsUploadingCover(true);
+    try {
+      const result = await pickAndUploadMedia({
+        aspect: [16, 9],
+        defaultFilename: "cover.jpg",
+        permissionRationale:
+          "Photo library access is needed to change your cover photo.",
+        getMediaUploadUrl,
+        confirmMediaUpload,
+        onUploadStart: (uri) => setCoverUri(uri),
+      });
+
+      if (result) {
+        setCoverMediaId(result.mediaId);
+      }
+    } finally {
+      setIsUploadingCover(false);
+    }
+  }, [getMediaUploadUrl, confirmMediaUpload]);
+
+  const handleRemoveCover = useCallback(() => {
+    setCoverUri(null);
+    setCoverMediaId(null);
+  }, []);
 
   const handleSave = useCallback(async () => {
     const trimmedUsername = username.trim();
@@ -146,7 +162,12 @@ export function useEditProfile() {
         username: trimmedUsername,
         bio: bio.trim() || null,
         website: website.trim() || null,
+        location: location.trim() || null,
+        account_type: accountType,
+        category: category.trim() || null,
+        church_id: churchId || null,
         avatar_media_id: avatarMediaId,
+        cover_media_id: coverMediaId,
       }).unwrap();
 
       // Update Redux user profile in authSlice if present
@@ -176,7 +197,12 @@ export function useEditProfile() {
     displayName,
     bio,
     website,
+    location,
+    accountType,
+    category,
+    churchId,
     avatarMediaId,
+    coverMediaId,
     updateProfile,
     activeUser,
     dispatch,
@@ -192,11 +218,24 @@ export function useEditProfile() {
     setBio,
     website,
     setWebsite,
+    location,
+    setLocation,
+    accountType,
+    setAccountType,
+    category,
+    setCategory,
+    churchId,
+    setChurchId,
+    initialChurch: activeProfile?.church || null,
     avatarUri,
+    coverUri,
     initials,
-    isSaving: isUpdating || isUploadingMedia,
+    isSaving: isUpdating || isUploadingMedia || isUploadingCover,
     isUploadingMedia,
+    isUploadingCover,
     handlePickAvatar,
+    handlePickCover,
+    handleRemoveCover,
     handleSave,
     handleCancel: () => router.back(),
   };
