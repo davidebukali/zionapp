@@ -56,64 +56,80 @@ export function ProfileInfo({ profile }: ProfileInfoProps) {
         </Text>
       )}
 
-      {/* Metadata Row (Location, Website, Joined Date) */}
-      <View style={styles.metadataRow}>
-        {Boolean(profile.location) && (
-          <View style={styles.metaItem}>
-            <Ionicons
-              name="location-outline"
-              size={15}
-              color={theme.colors.onSurfaceVariant}
-            />
-            <Text
-              style={[styles.metaText, { color: theme.colors.onSurfaceVariant }]}
-              numberOfLines={1}
-            >
-              {profile.location}
-            </Text>
-          </View>
-        )}
+      {/* Metadata Section (Location & Joined Date on Row 1, Website on Row 2) */}
+      {(Boolean(profile.location) ||
+        Boolean(formattedJoinedDate) ||
+        Boolean(profile.website)) && (
+        <View style={styles.metadataSection}>
+          {(Boolean(profile.location) || Boolean(formattedJoinedDate)) && (
+            <View style={styles.metadataRow}>
+              {Boolean(profile.location) && (
+                <View style={styles.metaItem}>
+                  <Ionicons
+                    name="location-outline"
+                    size={15}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                  <Text
+                    style={[
+                      styles.metaText,
+                      { color: theme.colors.onSurfaceVariant },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {profile.location}
+                  </Text>
+                </View>
+              )}
 
-        {Boolean(profile.website) && (
-          <TouchableOpacity
-            onPress={handleOpenWebsite}
-            activeOpacity={0.7}
-            style={styles.metaItem}
-            accessibilityRole="link"
-          >
-            <Ionicons
-              name="link-outline"
-              size={15}
-              color={theme.colors.primary}
-            />
-            <Text
-              style={[
-                styles.metaText,
-                styles.linkText,
-                { color: theme.colors.primary },
-              ]}
-              numberOfLines={1}
-            >
-              {profile.website}
-            </Text>
-          </TouchableOpacity>
-        )}
+              {Boolean(formattedJoinedDate) && (
+                <View style={styles.metaItem}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={15}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                  <Text
+                    style={[
+                      styles.metaText,
+                      { color: theme.colors.onSurfaceVariant },
+                    ]}
+                  >
+                    {formattedJoinedDate}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
 
-        {Boolean(formattedJoinedDate) && (
-          <View style={styles.metaItem}>
-            <Ionicons
-              name="calendar-outline"
-              size={15}
-              color={theme.colors.onSurfaceVariant}
-            />
-            <Text
-              style={[styles.metaText, { color: theme.colors.onSurfaceVariant }]}
-            >
-              {formattedJoinedDate}
-            </Text>
-          </View>
-        )}
-      </View>
+          {Boolean(profile.website) && (
+            <View style={styles.websiteRow}>
+              <TouchableOpacity
+                onPress={handleOpenWebsite}
+                activeOpacity={0.7}
+                style={styles.metaItem}
+                accessibilityRole="link"
+              >
+                <Ionicons
+                  name="link-outline"
+                  size={15}
+                  color={theme.colors.primary}
+                />
+                <Text
+                  style={[
+                    styles.metaText,
+                    styles.linkText,
+                    { color: theme.colors.primary },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {profile.website}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Follower Stats Row (Following & Followers only) */}
       <View style={styles.statsRow}>
@@ -172,12 +188,19 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     marginBottom: 12,
   },
+  metadataSection: {
+    gap: 8,
+    marginBottom: 14,
+  },
   metadataRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
     gap: 14,
-    marginBottom: 14,
+  },
+  websiteRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   metaItem: {
     flexDirection: "row",

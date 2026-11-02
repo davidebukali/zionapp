@@ -157,6 +157,23 @@ describe("components/profile", () => {
       // Must not render posts count
       expect(json).not.toContain("Posts");
     });
+
+    it("renders location and joined date in the first row, and website below", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(<ProfileInfo profile={mockProfile} />);
+      });
+
+      const root = renderer!.root;
+      const json = JSON.stringify(renderer!.toJSON());
+
+      expect(json).toContain("Kampala");
+      expect(json).toContain("Joined January 2026");
+      expect(json).toContain("https://example.com");
+
+      const websiteLink = root.findByProps({ accessibilityRole: "link" });
+      expect(websiteLink).toBeDefined();
+    });
   });
 
   describe("ProfileTabs", () => {
