@@ -38,6 +38,20 @@ export interface AccountClassificationCardRowProps {
   onPressCard: (type: AccountClassificationType) => void;
 }
 
+export interface ClassificationOptionCardProps {
+  type: AccountClassificationType;
+  title: string;
+  description: string;
+  iconName: "person" | "church";
+  isSelected: boolean;
+  onSelect: () => void;
+  categories: readonly string[];
+  selectedCategory: string;
+  onSelectCategory: (category: string) => void;
+  subCategoryLabel: string;
+  hasVerifiedBadge?: boolean;
+}
+
 export interface AccountClassificationBottomSheetProps {
   visible: boolean;
   initialAccountType: AccountClassificationType;

@@ -37,6 +37,7 @@ import { EditProfileBanner } from "./edit/EditProfileBanner";
 import { ProfileInputField } from "./edit/ProfileInputField";
 import { AccountClassificationCardRow } from "./edit/AccountClassificationCardRow";
 import { AccountClassificationBottomSheet } from "./edit/AccountClassificationBottomSheet";
+import { ClassificationOptionCard } from "./edit/ClassificationOptionCard";
 import { UserProfileData } from "../../features/users/types";
 
 const mockProfile: UserProfileData = {
@@ -299,6 +300,37 @@ describe("components/profile", () => {
       });
       expect(onConfirm).toHaveBeenCalledWith("individual", "Believer");
       expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  describe("ClassificationOptionCard", () => {
+    it("renders card title, description, and handles category selection", () => {
+      const onSelect = jest.fn();
+      const onSelectCategory = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ClassificationOptionCard
+            type="individual"
+            title="Personal Account"
+            description="Individual description"
+            iconName="person"
+            isSelected={true}
+            onSelect={onSelect}
+            categories={["Believer", "Pastor / Elder"]}
+            selectedCategory="Believer"
+            onSelectCategory={onSelectCategory}
+            subCategoryLabel="Select role:"
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Personal Account");
+      expect(json).toContain("Individual description");
+      expect(json).toContain("SELECTED");
+      expect(json).toContain("✓ Believer");
+      expect(json).toContain("Pastor / Elder");
     });
   });
 
