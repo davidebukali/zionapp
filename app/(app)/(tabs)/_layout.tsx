@@ -49,6 +49,7 @@ export default function RootLayout() {
           name="settings"
           options={{
             title: 'Settings',
+            headerShown: false,
           }}
         />
     </Tabs>
