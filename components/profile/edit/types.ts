@@ -55,6 +55,13 @@ export interface ChurchDropdownSelectorProps {
   onSelectChurch: (church: Church | null) => void;
 }
 
+export interface ChurchPickerModalProps {
+  visible: boolean;
+  selectedChurchId: string | null;
+  onSelectChurch: (church: Church | null) => void;
+  onClose: () => void;
+}
+
 export interface EditProfileFormProps {
   displayName: string;
   onChangeDisplayName: (val: string) => void;
