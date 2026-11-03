@@ -241,13 +241,14 @@ describe("components/profile", () => {
   });
 
   describe("AccountClassificationCardRow", () => {
-    it("renders personal and organization cards with correct selection", () => {
+    it("renders personal and organization cards with active selection and not selected", () => {
       const onPressCard = jest.fn();
       let renderer: ReactTestRenderer.ReactTestRenderer;
       act(() => {
         renderer = ReactTestRenderer.create(
           <AccountClassificationCardRow
             accountType="individual"
+            category="Pastor / Elder"
             onPressCard={onPressCard}
           />
         );
@@ -256,6 +257,8 @@ describe("components/profile", () => {
       const json = JSON.stringify(renderer!.toJSON());
       expect(json).toContain("Personal Account");
       expect(json).toContain("Church / Ministry");
+      expect(json).toContain("Pastor / Elder");
+      expect(json).toContain("Not selected");
 
       const root = renderer!.root;
       const churchCard = root.findByProps({
@@ -265,6 +268,39 @@ describe("components/profile", () => {
         churchCard.props.onPress();
       });
       expect(onPressCard).toHaveBeenCalledWith("organization");
+    });
+
+    it("displays category for organization and not selected for personal", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <AccountClassificationCardRow
+            accountType="organization"
+            category="Local Church"
+            onPressCard={jest.fn()}
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Local Church");
+      expect(json).toContain("Not selected");
+    });
+
+    it("falls back to not selected when category is empty", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <AccountClassificationCardRow
+            accountType="individual"
+            category=""
+            onPressCard={jest.fn()}
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Not selected");
     });
   });
 
@@ -286,7 +322,7 @@ describe("components/profile", () => {
       });
 
       const json = JSON.stringify(renderer!.toJSON());
-      expect(json).toContain("Account Classification");
+      expect(json).toContain("Account Type");
       expect(json).toContain("Believer");
       expect(json).toContain("Pastor / Elder");
 

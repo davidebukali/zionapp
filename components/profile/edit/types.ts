@@ -35,6 +35,7 @@ export interface ProfileInputFieldProps {
 
 export interface AccountClassificationCardRowProps {
   accountType: AccountClassificationType;
+  category?: string;
   onPressCard: (type: AccountClassificationType) => void;
 }
 

@@ -102,6 +102,7 @@ export function EditProfileForm({
         {/* 7. Account Classification */}
         <AccountClassificationCardRow
           accountType={accountType}
+          category={category}
           onPressCard={(_type) => setSheetVisible(true)}
         />
 

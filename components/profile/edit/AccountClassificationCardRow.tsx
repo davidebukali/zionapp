@@ -8,6 +8,7 @@ import { AccountClassificationCardRowProps } from "./types";
 
 export function AccountClassificationCardRow({
   accountType,
+  category,
   onPressCard,
 }: AccountClassificationCardRowProps) {
   const theme = useTheme();
@@ -15,13 +16,16 @@ export function AccountClassificationCardRow({
   const isIndividual = accountType === "individual";
   const isOrganization = accountType === "organization";
 
+  const personalSubtitle = isIndividual ? category?.trim() || "Not selected" : "Not selected";
+  const organizationSubtitle = isOrganization ? category?.trim() || "Not selected" : "Not selected";
+
   return (
     <View style={styles.container}>
       <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
-        ACCOUNT CLASSIFICATION
+        ACCOUNT TYPE
       </Text>
       <Text style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        Choose your primary community identity (mutually exclusive)
+        Choose your community identity
       </Text>
 
       <View style={styles.row}>
@@ -98,7 +102,7 @@ export function AccountClassificationCardRow({
             ]}
             numberOfLines={1}
           >
-            Believer, Pastor, Leader
+            {personalSubtitle}
           </Text>
         </TouchableOpacity>
 
@@ -175,7 +179,7 @@ export function AccountClassificationCardRow({
             ]}
             numberOfLines={1}
           >
-            Congregation, Fellowship
+            {organizationSubtitle}
           </Text>
         </TouchableOpacity>
       </View>

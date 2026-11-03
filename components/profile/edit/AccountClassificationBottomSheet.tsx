@@ -105,7 +105,7 @@ export function AccountClassificationBottomSheet({
             <Text
               style={[styles.sheetTitle, { color: theme.colors.onSurface }]}
             >
-              Account Classification
+              Account Type
             </Text>
             <TouchableOpacity
               onPress={onClose}
@@ -127,8 +127,7 @@ export function AccountClassificationBottomSheet({
               { color: theme.colors.onSurfaceVariant },
             ]}
           >
-            Select your primary identity on Tsiyon. This classification is
-            mutually exclusive and determines your badges and discovery
+            Select your identity on Tsiyon. This classification determines your badges and discovery
             category.
           </Text>
 
@@ -140,7 +139,7 @@ export function AccountClassificationBottomSheet({
             <ClassificationOptionCard
               type="individual"
               title="Personal Account"
-              description="For individual believers, families, pastors, elders, and worship leaders. Share prayer requests, testimonies, devotionals, and connect in fellowship."
+              description="For individuals, families, pastors, elders, and worship leaders."
               iconName="person"
               isSelected={selectedType === "individual"}
               onSelect={() => handleSelectType("individual")}
@@ -153,8 +152,8 @@ export function AccountClassificationBottomSheet({
             {/* Card 2: Church or Ministry Account */}
             <ClassificationOptionCard
               type="organization"
-              title="Church or Ministry Account"
-              description="For local congregations, campus fellowships, Christian non-profits, and outreach ministries. Publish events, sermons, and official updates."
+              title="Organization"
+              description="For local congregations, campus fellowships, Christian non-profits, and outreach ministries."
               iconName="church"
               isSelected={selectedType === "organization"}
               onSelect={() => handleSelectType("organization")}
@@ -178,7 +177,7 @@ export function AccountClassificationBottomSheet({
             ]}
           >
             <Text style={styles.confirmButtonText}>
-              Confirm Classification
+              Confirm
             </Text>
           </TouchableOpacity>
 
