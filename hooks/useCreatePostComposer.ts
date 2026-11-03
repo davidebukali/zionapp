@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Alert } from "react-native";
 import { router } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 
 import {
   useGetMediaUploadUrlMutation,
@@ -8,10 +9,13 @@ import {
   useLazyGetMediaStatusQuery,
   useCreatePostMutation,
 } from "../features/posts/api";
+import { PostVisibility } from "../features/posts/types";
 import { MediaItem, uploadAndProcessMedia } from "../utils/mediaUploader";
 import { useComposerCore } from "./useComposerCore";
 
 export type { MediaItem };
+
+const POST_VISIBILITY_KEY = "preferred_post_visibility";
 
 /**
  * Custom hook orchestrating the Create Post composer UI state,
@@ -23,6 +27,30 @@ export function useCreatePostComposer() {
 
   const [isPosting, setIsPosting] = useState(false);
   const [postingStatus, setPostingStatus] = useState<string | null>(null);
+  const [visibility, setVisibilityState] = useState<PostVisibility>("public");
+
+  useEffect(() => {
+    let isMounted = true;
+    SecureStore.getItemAsync(POST_VISIBILITY_KEY)
+      .then((saved) => {
+        if (isMounted && (saved === "public" || saved === "followers")) {
+          setVisibilityState(saved);
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to load preferred post visibility:", err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const setVisibility = useCallback((newVisibility: PostVisibility) => {
+    setVisibilityState(newVisibility);
+    SecureStore.setItemAsync(POST_VISIBILITY_KEY, newVisibility).catch((err) => {
+      console.warn("Failed to persist preferred post visibility:", err);
+    });
+  }, []);
 
   const [getMediaUploadUrl] = useGetMediaUploadUrlMutation();
   const [confirmMediaUpload] = useConfirmMediaUploadMutation();
@@ -66,6 +94,7 @@ export function useCreatePostComposer() {
       setPostingStatus("Posting...");
       await createPost({
         content: trimmed,
+        visibility,
         ...(mediaIds.length > 0 ? { media_ids: mediaIds } : {}),
       }).unwrap();
 
@@ -88,12 +117,15 @@ export function useCreatePostComposer() {
     getMediaStatus,
     getMediaUploadUrl,
     mediaItems,
+    visibility,
   ]);
 
   const isPostDisabled = isPosting || !hasContent;
 
   return {
     ...composer,
+    visibility,
+    setVisibility,
     isPosting,
     postingStatus,
     handlePublish,

@@ -154,9 +154,12 @@ export interface ConfirmMediaResponse {
   };
 }
 
+export type PostVisibility = 'public' | 'followers' | 'private';
+
 export interface CreatePostRequest {
   content: string;
   media_ids?: string[];
+  visibility?: PostVisibility;
 }
 
 export interface CreatePostResponse {
@@ -199,6 +202,6 @@ export interface MediaStatusResponse {
 export interface UpdatePostRequest {
   postId: string;
   content?: string;
-  visibility?: 'public' | 'followers' | 'private';
+  visibility?: PostVisibility;
   media_ids?: string[];
 }

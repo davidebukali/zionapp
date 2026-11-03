@@ -14,6 +14,7 @@ import EmojiPicker from "rn-emoji-keyboard";
 import { globalStyles } from "../../assets/styles/theme";
 import { useCreatePostComposer } from "../../hooks/useCreatePostComposer";
 import { PostHeader } from "../../components/Posts/Composer/PostHeader";
+import { PostVisibilityDropdown } from "../../components/Posts/Composer/PostVisibilityDropdown";
 import { MediaCollage } from "../../components/Posts/Composer/MediaCollage";
 import { MediaReviewModal } from "../../components/Posts/Composer/MediaReviewModal";
 import { PostToolbar } from "../../components/Posts/Composer/PostToolbar";
@@ -26,6 +27,8 @@ export default function NewPostScreen() {
     content,
     setContent,
     mediaItems,
+    visibility,
+    setVisibility,
     pickMedia,
     removeAllMedia,
     deleteReviewItem,
@@ -79,8 +82,8 @@ export default function NewPostScreen() {
           contentContainerStyle={globalStyles.feedContainer}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Author Avatar Row */}
-          <View style={globalStyles.row}>
+          {/* Author Avatar & Audience Selector Row */}
+          <View style={[globalStyles.row, { alignItems: "center", gap: 12 }]}>
             {avatarUrl ? (
               <Avatar.Image
                 size={48}
@@ -94,6 +97,11 @@ export default function NewPostScreen() {
                 labelStyle={{ color: theme.colors.onPrimaryContainer, fontWeight: "700" }}
               />
             )}
+            <PostVisibilityDropdown
+              value={visibility}
+              onChange={setVisibility}
+              disabled={isPosting}
+            />
           </View>
 
           {/* Multiline Composer */}
