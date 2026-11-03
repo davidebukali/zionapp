@@ -43,6 +43,13 @@ export default function AppGroupLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="messages/[id]"
+        options={{
+          presentation: "card",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

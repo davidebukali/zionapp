@@ -27,13 +27,16 @@ export function useMessages() {
     [conversations, searchQuery]
   );
 
-  const handleSelectContact = useCallback((contact: OnlineContact) => {
+  const handleSelectContact = useCallback((contact: OnlineContact): string => {
+    let targetId = "";
     setConversations((prev) => {
       const { updatedConversations, selectedConversationId: id } =
         findOrCreateConversation(prev, contact);
+      targetId = id;
       setSelectedConversationId(id);
       return updatedConversations;
     });
+    return targetId;
   }, []);
 
   const handleSelectConversation = useCallback((conversation: Conversation) => {

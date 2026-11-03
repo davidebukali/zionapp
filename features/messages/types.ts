@@ -24,3 +24,14 @@ export interface Conversation {
   unreadCount: number;
 }
 
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  isOutgoing: boolean;
+  text?: string;
+  mediaUrl?: string;
+  timestamp: string;
+  reactions?: string[];
+  readReceipt?: string;
+}
+

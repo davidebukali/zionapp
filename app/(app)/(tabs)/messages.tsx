@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { View } from "react-native";
+import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
 
 import { globalStyles } from "../../../assets/styles/theme";
 import { InfiniteScrollList } from "../../../components/InfiniteScrollList";
 import { useMessages } from "../../../hooks/useMessages";
+import { Conversation, OnlineContact } from "../../../features/messages/types";
 import {
   MessagesHeader,
   MessagesSearchBar,
@@ -33,6 +35,22 @@ export default function MessagesScreen() {
     hasMore,
   } = useMessages();
 
+  const handleOpenConversation = useCallback(
+    (conversation: Conversation) => {
+      handleSelectConversation(conversation);
+      router.push(`/messages/${conversation.id}` as any);
+    },
+    [handleSelectConversation]
+  );
+
+  const handleOpenContact = useCallback(
+    (contact: OnlineContact) => {
+      const targetId = handleSelectContact(contact);
+      router.push(`/messages/${targetId}` as any);
+    },
+    [handleSelectContact]
+  );
+
   return (
     <View
       style={[
@@ -52,7 +70,7 @@ export default function MessagesScreen() {
         renderItem={({ item }) => (
           <ConversationListItem
             conversation={item}
-            onPress={handleSelectConversation}
+            onPress={handleOpenConversation}
           />
         )}
         ListHeaderComponent={
@@ -65,7 +83,7 @@ export default function MessagesScreen() {
             {activeContacts.length > 0 && !searchQuery.trim() && (
               <ActiveContactsTray
                 contacts={activeContacts}
-                onSelectContact={handleSelectContact}
+                onSelectContact={handleOpenContact}
               />
             )}
           </View>

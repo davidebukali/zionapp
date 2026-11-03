@@ -1,4 +1,4 @@
-import { Conversation, OnlineContact } from "./types";
+import { ChatMessage, Conversation, OnlineContact } from "./types";
 
 export const MOCK_ACTIVE_CONTACTS: OnlineContact[] = [
   {
@@ -96,4 +96,47 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     unreadCount: 0,
   },
 ];
+
+export const MOCK_THREAD_MESSAGES: Record<string, ChatMessage[]> = {
+  "conv-1": [
+    {
+      id: "msg-1",
+      senderId: "user-maya",
+      isOutgoing: false,
+      text: "okay but the new banner colors are 🔥🔥",
+      timestamp: "9:12",
+    },
+    {
+      id: "msg-2",
+      senderId: "current-user",
+      isOutgoing: true,
+      text: "ty ty, I was so close to scrapping it last night",
+      timestamp: "9:12",
+      reactions: ["❤️"],
+    },
+    {
+      id: "msg-3",
+      senderId: "user-maya",
+      isOutgoing: false,
+      mediaUrl:
+        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80",
+      timestamp: "9:13",
+    },
+    {
+      id: "msg-4",
+      senderId: "user-maya",
+      isOutgoing: false,
+      text: "this one specifically. fr.",
+      timestamp: "9:13",
+    },
+    {
+      id: "msg-5",
+      senderId: "current-user",
+      isOutgoing: true,
+      text: "ok cropping it for the post now",
+      timestamp: "9:14",
+      readReceipt: "Read 9:14 · ❤️",
+    },
+  ],
+};
 
