@@ -28,9 +28,7 @@ export const ChatTypingIndicator = React.memo(function ChatTypingIndicator({
         style={[
           styles.bubble,
           {
-            backgroundColor: theme.dark
-              ? "#262626"
-              : theme.colors.surfaceVariant,
+            backgroundColor: theme.colors.surfaceVariant,
           },
         ]}
       >
@@ -64,4 +62,3 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
-

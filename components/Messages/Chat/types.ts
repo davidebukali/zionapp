@@ -20,6 +20,8 @@ export interface ChatReadReceiptProps {
 export interface ChatTextBubbleProps {
   text: string;
   isOutgoing: boolean;
+  isDeleted?: boolean;
+  isEdited?: boolean;
 }
 
 export interface ChatMediaBubbleProps {
@@ -41,6 +43,7 @@ export interface ChatComposerProps {
   onSend: () => void;
   onToggleEmoji: () => void;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 export interface ChatMessageListProps {
@@ -48,5 +51,8 @@ export interface ChatMessageListProps {
   participant: OnlineContact;
   isTyping?: boolean;
   dateLabel?: string;
+  onLoadMore?: () => void;
+  isLoadingMore?: boolean;
+  hasMore?: boolean;
 }
 

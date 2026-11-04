@@ -8,6 +8,8 @@ import {
 import { useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
+import { globalStyles } from "../../../assets/styles/theme";
+import { MAX_MESSAGE_LENGTH } from "../../../constants";
 import { ChatComposerProps } from "./types";
 
 export const ChatComposer = React.memo(function ChatComposer({
@@ -16,14 +18,15 @@ export const ChatComposer = React.memo(function ChatComposer({
   onSend,
   onToggleEmoji,
   placeholder = "Message...",
+  disabled = false,
 }: ChatComposerProps) {
   const theme = useTheme();
-  const canSend = Boolean(text.trim());
+  const canSend = !disabled && Boolean(text.trim());
 
   return (
     <View
       style={[
-        styles.container,
+        globalStyles.commentComposerContainer,
         {
           backgroundColor: theme.colors.background,
           borderTopColor: theme.colors.outlineVariant,
@@ -33,34 +36,44 @@ export const ChatComposer = React.memo(function ChatComposer({
       {/* Input Pill */}
       <View
         style={[
-          styles.inputPill,
-          { backgroundColor: theme.colors.surfaceVariant },
+          globalStyles.commentComposerInputShell,
+          {
+            backgroundColor: theme.colors.surfaceVariant,
+            marginLeft: 0,
+            opacity: disabled ? 0.6 : 1,
+          },
         ]}
       >
         <TextInput
           value={text}
           onChangeText={onChangeText}
-          placeholder={placeholder}
+          editable={!disabled}
+          placeholder={disabled ? "You cannot message this user." : placeholder}
           placeholderTextColor={theme.colors.onSurfaceVariant}
-          style={[styles.input, { color: theme.colors.onSurface }]}
+          style={[
+            globalStyles.commentComposerInput,
+            { color: theme.colors.onSurface },
+          ]}
           multiline
-          maxLength={1000}
+          maxLength={MAX_MESSAGE_LENGTH}
           accessibilityLabel="Message input"
         />
 
-        <TouchableOpacity
-          onPress={onToggleEmoji}
-          accessibilityRole="button"
-          accessibilityLabel="Add emoji"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={styles.emojiButton}
-        >
-          <Ionicons
-            name="happy-outline"
-            size={22}
-            color={theme.colors.onSurfaceVariant}
-          />
-        </TouchableOpacity>
+        {!disabled && (
+          <TouchableOpacity
+            onPress={onToggleEmoji}
+            accessibilityRole="button"
+            accessibilityLabel="Add emoji"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.emojiButton}
+          >
+            <Ionicons
+              name="happy-outline"
+              size={22}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Send Button */}
@@ -71,7 +84,7 @@ export const ChatComposer = React.memo(function ChatComposer({
         accessibilityRole="button"
         accessibilityLabel="Send message"
         style={[
-          styles.sendButton,
+          globalStyles.commentSendButton,
           {
             backgroundColor: canSend
               ? theme.colors.primary
@@ -83,7 +96,7 @@ export const ChatComposer = React.memo(function ChatComposer({
         <Ionicons
           name="send"
           size={17}
-          color={canSend ? "#FFFFFF" : theme.colors.onSurfaceVariant}
+          color={canSend ? theme.colors.onPrimary : theme.colors.onSurfaceVariant}
         />
       </TouchableOpacity>
     </View>
@@ -91,38 +104,7 @@ export const ChatComposer = React.memo(function ChatComposer({
 });
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    gap: 10,
-  },
-  inputPill: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    minHeight: 44,
-    maxHeight: 120,
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    paddingVertical: 8,
-  },
   emojiButton: {
-    marginLeft: 6,
-    padding: 2,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
+    padding: 6,
   },
 });
-

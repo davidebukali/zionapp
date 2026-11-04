@@ -37,16 +37,16 @@ export default function MessagesScreen() {
 
   const handleOpenConversation = useCallback(
     (conversation: Conversation) => {
-      handleSelectConversation(conversation);
-      router.push(`/messages/${conversation.id}` as any);
+      const targetUserId = handleSelectConversation(conversation);
+      router.push(`/messages/${targetUserId}` as any);
     },
     [handleSelectConversation]
   );
 
   const handleOpenContact = useCallback(
     (contact: OnlineContact) => {
-      const targetId = handleSelectContact(contact);
-      router.push(`/messages/${targetId}` as any);
+      const targetUserId = handleSelectContact(contact);
+      router.push(`/messages/${targetUserId}` as any);
     },
     [handleSelectContact]
   );

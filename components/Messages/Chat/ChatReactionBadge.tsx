@@ -16,12 +16,14 @@ export const ChatReactionBadge = React.memo(function ChatReactionBadge({
       style={[
         styles.badge,
         {
-          backgroundColor: theme.dark ? "#262626" : "#1A1A1A",
+          backgroundColor: theme.colors.inverseSurface,
           borderColor: theme.colors.background,
         },
       ]}
     >
-      <Text style={styles.emojiText}>{reactions.join(" ")}</Text>
+      <Text style={[styles.emojiText, { color: theme.colors.inverseOnSurface }]}>
+        {reactions.join(" ")}
+      </Text>
     </View>
   );
 });
@@ -45,4 +47,3 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
-

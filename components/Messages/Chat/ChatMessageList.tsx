@@ -12,6 +12,9 @@ export const ChatMessageList = React.memo(function ChatMessageList({
   participant,
   isTyping = true,
   dateLabel = "Today · 9:12",
+  onLoadMore,
+  isLoadingMore = false,
+  hasMore = false,
 }: ChatMessageListProps) {
   const listRef = useRef<FlatList<ChatMessage>>(null);
 
@@ -25,6 +28,8 @@ export const ChatMessageList = React.memo(function ChatMessageList({
       ListFooterComponent={
         <ChatTypingIndicator participant={participant} visible={isTyping} />
       }
+      onEndReached={hasMore && !isLoadingMore ? onLoadMore : undefined}
+      onEndReachedThreshold={0.2}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
@@ -37,4 +42,3 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
 });
-

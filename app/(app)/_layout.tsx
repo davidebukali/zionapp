@@ -2,8 +2,11 @@ import React from "react";
 import { Redirect, Stack } from "expo-router";
 import { useSelector } from "react-redux";
 import { RootState } from "../../store/store";
+import { useGlobalUserChannel } from "../../hooks/useGlobalUserChannel";
 
 export default function AppGroupLayout() {
+  useGlobalUserChannel();
+
   const { isAuthenticated, isInitializing } = useSelector(
     (state: RootState) => state.auth
   );

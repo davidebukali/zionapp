@@ -30,6 +30,10 @@ export default function ChatScreen() {
     handleEmojiSelected,
     handleSendMessage,
     handleBack,
+    canSendMessages,
+    isLoadingMore,
+    hasMore,
+    onLoadMore,
   } = useChatThread(id);
 
   return (
@@ -56,6 +60,9 @@ export default function ChatScreen() {
           messages={messages}
           participant={participant}
           isTyping={isTyping}
+          onLoadMore={onLoadMore}
+          isLoadingMore={isLoadingMore}
+          hasMore={hasMore}
         />
 
         {/* Message Input Bar */}
@@ -64,6 +71,7 @@ export default function ChatScreen() {
           onChangeText={setInputText}
           onSend={handleSendMessage}
           onToggleEmoji={handleToggleEmoji}
+          disabled={!canSendMessages}
         />
       </KeyboardAvoidingView>
 
@@ -94,4 +102,3 @@ export default function ChatScreen() {
     </View>
   );
 }
-

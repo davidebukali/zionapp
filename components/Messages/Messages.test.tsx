@@ -9,6 +9,26 @@ jest.mock("expo-haptics", () => ({
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 40, bottom: 20, left: 0, right: 0 }),
 }));
+jest.mock("../../hooks/useMessages", () => ({
+  useMessages: jest.fn(() => ({
+    searchQuery: "",
+    setSearchQuery: jest.fn(),
+    handleClearSearch: jest.fn(),
+    conversations:
+      require("../../features/messages/mockData").MOCK_CONVERSATIONS,
+    totalConversationsCount: 5,
+    activeContacts:
+      require("../../features/messages/mockData").MOCK_ACTIVE_CONTACTS,
+    selectedConversationId: null,
+    handleSelectContact: jest.fn((c) => c.id),
+    handleSelectConversation: jest.fn((c) => c.participant.id),
+    isRefreshing: false,
+    onRefresh: jest.fn(),
+    onLoadMore: jest.fn(),
+    isLoadingMore: false,
+    hasMore: false,
+  })),
+}));
 jest.mock("react-native-paper", () => {
   const actual = jest.requireActual("react-native-paper");
   return {

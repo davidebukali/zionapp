@@ -1,12 +1,190 @@
 import {
+  applyReactionEventToMessage,
   filterConversations,
   findOrCreateConversation,
   formatMessageTimestamp,
+  getAvatarColor,
+  getInitials,
+  insertMessageInCache,
+  markConversationReadInCache,
+  mergeConversationsCache,
+  mergeMessagesCache,
+  normalizeConversation,
+  normalizeMessage,
+  normalizeRecipient,
+  updateMessageInCache,
 } from "./utils";
 import { MOCK_CONVERSATIONS, MOCK_ACTIVE_CONTACTS } from "./mockData";
-import { OnlineContact } from "./types";
+import {
+  BackendConversation,
+  BackendMessage,
+  BackendRecipient,
+  ChatMessage,
+  ConversationsResult,
+  MessagesResult,
+  OnlineContact,
+} from "./types";
 
 describe("features/messages/utils", () => {
+  describe("getInitials & getAvatarColor", () => {
+    it("extracts initials correctly", () => {
+      expect(getInitials("Maya Chen")).toBe("MC");
+      expect(getInitials("Single")).toBe("SI");
+      expect(getInitials("")).toBe("??");
+      expect(getInitials(undefined)).toBe("??");
+    });
+
+    it("generates deterministic avatar color", () => {
+      const color1 = getAvatarColor("user-1");
+      const color2 = getAvatarColor("user-1");
+      expect(color1).toBe(color2);
+      expect(typeof color1).toBe("string");
+    });
+  });
+
+  describe("normalizeRecipient", () => {
+    it("transforms backend recipient into OnlineContact", () => {
+      const raw: BackendRecipient = {
+        id: "01JBD1USER0000000000000002",
+        name: "Jane Doe",
+        username: "janedoe",
+        avatar: {
+          id: "avatar-1",
+          url: "https://example.com/avatar.jpg",
+        },
+      };
+
+      const result = normalizeRecipient(raw);
+      expect(result.id).toBe("01JBD1USER0000000000000002");
+      expect(result.name).toBe("Jane Doe");
+      expect(result.username).toBe("janedoe");
+      expect(result.avatarUrl).toBe("https://example.com/avatar.jpg");
+      expect(result.initials).toBe("JD");
+      expect(result.isOnline).toBe(false);
+      expect(result.avatarColor).toBeDefined();
+    });
+  });
+
+  describe("normalizeConversation", () => {
+    it("transforms backend conversation with incoming message", () => {
+      const raw: BackendConversation = {
+        id: "conv-1",
+        unread_count: 3,
+        is_archived: false,
+        is_muted: false,
+        can_send_messages: true,
+        has_blocked_participant: false,
+        recipient: {
+          id: "user-2",
+          name: "Jane Doe",
+          username: "janedoe",
+        },
+        last_message: {
+          id: "msg-1",
+          sender_id: "user-2",
+          body: "Hello!",
+          created_at: new Date().toISOString(),
+        },
+      };
+
+      const result = normalizeConversation(raw, "user-1");
+      expect(result.id).toBe("conv-1");
+      expect(result.unreadCount).toBe(3);
+      expect(result.lastMessage.text).toBe("Hello!");
+      expect(result.lastMessage.type).toBe("text");
+      expect(result.canSendMessages).toBe(true);
+      expect(result.hasBlockedParticipant).toBe(false);
+    });
+
+    it("flags outgoing last message when sender matches currentUserId", () => {
+      const raw: BackendConversation = {
+        id: "conv-2",
+        unread_count: 0,
+        is_archived: false,
+        is_muted: false,
+        recipient: { id: "user-2", name: "Jane", username: "jane" },
+        last_message: {
+          id: "msg-2",
+          sender_id: "user-1",
+          body: "Outgoing text",
+          created_at: new Date().toISOString(),
+        },
+      };
+
+      const result = normalizeConversation(raw, "user-1");
+      expect(result.lastMessage.type).toBe("outgoing");
+      expect(result.lastMessage.text).toBe("Outgoing text");
+    });
+
+    it("redacts deleted message", () => {
+      const raw: BackendConversation = {
+        id: "conv-3",
+        unread_count: 0,
+        is_archived: false,
+        is_muted: false,
+        recipient: { id: "user-2", name: "Jane", username: "jane" },
+        last_message: {
+          id: "msg-3",
+          sender_id: "user-2",
+          body: null,
+          is_deleted_for_everyone: true,
+          created_at: new Date().toISOString(),
+        },
+      };
+
+      const result = normalizeConversation(raw, "user-1");
+      expect(result.lastMessage.text).toBe("This message was deleted");
+    });
+  });
+
+  describe("normalizeMessage", () => {
+    it("transforms backend message into ChatMessage", () => {
+      const raw: BackendMessage = {
+        id: "msg-1",
+        conversation_id: "conv-1",
+        sender_id: "user-2",
+        sender: { id: "user-2", name: "Jane", username: "jane" },
+        body: "Hey there",
+        media: [],
+        reply_to: null,
+        reactions: [{ emoji: "🔥", count: 1, user_reacted: true }],
+        is_edited: false,
+        is_deleted_for_everyone: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const result = normalizeMessage(raw, "user-1");
+      expect(result.id).toBe("msg-1");
+      expect(result.isOutgoing).toBe(false);
+      expect(result.text).toBe("Hey there");
+      expect(result.reactions).toEqual(["🔥"]);
+      expect(result.isDeletedForEveryone).toBe(false);
+    });
+
+    it("identifies outgoing message and handles deleted text", () => {
+      const raw: BackendMessage = {
+        id: "msg-2",
+        conversation_id: "conv-1",
+        sender_id: "user-1",
+        sender: { id: "user-1", name: "Me", username: "me" },
+        body: null,
+        media: [],
+        reply_to: null,
+        reactions: [],
+        is_edited: false,
+        is_deleted_for_everyone: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const result = normalizeMessage(raw, "user-1");
+      expect(result.isOutgoing).toBe(true);
+      expect(result.text).toBe("This message was deleted");
+      expect(result.isDeletedForEveryone).toBe(true);
+    });
+  });
+
   describe("filterConversations", () => {
     it("returns all conversations when search query is empty", () => {
       const result = filterConversations(MOCK_CONVERSATIONS, "");
@@ -26,7 +204,10 @@ describe("features/messages/utils", () => {
     });
 
     it("returns empty array when query does not match anything", () => {
-      const result = filterConversations(MOCK_CONVERSATIONS, "nonexistent-query-xyz");
+      const result = filterConversations(
+        MOCK_CONVERSATIONS,
+        "nonexistent-query-xyz"
+      );
       expect(result).toHaveLength(0);
     });
   });
@@ -64,6 +245,7 @@ describe("features/messages/utils", () => {
       expect(formatMessageTimestamp("2m")).toBe("2m");
       expect(formatMessageTimestamp("1h")).toBe("1h");
       expect(formatMessageTimestamp("Just now")).toBe("Just now");
+      expect(formatMessageTimestamp("9:14")).toBe("9:14");
     });
 
     it("formats ISO string into relative time without ago suffix", () => {
@@ -72,5 +254,210 @@ describe("features/messages/utils", () => {
       expect(formatted).not.toContain("ago");
     });
   });
-});
 
+  describe("mergeConversationsCache & mergeMessagesCache", () => {
+    it("replaces cache on initial load (no cursor)", () => {
+      const current: ConversationsResult = { conversations: [], nextCursor: null };
+      const next: ConversationsResult = {
+        conversations: [MOCK_CONVERSATIONS[0]],
+        nextCursor: "cursor-2",
+      };
+
+      mergeConversationsCache(current, next, null);
+      expect(current.conversations).toHaveLength(1);
+      expect(current.nextCursor).toBe("cursor-2");
+    });
+
+    it("deduplicates conversations when appending next page", () => {
+      const current: ConversationsResult = {
+        conversations: [MOCK_CONVERSATIONS[0]],
+        nextCursor: "cursor-2",
+      };
+      const next: ConversationsResult = {
+        conversations: [MOCK_CONVERSATIONS[0], MOCK_CONVERSATIONS[1]],
+        nextCursor: "cursor-3",
+      };
+
+      mergeConversationsCache(current, next, "cursor-2");
+      expect(current.conversations).toHaveLength(2);
+      expect(current.nextCursor).toBe("cursor-3");
+    });
+
+    it("merges messages cache and prepends older messages", () => {
+      const msg1: ChatMessage = {
+        id: "m-1",
+        senderId: "u-1",
+        isOutgoing: false,
+        text: "first",
+        timestamp: "9:00",
+      };
+      const msg2: ChatMessage = {
+        id: "m-2",
+        senderId: "u-1",
+        isOutgoing: false,
+        text: "second",
+        timestamp: "9:01",
+      };
+
+      const current: MessagesResult = { messages: [msg2], nextCursor: "c-1" };
+      const next: MessagesResult = { messages: [msg1], nextCursor: "c-2" };
+
+      mergeMessagesCache(current, next, "c-1");
+      expect(current.messages).toHaveLength(2);
+      expect(current.messages[0].id).toBe("m-1");
+      expect(current.messages[1].id).toBe("m-2");
+    });
+  });
+
+  describe("applyReactionEventToMessage", () => {
+    it("adds reaction from other user", () => {
+      const msg: ChatMessage = {
+        id: "m-1",
+        senderId: "u-1",
+        isOutgoing: false,
+        timestamp: "9:00",
+        rawReactions: [],
+      };
+
+      const updated = applyReactionEventToMessage(
+        msg,
+        {
+          message_id: "m-1",
+          conversation_id: "c-1",
+          user_id: "u-2",
+          emoji: "🔥",
+        },
+        "u-1"
+      );
+
+      expect(updated.reactions).toEqual(["🔥"]);
+      expect(updated.rawReactions?.[0].count).toBe(1);
+      expect(updated.rawReactions?.[0].user_reacted).toBe(false);
+    });
+
+    it("increments reaction count and sets user_reacted when current user reacts", () => {
+      const msg: ChatMessage = {
+        id: "m-1",
+        senderId: "u-1",
+        isOutgoing: false,
+        timestamp: "9:00",
+        rawReactions: [{ emoji: "❤️", count: 1, user_reacted: false }],
+        reactions: ["❤️"],
+      };
+
+      const updated = applyReactionEventToMessage(
+        msg,
+        {
+          message_id: "m-1",
+          conversation_id: "c-1",
+          user_id: "me",
+          emoji: "❤️",
+        },
+        "me"
+      );
+
+      expect(updated.rawReactions?.[0].count).toBe(2);
+      expect(updated.rawReactions?.[0].user_reacted).toBe(true);
+    });
+
+    it("removes reaction when emoji is null", () => {
+      const msg: ChatMessage = {
+        id: "m-1",
+        senderId: "u-1",
+        isOutgoing: false,
+        timestamp: "9:00",
+        rawReactions: [{ emoji: "❤️", count: 1, user_reacted: true }],
+        reactions: ["❤️"],
+      };
+
+      const updated = applyReactionEventToMessage(
+        msg,
+        {
+          message_id: "m-1",
+          conversation_id: "c-1",
+          user_id: "me",
+          emoji: null,
+        },
+        "me"
+      );
+
+      expect(updated.reactions).toBeUndefined();
+      expect(updated.rawReactions).toEqual([]);
+    });
+  });
+
+  describe("Dependency-Injected Cache Updaters", () => {
+    it("insertMessageInCache dispatches updateQueryData on api", () => {
+      const fakeUndo = jest.fn();
+      const dispatch = jest.fn().mockReturnValue({ undo: fakeUndo });
+      const api = {
+        util: {
+          updateQueryData: jest.fn().mockImplementation((endpoint, arg, updater) => {
+            const draft = { messages: [] as ChatMessage[], conversations: [] as any[] };
+            updater(draft);
+            return { type: "patch" };
+          }),
+        },
+      };
+
+      const newMsg: ChatMessage = {
+        id: "m-new",
+        senderId: "u-1",
+        isOutgoing: true,
+        text: "hello",
+        timestamp: "9:30",
+      };
+
+      const undo = insertMessageInCache(api, dispatch, "c-1", newMsg);
+      expect(dispatch).toHaveBeenCalledTimes(2);
+      undo();
+      expect(fakeUndo).toHaveBeenCalledTimes(2);
+    });
+
+    it("updateMessageInCache updates message in draft", () => {
+      const fakeUndo = jest.fn();
+      const dispatch = jest.fn().mockReturnValue({ undo: fakeUndo });
+      const api = {
+        util: {
+          updateQueryData: jest.fn().mockImplementation((endpoint, arg, updater) => {
+            const draft = {
+              messages: [{ id: "m-1", text: "old text" } as ChatMessage],
+            };
+            updater(draft);
+            expect(draft.messages[0].text).toBe("new text");
+            return { type: "patch" };
+          }),
+        },
+      };
+
+      const undo = updateMessageInCache(api, dispatch, "c-1", "m-1", (msg) => {
+        msg.text = "new text";
+      });
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      undo();
+      expect(fakeUndo).toHaveBeenCalledTimes(1);
+    });
+
+    it("markConversationReadInCache sets unreadCount to 0", () => {
+      const fakeUndo = jest.fn();
+      const dispatch = jest.fn().mockReturnValue({ undo: fakeUndo });
+      const api = {
+        util: {
+          updateQueryData: jest.fn().mockImplementation((endpoint, arg, updater) => {
+            const draft = {
+              conversations: [{ id: "c-1", unreadCount: 5 }],
+            };
+            updater(draft);
+            expect(draft.conversations[0].unreadCount).toBe(0);
+            return { type: "patch" };
+          }),
+        },
+      };
+
+      const undo = markConversationReadInCache(api, dispatch, "c-1");
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      undo();
+      expect(fakeUndo).toHaveBeenCalledTimes(1);
+    });
+  });
+});

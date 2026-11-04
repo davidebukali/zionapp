@@ -29,10 +29,50 @@ jest.mock("react-native-paper", () => {
         outlineVariant: "#EFE1E1",
         background: "#000000",
         onBackground: "#FFFFFF",
+        onPrimary: "#FFFFFF",
+        inverseSurface: "#FFFFFF",
+        inverseOnSurface: "#121212",
       },
     }),
   };
 });
+
+jest.mock("../../../hooks/useChatThread", () => ({
+  useChatThread: jest.fn(() => ({
+    participant: {
+      id: "user-maya",
+      name: "Maya Chen",
+      username: "mayachen",
+      initials: "MC",
+      isOnline: true,
+      avatarColor: "#7CB342",
+    },
+    messages: [
+      {
+        id: "msg-1",
+        senderId: "user-maya",
+        isOutgoing: false,
+        text: "okay but the new banner colors are 🔥🔥",
+        timestamp: "9:12",
+      },
+    ],
+    inputText: "",
+    setInputText: jest.fn(),
+    isTyping: true,
+    setIsTyping: jest.fn(),
+    isEmojiPickerOpen: false,
+    setIsEmojiPickerOpen: jest.fn(),
+    handleToggleEmoji: jest.fn(),
+    handleEmojiSelected: jest.fn(),
+    handleSendMessage: jest.fn(),
+    handleBack: jest.fn(),
+    canSendMessages: true,
+    isLoading: false,
+    isLoadingMore: false,
+    hasMore: false,
+    onLoadMore: jest.fn(),
+  })),
+}));
 
 import {
   ChatHeader,

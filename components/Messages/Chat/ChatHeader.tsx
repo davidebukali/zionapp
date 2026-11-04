@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
+import { globalStyles } from "../../../assets/styles/theme";
 import { ChatHeaderProps } from "./types";
 import { MessageAvatar } from "../MessageAvatar";
 
@@ -15,8 +16,12 @@ export const ChatHeader = React.memo(function ChatHeader({
   return (
     <View
       style={[
-        styles.container,
-        { borderBottomColor: theme.colors.outlineVariant },
+        globalStyles.commentsHeader,
+        {
+          minHeight: 56,
+          paddingHorizontal: 12,
+          borderBottomColor: theme.colors.outlineVariant,
+        },
       ]}
     >
       <TouchableOpacity
@@ -25,7 +30,7 @@ export const ChatHeader = React.memo(function ChatHeader({
         accessibilityRole="button"
         accessibilityLabel="Go back"
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        style={styles.backButton}
+        style={globalStyles.commentsBackButton}
       >
         <Ionicons
           name="arrow-back"
@@ -51,7 +56,12 @@ export const ChatHeader = React.memo(function ChatHeader({
           >
             {participant.name}
           </Text>
-          <Text style={styles.presenceText}>
+          <Text
+            style={[
+              styles.presenceText,
+              { color: participant.isOnline ? "#10B981" : theme.colors.onSurfaceVariant },
+            ]}
+          >
             {participant.isOnline ? "Active now" : "Offline"}
           </Text>
         </View>
@@ -61,17 +71,6 @@ export const ChatHeader = React.memo(function ChatHeader({
 });
 
 const styles = StyleSheet.create({
-  container: {
-    height: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  backButton: {
-    padding: 6,
-    marginRight: 6,
-  },
   participantRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -88,8 +87,6 @@ const styles = StyleSheet.create({
   presenceText: {
     fontSize: 12,
     fontWeight: "500",
-    color: "#10B981", // Active green
     marginTop: 1,
   },
 });
-

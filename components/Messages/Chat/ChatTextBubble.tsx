@@ -7,16 +7,16 @@ import { ChatTextBubbleProps } from "./types";
 export const ChatTextBubble = React.memo(function ChatTextBubble({
   text,
   isOutgoing,
+  isDeleted = false,
+  isEdited = false,
 }: ChatTextBubbleProps) {
   const theme = useTheme();
 
   const bubbleBg = isOutgoing
     ? theme.colors.primary
-    : theme.dark
-    ? "#262626"
     : theme.colors.surfaceVariant;
 
-  const textColor = isOutgoing ? "#FFFFFF" : theme.colors.onSurface;
+  const textColor = isOutgoing ? theme.colors.onPrimary : theme.colors.onSurface;
 
   return (
     <View
@@ -29,7 +29,21 @@ export const ChatTextBubble = React.memo(function ChatTextBubble({
         },
       ]}
     >
-      <Text style={[styles.text, { color: textColor }]}>{text}</Text>
+      <Text
+        style={[
+          styles.text,
+          {
+            color: textColor,
+            fontStyle: isDeleted ? "italic" : "normal",
+            opacity: isDeleted ? 0.75 : 1,
+          },
+        ]}
+      >
+        {text}
+        {isEdited && !isDeleted ? (
+          <Text style={styles.editedTag}> (edited)</Text>
+        ) : null}
+      </Text>
     </View>
   );
 });
@@ -45,5 +59,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
   },
+  editedTag: {
+    fontSize: 11,
+    opacity: 0.7,
+  },
 });
-

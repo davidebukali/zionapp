@@ -1,76 +1,104 @@
 import { useState, useMemo, useCallback } from "react";
-import {
-  Conversation,
-  OnlineContact,
-} from "../features/messages/types";
+import { useSelector } from "react-redux";
+import type { RootState } from "../store/store";
+import { Conversation, OnlineContact } from "../features/messages/types";
 import {
   MOCK_ACTIVE_CONTACTS,
   MOCK_CONVERSATIONS,
 } from "../features/messages/mockData";
+import { filterConversations } from "../features/messages/utils";
 import {
-  filterConversations,
-  findOrCreateConversation,
-} from "../features/messages/utils";
+  useGetConversationsQuery,
+  useGetMessageableRecipientsQuery,
+} from "../features/messages/api";
 
 export function useMessages() {
+  const token = useSelector((state: RootState) => state.auth?.token);
   const [searchQuery, setSearchQuery] = useState("");
-  const [conversations, setConversations] =
-    useState<Conversation[]>(MOCK_CONVERSATIONS);
-  const [activeContacts] = useState<OnlineContact[]>(MOCK_ACTIVE_CONTACTS);
+  const [cursor, setCursor] = useState<string | null>(null);
+
+  // 1. RTK Query for Conversations
+  const {
+    data: conversationsData,
+    isLoading,
+    isFetching,
+    refetch: refetchConversations,
+  } = useGetConversationsQuery(
+    {
+      q: searchQuery.trim() || undefined,
+      cursor,
+    },
+    { skip: !token }
+  );
+
+  // 2. RTK Query for Messageable Recipients (mutual followers)
+  const { data: recipientsData, refetch: refetchRecipients } =
+    useGetMessageableRecipientsQuery(undefined, { skip: !token });
+
+  const rawConversations: Conversation[] = useMemo(() => {
+    if (conversationsData?.conversations && conversationsData.conversations.length > 0) {
+      return conversationsData.conversations;
+    }
+    return MOCK_CONVERSATIONS;
+  }, [conversationsData?.conversations]);
+
+  const activeContacts: OnlineContact[] = useMemo(() => {
+    if (recipientsData?.recipients && recipientsData.recipients.length > 0) {
+      return recipientsData.recipients;
+    }
+    return MOCK_ACTIVE_CONTACTS;
+  }, [recipientsData?.recipients]);
+
+  const filteredConversations = useMemo(
+    () => filterConversations(rawConversations, searchQuery),
+    [rawConversations, searchQuery]
+  );
+
   const [selectedConversationId, setSelectedConversationId] = useState<
     string | null
   >(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const filteredConversations = useMemo(
-    () => filterConversations(conversations, searchQuery),
-    [conversations, searchQuery]
-  );
-
+  // Navigating by target user_id
   const handleSelectContact = useCallback((contact: OnlineContact): string => {
-    let targetId = "";
-    setConversations((prev) => {
-      const { updatedConversations, selectedConversationId: id } =
-        findOrCreateConversation(prev, contact);
-      targetId = id;
-      setSelectedConversationId(id);
-      return updatedConversations;
-    });
-    return targetId;
+    return contact.id;
   }, []);
 
-  const handleSelectConversation = useCallback((conversation: Conversation) => {
+  const handleSelectConversation = useCallback((conversation: Conversation): string => {
     setSelectedConversationId(conversation.id);
-    // Optimistically mark as read
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === conversation.id ? { ...c, unreadCount: 0 } : c
-      )
-    );
+    return conversation.participant.id;
   }, []);
 
   const handleClearSearch = useCallback(() => {
     setSearchQuery("");
   }, []);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    // Simulate lightweight refresh
-    setTimeout(() => {
+    setCursor(null);
+    try {
+      if (token) {
+        await Promise.all([refetchConversations(), refetchRecipients()]);
+      }
+    } catch {
+      // Ignore refresh error
+    } finally {
       setIsRefreshing(false);
-    }, 400);
-  }, []);
+    }
+  }, [token, refetchConversations, refetchRecipients]);
 
   const onLoadMore = useCallback(() => {
-    // Stub ready for cursor-based pagination when API is integrated
-  }, []);
+    if (conversationsData?.nextCursor && !isFetching) {
+      setCursor(conversationsData.nextCursor);
+    }
+  }, [conversationsData?.nextCursor, isFetching]);
 
   return {
     searchQuery,
     setSearchQuery,
     handleClearSearch,
     conversations: filteredConversations,
-    totalConversationsCount: conversations.length,
+    totalConversationsCount: filteredConversations.length,
     activeContacts,
     selectedConversationId,
     handleSelectContact,
@@ -78,8 +106,7 @@ export function useMessages() {
     isRefreshing,
     onRefresh,
     onLoadMore,
-    isLoadingMore: false,
-    hasMore: false,
+    isLoadingMore: isFetching && !isLoading,
+    hasMore: Boolean(conversationsData?.nextCursor),
   };
 }
-

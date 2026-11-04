@@ -10,7 +10,15 @@ import { ChatReadReceipt } from "./ChatReadReceipt";
 export const ChatMessageBubble = React.memo(function ChatMessageBubble({
   message,
 }: ChatMessageBubbleProps) {
-  const { isOutgoing, text, mediaUrl, reactions, readReceipt } = message;
+  const {
+    isOutgoing,
+    text,
+    mediaUrl,
+    reactions,
+    readReceipt,
+    isDeletedForEveryone,
+    isEdited,
+  } = message;
 
   return (
     <View
@@ -20,13 +28,20 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
       ]}
     >
       <View style={styles.bubbleWrapper}>
-        {mediaUrl ? (
+        {!isDeletedForEveryone && mediaUrl ? (
           <ChatMediaBubble mediaUrl={mediaUrl} />
         ) : (
-          text && <ChatTextBubble text={text} isOutgoing={isOutgoing} />
+          text && (
+            <ChatTextBubble
+              text={text}
+              isOutgoing={isOutgoing}
+              isDeleted={isDeletedForEveryone}
+              isEdited={isEdited}
+            />
+          )
         )}
 
-        {reactions && reactions.length > 0 && (
+        {!isDeletedForEveryone && reactions && reactions.length > 0 && (
           <ChatReactionBadge reactions={reactions} />
         )}
       </View>
@@ -51,4 +66,3 @@ const styles = StyleSheet.create({
     position: "relative",
   },
 });
-

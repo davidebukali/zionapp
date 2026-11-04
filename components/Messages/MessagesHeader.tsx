@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
+import { globalStyles } from "../../assets/styles/theme";
 import { MessagesHeaderProps } from "./types";
 
 export function MessagesHeader({ onPressCompose }: MessagesHeaderProps) {
@@ -10,7 +11,12 @@ export function MessagesHeader({ onPressCompose }: MessagesHeaderProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: theme.colors.onBackground }]}>
+      <Text
+        style={[
+          globalStyles.authPageTitle,
+          { color: theme.colors.onBackground, marginBottom: 0 },
+        ]}
+      >
         Messages
       </Text>
 
@@ -21,8 +27,11 @@ export function MessagesHeader({ onPressCompose }: MessagesHeaderProps) {
         accessibilityLabel="New message"
         accessibilityHint="Compose a new message"
         style={[
-          styles.composeButton,
-          { backgroundColor: theme.colors.surfaceVariant },
+          globalStyles.postIconButton,
+          {
+            backgroundColor: theme.colors.surfaceVariant,
+            borderRadius: 20,
+          },
         ]}
       >
         <Ionicons
@@ -44,17 +53,4 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 12,
   },
-  title: {
-    fontSize: 30,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-  },
-  composeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
 });
-
