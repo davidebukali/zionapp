@@ -95,6 +95,7 @@ export const usersApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { userId }) => [
         { type: "User", id: userId },
         { type: "User", id: `${userId}_followers` },
+        { type: "Conversation", id: "RECIPIENTS" },
       ],
     }),
 
@@ -133,6 +134,7 @@ export const usersApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { userId }) => [
         { type: "User", id: userId },
         { type: "User", id: `${userId}_followers` },
+        { type: "Conversation", id: "RECIPIENTS" },
       ],
     }),
 

@@ -10,6 +10,7 @@ import {
   MessageReactionUpdatedEvent,
   MessagesResult,
   OnlineContact,
+  RecipientsResult,
 } from "./types";
 import { formatRelativeTime } from "../../utils/date";
 
@@ -201,6 +202,47 @@ export function filterConversations(
       .includes(normalized);
     return nameMatch || usernameMatch || messageMatch;
   });
+}
+
+/**
+ * Filters a list of messageable recipients by name or @username.
+ */
+export function filterRecipients(
+  recipients: OnlineContact[],
+  searchQuery: string
+): OnlineContact[] {
+  const normalized = searchQuery.trim().toLowerCase().replace(/^@/, "");
+  if (!normalized) {
+    return recipients;
+  }
+
+  return recipients.filter((contact) => {
+    const nameMatch = contact.name.toLowerCase().includes(normalized);
+    const usernameMatch = contact.username.toLowerCase().includes(normalized);
+    return nameMatch || usernameMatch;
+  });
+}
+
+/**
+ * Merges paginated messageable recipients cache.
+ */
+export function mergeRecipientsCache(
+  currentCache: RecipientsResult,
+  newItems: RecipientsResult,
+  cursor?: string | null
+): void {
+  if (!cursor) {
+    currentCache.recipients = newItems.recipients;
+    currentCache.nextCursor = newItems.nextCursor;
+    return;
+  }
+
+  const existingIds = new Set(currentCache.recipients.map((r) => r.id));
+  const uniqueIncoming = newItems.recipients.filter(
+    (r) => !existingIds.has(r.id)
+  );
+  currentCache.recipients.push(...uniqueIncoming);
+  currentCache.nextCursor = newItems.nextCursor;
 }
 
 /**

@@ -124,6 +124,16 @@ jest.mock("../../hooks/useMessages", () => ({
     onLoadMore: jest.fn(),
     isLoadingMore: false,
     hasMore: false,
+    isComposeOpen: false,
+    handleOpenCompose: jest.fn(),
+    handleCloseCompose: jest.fn(),
+    recipientSearchQuery: "",
+    setRecipientSearchQuery: jest.fn(),
+    handleClearRecipientSearch: jest.fn(),
+    filteredRecipients: MOCK_ACTIVE_CONTACTS,
+    onLoadMoreRecipients: jest.fn(),
+    isLoadingMoreRecipients: false,
+    hasMoreRecipients: false,
   })),
 }));
 jest.mock("react-native-paper", () => {
@@ -155,6 +165,7 @@ import {
   MessageAvatar,
   ConversationPreview,
   MessagesEmptyState,
+  NewMessageBottomSheet,
 } from "./index";
 import MessagesScreen from "../../app/(app)/(tabs)/messages";
 
@@ -468,6 +479,70 @@ describe("components/Messages", () => {
       const json = JSON.stringify(renderer!.toJSON());
       expect(json).toContain("camera-outline");
       expect(json).toContain("Photo");
+    });
+  });
+
+  describe("NewMessageBottomSheet", () => {
+    it("renders followed accounts and triggers onSelectRecipient when tapped", () => {
+      const onSelect = jest.fn();
+      const onClose = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <NewMessageBottomSheet
+            visible={true}
+            recipients={MOCK_ACTIVE_CONTACTS}
+            searchQuery=""
+            onChangeSearch={jest.fn()}
+            onClearSearch={jest.fn()}
+            onSelectRecipient={onSelect}
+            onClose={onClose}
+            onLoadMore={jest.fn()}
+            isLoadingMore={false}
+            hasMore={false}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const closeBtn = root.findByProps({
+        accessibilityLabel: "Close new message",
+      });
+      expect(closeBtn).toBeDefined();
+
+      const mayaRow = root.findByProps({
+        accessibilityLabel: "Message Maya Chen",
+      });
+      expect(mayaRow).toBeDefined();
+
+      act(() => {
+        mayaRow.props.onPress();
+      });
+      expect(onSelect).toHaveBeenCalledWith(MOCK_ACTIVE_CONTACTS[0]);
+    });
+
+    it("renders empty state when no recipients match search", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <NewMessageBottomSheet
+            visible={true}
+            recipients={[]}
+            searchQuery="unknown"
+            onChangeSearch={jest.fn()}
+            onClearSearch={jest.fn()}
+            onSelectRecipient={jest.fn()}
+            onClose={jest.fn()}
+            onLoadMore={jest.fn()}
+            isLoadingMore={false}
+            hasMore={false}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const emptyIcon = root.findAllByProps({ name: "search-outline" });
+      expect(emptyIcon.length).toBeGreaterThanOrEqual(1);
     });
   });
 

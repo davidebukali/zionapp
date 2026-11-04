@@ -1,6 +1,7 @@
 import {
   applyReactionEventToMessage,
   filterConversations,
+  filterRecipients,
   formatMessageTimestamp,
   getAvatarColor,
   getInitials,
@@ -8,6 +9,7 @@ import {
   markConversationReadInCache,
   mergeConversationsCache,
   mergeMessagesCache,
+  mergeRecipientsCache,
   normalizeConversation,
   normalizeMessage,
   normalizeRecipient,
@@ -21,6 +23,8 @@ import {
   Conversation,
   ConversationsResult,
   MessagesResult,
+  OnlineContact,
+  RecipientsResult,
 } from "./types";
 
 const TEST_CONVERSATIONS: Conversation[] = [
@@ -244,6 +248,38 @@ describe("features/messages/utils", () => {
         "nonexistent-query-xyz"
       );
       expect(result).toHaveLength(0);
+    });
+  });
+
+  describe("filterRecipients & mergeRecipientsCache", () => {
+    const testRecipients: OnlineContact[] = [
+      TEST_CONVERSATIONS[0].participant,
+      TEST_CONVERSATIONS[1].participant,
+    ];
+
+    it("returns all recipients when query is empty", () => {
+      expect(filterRecipients(testRecipients, "")).toHaveLength(2);
+    });
+
+    it("filters recipients by name or @username", () => {
+      expect(filterRecipients(testRecipients, "Maya")).toHaveLength(1);
+      expect(filterRecipients(testRecipients, "@studionorth")).toHaveLength(1);
+      expect(filterRecipients(testRecipients, "nobody")).toHaveLength(0);
+    });
+
+    it("merges and deduplicates recipients cache across cursors", () => {
+      const current: RecipientsResult = {
+        recipients: [testRecipients[0]],
+        nextCursor: "rc-1",
+      };
+      const incoming: RecipientsResult = {
+        recipients: [testRecipients[0], testRecipients[1]],
+        nextCursor: null,
+      };
+
+      mergeRecipientsCache(current, incoming, "rc-1");
+      expect(current.recipients).toHaveLength(2);
+      expect(current.nextCursor).toBeNull();
     });
   });
 

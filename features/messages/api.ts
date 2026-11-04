@@ -26,6 +26,7 @@ import {
   insertMessageInCache,
   mergeConversationsCache,
   mergeMessagesCache,
+  mergeRecipientsCache,
   normalizeConversation,
   normalizeMessage,
   normalizeRecipient,
@@ -99,6 +100,12 @@ export const messagesApi = baseApi.injectEndpoints({
           nextCursor: response?.meta?.next_cursor ?? null,
         };
       },
+      serializeQueryArgs: ({ endpointName }) => endpointName,
+      merge: (currentCache, newItems, { arg }) => {
+        mergeRecipientsCache(currentCache, newItems, arg?.cursor);
+      },
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.cursor !== previousArg?.cursor || currentArg?.q !== previousArg?.q,
       providesTags: [{ type: "Conversation", id: "RECIPIENTS" }],
     }),
 

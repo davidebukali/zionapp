@@ -14,6 +14,7 @@ import {
   ActiveContactsTray,
   ConversationListItem,
   MessagesEmptyState,
+  NewMessageBottomSheet,
 } from "../../../components/Messages";
 
 export default function MessagesScreen() {
@@ -33,6 +34,16 @@ export default function MessagesScreen() {
     onLoadMore,
     isLoadingMore,
     hasMore,
+    isComposeOpen,
+    handleOpenCompose,
+    handleCloseCompose,
+    recipientSearchQuery,
+    setRecipientSearchQuery,
+    handleClearRecipientSearch,
+    filteredRecipients,
+    onLoadMoreRecipients,
+    isLoadingMoreRecipients,
+    hasMoreRecipients,
   } = useMessages();
 
   const handleOpenConversation = useCallback(
@@ -45,10 +56,11 @@ export default function MessagesScreen() {
 
   const handleOpenContact = useCallback(
     (contact: OnlineContact) => {
+      handleCloseCompose();
       const targetUserId = handleSelectContact(contact);
       router.push(`/messages/${targetUserId}` as any);
     },
-    [handleSelectContact]
+    [handleCloseCompose, handleSelectContact]
   );
 
   return (
@@ -62,7 +74,7 @@ export default function MessagesScreen() {
       ]}
     >
       {/* Top Navigation Header */}
-      <MessagesHeader />
+      <MessagesHeader onPressCompose={handleOpenCompose} />
 
       {/* Main Conversation Feed */}
       <InfiniteScrollList
@@ -101,6 +113,20 @@ export default function MessagesScreen() {
         hasMore={hasMore}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+      />
+
+      {/* New Message Recipient Picker Bottom Sheet */}
+      <NewMessageBottomSheet
+        visible={isComposeOpen}
+        recipients={filteredRecipients}
+        searchQuery={recipientSearchQuery}
+        onChangeSearch={setRecipientSearchQuery}
+        onClearSearch={handleClearRecipientSearch}
+        onSelectRecipient={handleOpenContact}
+        onClose={handleCloseCompose}
+        onLoadMore={onLoadMoreRecipients}
+        isLoadingMore={isLoadingMoreRecipients}
+        hasMore={hasMoreRecipients}
       />
     </View>
   );

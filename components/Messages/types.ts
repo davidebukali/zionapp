@@ -26,3 +26,17 @@ export interface MessagesEmptyStateProps {
   onResetSearch?: () => void;
 }
 
+export interface NewMessageBottomSheetProps {
+  visible: boolean;
+  recipients: OnlineContact[];
+  searchQuery: string;
+  onChangeSearch: (text: string) => void;
+  onClearSearch: () => void;
+  onSelectRecipient: (contact: OnlineContact) => void;
+  onClose: () => void;
+  onLoadMore: () => void;
+  isLoadingMore: boolean;
+  hasMore: boolean;
+}
+
+
