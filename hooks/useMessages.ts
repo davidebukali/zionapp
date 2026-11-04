@@ -2,10 +2,6 @@ import { useState, useMemo, useCallback } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store/store";
 import { Conversation, OnlineContact } from "../features/messages/types";
-import {
-  MOCK_ACTIVE_CONTACTS,
-  MOCK_CONVERSATIONS,
-} from "../features/messages/mockData";
 import { filterConversations } from "../features/messages/utils";
 import {
   useGetConversationsQuery,
@@ -14,10 +10,15 @@ import {
 
 export function useMessages() {
   const token = useSelector((state: RootState) => state.auth?.token);
+  const currentUserId = useSelector((state: RootState) =>
+    state.auth?.user?.id ? String(state.auth.user.id) : undefined
+  );
+
   const [searchQuery, setSearchQuery] = useState("");
   const [cursor, setCursor] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // 1. RTK Query for Conversations
+  // 1. Fetch Conversations from API (stored in RTK Query cache)
   const {
     data: conversationsData,
     isLoading,
@@ -25,49 +26,43 @@ export function useMessages() {
     refetch: refetchConversations,
   } = useGetConversationsQuery(
     {
-      q: searchQuery.trim() || undefined,
       cursor,
+      currentUserId,
     },
     { skip: !token }
   );
 
-  // 2. RTK Query for Messageable Recipients (mutual followers)
+  // 2. Fetch Messageable Recipients (mutual followers)
   const { data: recipientsData, refetch: refetchRecipients } =
     useGetMessageableRecipientsQuery(undefined, { skip: !token });
 
-  const rawConversations: Conversation[] = useMemo(() => {
-    if (conversationsData?.conversations && conversationsData.conversations.length > 0) {
-      return conversationsData.conversations;
-    }
-    return MOCK_CONVERSATIONS;
-  }, [conversationsData?.conversations]);
+  const rawConversations: Conversation[] = useMemo(
+    () => conversationsData?.conversations ?? [],
+    [conversationsData?.conversations]
+  );
 
-  const activeContacts: OnlineContact[] = useMemo(() => {
-    if (recipientsData?.recipients && recipientsData.recipients.length > 0) {
-      return recipientsData.recipients;
-    }
-    return MOCK_ACTIVE_CONTACTS;
-  }, [recipientsData?.recipients]);
+  const activeContacts: OnlineContact[] = useMemo(
+    () => recipientsData?.recipients ?? [],
+    [recipientsData?.recipients]
+  );
 
+  // 3. Perform instant inbox search on local cache
   const filteredConversations = useMemo(
     () => filterConversations(rawConversations, searchQuery),
     [rawConversations, searchQuery]
   );
 
-  const [selectedConversationId, setSelectedConversationId] = useState<
-    string | null
-  >(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Navigating by target user_id
+  // Navigate by target user_id
   const handleSelectContact = useCallback((contact: OnlineContact): string => {
     return contact.id;
   }, []);
 
-  const handleSelectConversation = useCallback((conversation: Conversation): string => {
-    setSelectedConversationId(conversation.id);
-    return conversation.participant.id;
-  }, []);
+  const handleSelectConversation = useCallback(
+    (conversation: Conversation): string => {
+      return conversation.participant.id;
+    },
+    []
+  );
 
   const handleClearSearch = useCallback(() => {
     setSearchQuery("");
@@ -100,9 +95,9 @@ export function useMessages() {
     conversations: filteredConversations,
     totalConversationsCount: filteredConversations.length,
     activeContacts,
-    selectedConversationId,
     handleSelectContact,
     handleSelectConversation,
+    isLoading,
     isRefreshing,
     onRefresh,
     onLoadMore,

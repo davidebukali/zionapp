@@ -204,42 +204,6 @@ export function filterConversations(
 }
 
 /**
- * Finds an existing conversation with an online contact or creates a placeholder at the top.
- */
-export function findOrCreateConversation(
-  conversations: Conversation[],
-  contact: OnlineContact
-): { updatedConversations: Conversation[]; selectedConversationId: string } {
-  const existingIndex = conversations.findIndex(
-    (c) => c.participant.id === contact.id
-  );
-
-  if (existingIndex !== -1) {
-    return {
-      updatedConversations: conversations,
-      selectedConversationId: conversations[existingIndex].id,
-    };
-  }
-
-  const newConversation: Conversation = {
-    id: `conv-new-${contact.id}-${Date.now()}`,
-    participant: contact,
-    lastMessage: {
-      text: "Start a conversation",
-      type: "text",
-      timestamp: "Just now",
-    },
-    unreadCount: 0,
-    canSendMessages: true,
-  };
-
-  return {
-    updatedConversations: [newConversation, ...conversations],
-    selectedConversationId: newConversation.id,
-  };
-}
-
-/**
  * Merges paginated conversations cache.
  */
 export function mergeConversationsCache(

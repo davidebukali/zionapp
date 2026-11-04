@@ -92,18 +92,12 @@ export interface CursorPaginationMeta {
 }
 
 // REST Envelopes & Query Params
-export interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-  meta?: CursorPaginationMeta | null;
-}
-
 export interface GetConversationsParams {
   per_page?: number;
   cursor?: string | null;
   q?: string;
   archived?: boolean;
+  currentUserId?: string;
 }
 
 export interface ConversationsListResponse {
@@ -151,6 +145,7 @@ export interface GetMessagesParams {
   conversationId: string;
   per_page?: number;
   cursor?: string | null;
+  currentUserId?: string;
 }
 
 export interface MessagesListResponse {

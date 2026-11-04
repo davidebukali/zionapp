@@ -1,6 +1,105 @@
 import React from "react";
 import ReactTestRenderer, { act } from "react-test-renderer";
 
+import { Conversation, OnlineContact } from "../../features/messages/types";
+
+const MOCK_ACTIVE_CONTACTS: OnlineContact[] = [
+  {
+    id: "user-maya",
+    name: "Maya Chen",
+    username: "mayachen",
+    initials: "MC",
+    isOnline: true,
+    avatarColor: "#7CB342",
+  },
+  {
+    id: "user-studio",
+    name: "Studio North",
+    username: "studionorth",
+    initials: "SN",
+    isOnline: false,
+    avatarColor: "#E64A19",
+  },
+  {
+    id: "user-dev",
+    name: "Dev Patel",
+    username: "devpatel",
+    initials: "DP",
+    isOnline: true,
+    avatarColor: "#8BC34A",
+  },
+  {
+    id: "user-jordan",
+    name: "Jordan Vélez",
+    username: "jordanvelez",
+    initials: "JV",
+    isOnline: false,
+    avatarColor: "#9E9D24",
+  },
+  {
+    id: "user-riya",
+    name: "Riya Kapoor",
+    username: "riyakapoor",
+    initials: "RK",
+    isOnline: false,
+    avatarColor: "#F4511E",
+  },
+];
+
+const MOCK_CONVERSATIONS: Conversation[] = [
+  {
+    id: "conv-1",
+    participant: MOCK_ACTIVE_CONTACTS[0],
+    lastMessage: {
+      text: "haha okay sending it now",
+      type: "text",
+      timestamp: "2m",
+    },
+    unreadCount: 2,
+  },
+  {
+    id: "conv-2",
+    participant: MOCK_ACTIVE_CONTACTS[1],
+    lastMessage: {
+      text: "love that direction",
+      type: "outgoing",
+      timestamp: "1h",
+    },
+    unreadCount: 0,
+  },
+  {
+    id: "conv-3",
+    participant: MOCK_ACTIVE_CONTACTS[2],
+    lastMessage: {
+      text: "reacted ❤️ to your message",
+      type: "reaction",
+      timestamp: "3h",
+      reactionEmoji: "❤️",
+    },
+    unreadCount: 1,
+  },
+  {
+    id: "conv-4",
+    participant: MOCK_ACTIVE_CONTACTS[3],
+    lastMessage: {
+      text: "let's pick this up tomorrow",
+      type: "text",
+      timestamp: "1d",
+    },
+    unreadCount: 0,
+  },
+  {
+    id: "conv-5",
+    participant: MOCK_ACTIVE_CONTACTS[4],
+    lastMessage: {
+      text: "Photo",
+      type: "photo",
+      timestamp: "2d",
+    },
+    unreadCount: 0,
+  },
+];
+
 jest.mock("@expo/vector-icons/Ionicons", () => "Ionicons");
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn().mockResolvedValue(undefined),
@@ -14,14 +113,12 @@ jest.mock("../../hooks/useMessages", () => ({
     searchQuery: "",
     setSearchQuery: jest.fn(),
     handleClearSearch: jest.fn(),
-    conversations:
-      require("../../features/messages/mockData").MOCK_CONVERSATIONS,
+    conversations: MOCK_CONVERSATIONS,
     totalConversationsCount: 5,
-    activeContacts:
-      require("../../features/messages/mockData").MOCK_ACTIVE_CONTACTS,
-    selectedConversationId: null,
+    activeContacts: MOCK_ACTIVE_CONTACTS,
     handleSelectContact: jest.fn((c) => c.id),
     handleSelectConversation: jest.fn((c) => c.participant.id),
+    isLoading: false,
     isRefreshing: false,
     onRefresh: jest.fn(),
     onLoadMore: jest.fn(),
@@ -60,10 +157,6 @@ import {
   MessagesEmptyState,
 } from "./index";
 import MessagesScreen from "../../app/(app)/(tabs)/messages";
-import {
-  MOCK_ACTIVE_CONTACTS,
-  MOCK_CONVERSATIONS,
-} from "../../features/messages/mockData";
 
 describe("components/Messages", () => {
   describe("MessagesHeader", () => {

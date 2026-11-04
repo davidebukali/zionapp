@@ -1,7 +1,6 @@
 import {
   applyReactionEventToMessage,
   filterConversations,
-  findOrCreateConversation,
   formatMessageTimestamp,
   getAvatarColor,
   getInitials,
@@ -14,16 +13,52 @@ import {
   normalizeRecipient,
   updateMessageInCache,
 } from "./utils";
-import { MOCK_CONVERSATIONS, MOCK_ACTIVE_CONTACTS } from "./mockData";
 import {
   BackendConversation,
   BackendMessage,
   BackendRecipient,
   ChatMessage,
+  Conversation,
   ConversationsResult,
   MessagesResult,
-  OnlineContact,
 } from "./types";
+
+const TEST_CONVERSATIONS: Conversation[] = [
+  {
+    id: "conv-1",
+    participant: {
+      id: "user-maya",
+      name: "Maya Chen",
+      username: "mayachen",
+      initials: "MC",
+      isOnline: true,
+      avatarColor: "#7CB342",
+    },
+    lastMessage: {
+      text: "haha okay sending it now",
+      type: "text",
+      timestamp: "2m",
+    },
+    unreadCount: 2,
+  },
+  {
+    id: "conv-2",
+    participant: {
+      id: "user-studio",
+      name: "Studio North",
+      username: "studionorth",
+      initials: "SN",
+      isOnline: false,
+      avatarColor: "#E64A19",
+    },
+    lastMessage: {
+      text: "love that direction",
+      type: "outgoing",
+      timestamp: "1h",
+    },
+    unreadCount: 0,
+  },
+];
 
 describe("features/messages/utils", () => {
   describe("getInitials & getAvatarColor", () => {
@@ -187,56 +222,28 @@ describe("features/messages/utils", () => {
 
   describe("filterConversations", () => {
     it("returns all conversations when search query is empty", () => {
-      const result = filterConversations(MOCK_CONVERSATIONS, "");
-      expect(result).toHaveLength(MOCK_CONVERSATIONS.length);
+      const result = filterConversations(TEST_CONVERSATIONS, "");
+      expect(result).toHaveLength(TEST_CONVERSATIONS.length);
     });
 
     it("filters conversations by participant name case-insensitively", () => {
-      const result = filterConversations(MOCK_CONVERSATIONS, "maya");
+      const result = filterConversations(TEST_CONVERSATIONS, "maya");
       expect(result).toHaveLength(1);
       expect(result[0].participant.name).toBe("Maya Chen");
     });
 
     it("filters conversations by message text", () => {
-      const result = filterConversations(MOCK_CONVERSATIONS, "direction");
+      const result = filterConversations(TEST_CONVERSATIONS, "direction");
       expect(result).toHaveLength(1);
       expect(result[0].participant.name).toBe("Studio North");
     });
 
     it("returns empty array when query does not match anything", () => {
       const result = filterConversations(
-        MOCK_CONVERSATIONS,
+        TEST_CONVERSATIONS,
         "nonexistent-query-xyz"
       );
       expect(result).toHaveLength(0);
-    });
-  });
-
-  describe("findOrCreateConversation", () => {
-    it("returns existing conversation ID if participant already has a thread", () => {
-      const existingContact = MOCK_ACTIVE_CONTACTS[0]; // Maya Chen
-      const { updatedConversations, selectedConversationId } =
-        findOrCreateConversation(MOCK_CONVERSATIONS, existingContact);
-
-      expect(selectedConversationId).toBe("conv-1");
-      expect(updatedConversations).toHaveLength(MOCK_CONVERSATIONS.length);
-    });
-
-    it("prepends a new conversation thread when contact is not in list", () => {
-      const newContact: OnlineContact = {
-        id: "user-new-sarah",
-        name: "Sarah Connor",
-        username: "sarahc",
-        initials: "SC",
-        isOnline: true,
-      };
-
-      const { updatedConversations, selectedConversationId } =
-        findOrCreateConversation(MOCK_CONVERSATIONS, newContact);
-
-      expect(updatedConversations).toHaveLength(MOCK_CONVERSATIONS.length + 1);
-      expect(updatedConversations[0].id).toBe(selectedConversationId);
-      expect(updatedConversations[0].participant.name).toBe("Sarah Connor");
     });
   });
 
@@ -259,7 +266,7 @@ describe("features/messages/utils", () => {
     it("replaces cache on initial load (no cursor)", () => {
       const current: ConversationsResult = { conversations: [], nextCursor: null };
       const next: ConversationsResult = {
-        conversations: [MOCK_CONVERSATIONS[0]],
+        conversations: [TEST_CONVERSATIONS[0]],
         nextCursor: "cursor-2",
       };
 
@@ -270,11 +277,11 @@ describe("features/messages/utils", () => {
 
     it("deduplicates conversations when appending next page", () => {
       const current: ConversationsResult = {
-        conversations: [MOCK_CONVERSATIONS[0]],
+        conversations: [TEST_CONVERSATIONS[0]],
         nextCursor: "cursor-2",
       };
       const next: ConversationsResult = {
-        conversations: [MOCK_CONVERSATIONS[0], MOCK_CONVERSATIONS[1]],
+        conversations: [TEST_CONVERSATIONS[0], TEST_CONVERSATIONS[1]],
         nextCursor: "cursor-3",
       };
 

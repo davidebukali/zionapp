@@ -21,8 +21,8 @@ import {
   applyReactionEventToMessage,
   formatMessageTimestamp,
   getAvatarColor,
-  getInitials,
   insertMessageInCache,
+  markConversationReadInCache,
   normalizeMessage,
   normalizeRecipient,
   updateMessageInCache,
@@ -31,17 +31,13 @@ import {
   messagesApi,
   useGetConversationDetailsQuery,
   useGetConversationsQuery,
+  useGetMessageableRecipientsQuery,
   useGetMessagesQuery,
   useMarkConversationAsReadMutation,
   useSendMessageMutation,
   useSendTypingIndicatorMutation,
   useStartOrGetConversationMutation,
 } from "../features/messages/api";
-import {
-  MOCK_ACTIVE_CONTACTS,
-  MOCK_CONVERSATIONS,
-  MOCK_THREAD_MESSAGES,
-} from "../features/messages/mockData";
 
 export function useChatThread(targetId?: string) {
   const dispatch = useDispatch<AppDispatch>();
@@ -49,10 +45,15 @@ export function useChatThread(targetId?: string) {
   const currentUser = useSelector((state: RootState) => state.auth?.user);
   const currentUserId = currentUser?.id ? String(currentUser.id) : undefined;
 
-  // 1. Cached conversations lookup
-  const { data: cachedInbox } = useGetConversationsQuery(undefined, {
-    skip: !token,
-  });
+  // 1. Check local RTK Query caches for existing conversation or recipient
+  const { data: cachedInbox } = useGetConversationsQuery(
+    { currentUserId },
+    { skip: !token }
+  );
+  const { data: cachedRecipients } = useGetMessageableRecipientsQuery(
+    undefined,
+    { skip: !token }
+  );
 
   const cachedConversation = useMemo(() => {
     if (!targetId || !cachedInbox?.conversations) return null;
@@ -61,118 +62,131 @@ export function useChatThread(targetId?: string) {
         (c) => c.participant.id === targetId || c.id === targetId
       ) || null
     );
-  }, [targetId, cachedInbox]);
+  }, [targetId, cachedInbox?.conversations]);
 
-  // 2. Resolve or start conversation via API
+  const cachedRecipient = useMemo(() => {
+    if (!targetId || !cachedRecipients?.recipients) return null;
+    return (
+      cachedRecipients.recipients.find((r) => r.id === targetId) || null
+    );
+  }, [targetId, cachedRecipients?.recipients]);
+
+  // 2. Resolve conversation via cache or POST /conversations
   const [startConversationMutation] = useStartOrGetConversationMutation();
-  const [resolvedConversationId, setResolvedConversationId] = useState<string | null>(
-    cachedConversation?.id || null
-  );
-  const [resolvedCanSendMessages, setResolvedCanSendMessages] = useState<boolean>(
-    cachedConversation?.canSendMessages !== false
-  );
-  const [remoteParticipant, setRemoteParticipant] = useState<OnlineContact | null>(
-    cachedConversation?.participant || null
-  );
+  const [resolvedConversationId, setResolvedConversationId] = useState<
+    string | null
+  >(cachedConversation?.id || null);
+  const [resolvedCanSendMessages, setResolvedCanSendMessages] =
+    useState<boolean>(cachedConversation?.canSendMessages !== false);
+  const [remoteParticipant, setRemoteParticipant] =
+    useState<OnlineContact | null>(
+      cachedConversation?.participant || cachedRecipient || null
+    );
 
   useEffect(() => {
     if (cachedConversation) {
       setResolvedConversationId(cachedConversation.id);
-      setResolvedCanSendMessages(cachedConversation.canSendMessages !== false);
+      setResolvedCanSendMessages(
+        cachedConversation.canSendMessages !== false &&
+          !cachedConversation.hasBlockedParticipant
+      );
       setRemoteParticipant(cachedConversation.participant);
       return;
     }
 
+    if (cachedRecipient) {
+      setRemoteParticipant(cachedRecipient);
+    }
+
     if (!targetId || !token) return;
 
-    // Call startOrGetConversation (idempotent)
     let isMounted = true;
     startConversationMutation({ recipient_id: targetId })
       .unwrap()
       .then((conv) => {
         if (!isMounted) return;
         setResolvedConversationId(conv.id);
-        setResolvedCanSendMessages(conv.can_send_messages !== false);
+        setResolvedCanSendMessages(
+          conv.can_send_messages !== false && !conv.has_blocked_participant
+        );
         setRemoteParticipant(normalizeRecipient(conv.recipient));
       })
-      .catch(() => {
-        // Fallback: conversation might not exist or network unavailable
+      .catch((error) => {
+        if (!isMounted) return;
+        if (error?.status === 403) {
+          setResolvedCanSendMessages(false);
+        }
       });
 
     return () => {
       isMounted = false;
     };
-  }, [targetId, cachedConversation, token, startConversationMutation]);
+  }, [
+    targetId,
+    cachedConversation,
+    cachedRecipient,
+    token,
+    startConversationMutation,
+  ]);
 
-  // Optional: details query if needed for permission/block updates
+  // Fetch conversation details (can_send_messages / has_blocked_participant) when resolved from cache
   const { data: convDetails } = useGetConversationDetailsQuery(
     resolvedConversationId as string,
     {
-      skip: !resolvedConversationId || !token,
+      skip: !resolvedConversationId || !token || !cachedConversation,
     }
   );
 
   useEffect(() => {
     if (convDetails) {
-      setResolvedCanSendMessages(convDetails.can_send_messages !== false);
+      setResolvedCanSendMessages(
+        convDetails.can_send_messages !== false &&
+          !convDetails.has_blocked_participant
+      );
       if (convDetails.recipient) {
         setRemoteParticipant(normalizeRecipient(convDetails.recipient));
       }
     }
   }, [convDetails]);
 
-  // 3. Resolve participant with fallback
+  // 3. Participant with clean loading placeholder while POST /conversations is in flight
   const participant: OnlineContact = useMemo(() => {
     if (remoteParticipant) return remoteParticipant;
 
-    const mockConv = MOCK_CONVERSATIONS.find(
-      (c) => c.id === targetId || c.participant.id === targetId
-    );
-    if (mockConv) return mockConv.participant;
-
-    const directContact = MOCK_ACTIVE_CONTACTS.find(
-      (c) => c.id === targetId || `conv-new-${c.id}` === targetId
-    );
-    if (directContact) return directContact;
-
-    if (targetId) {
-      return {
-        id: targetId,
-        name: "User",
-        username: "",
-        initials: getInitials("User"),
-        isOnline: false,
-        avatarColor: getAvatarColor(targetId),
-      };
-    }
-
-    return MOCK_ACTIVE_CONTACTS[0];
+    return {
+      id: targetId || "",
+      name: "",
+      username: "",
+      initials: "",
+      isOnline: false,
+      avatarColor: getAvatarColor(targetId || ""),
+    };
   }, [remoteParticipant, targetId]);
 
-  // 4. Messages from RTK Query
+  // 4. Paginated Messages from RTK Query
+  const [cursor, setCursor] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCursor(null);
+  }, [resolvedConversationId]);
+
   const {
     data: messagesData,
     isLoading: isLoadingMessages,
     isFetching: isFetchingMessages,
   } = useGetMessagesQuery(
-    { conversationId: resolvedConversationId || "" },
+    {
+      conversationId: resolvedConversationId || "",
+      cursor,
+      currentUserId,
+    },
     { skip: !resolvedConversationId || !token }
   );
 
-  // Fallback initial messages from mock
-  const fallbackMessages = useMemo(() => {
-    if (targetId && MOCK_THREAD_MESSAGES[targetId]) {
-      return MOCK_THREAD_MESSAGES[targetId];
-    }
-    return MOCK_THREAD_MESSAGES["conv-1"] || [];
-  }, [targetId]);
-
-  const messages: ChatMessage[] = useMemo(() => {
-    if (messagesData?.messages) {
-      return messagesData.messages;
-    }
-    return fallbackMessages;
-  }, [messagesData?.messages, fallbackMessages]);
+  const messages: ChatMessage[] = useMemo(
+    () => messagesData?.messages ?? [],
+    [messagesData?.messages]
+  );
 
   const [inputText, setInputText] = useState("");
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
@@ -188,9 +202,10 @@ export function useChatThread(targetId?: string) {
   // Mark conversation as read on entry
   useEffect(() => {
     if (resolvedConversationId && token) {
+      markConversationReadInCache(messagesApi, dispatch, resolvedConversationId);
       markAsReadMutation(resolvedConversationId).catch(() => {});
     }
-  }, [resolvedConversationId, token, markAsReadMutation]);
+  }, [resolvedConversationId, token, dispatch, markAsReadMutation]);
 
   // 5. Reverb WebSocket Channel Subscription
   useEffect(() => {
@@ -211,6 +226,11 @@ export function useChatThread(targetId?: string) {
         );
 
         if (!normalized.isOutgoing) {
+          markConversationReadInCache(
+            messagesApi,
+            dispatch,
+            resolvedConversationId
+          );
           markAsReadMutation(resolvedConversationId).catch(() => {});
         }
       });
@@ -324,53 +344,22 @@ export function useChatThread(targetId?: string) {
     [resolvedConversationId, token, sendTypingMutation]
   );
 
-  // Send message
+  // Send message via API (optimistic cache insertion handled in api.ts)
   const handleSendMessage = useCallback(async () => {
     const trimmed = inputText.trim();
-    if (!trimmed) return;
+    if (!trimmed || !resolvedConversationId || !token) return;
 
     setInputText("");
 
-    if (resolvedConversationId && token) {
-      try {
-        await sendMessageMutation({
-          conversationId: resolvedConversationId,
-          body: trimmed,
-        }).unwrap();
-        return;
-      } catch {
-        // Handled optimistically / error state
-      }
+    try {
+      await sendMessageMutation({
+        conversationId: resolvedConversationId,
+        body: trimmed,
+      }).unwrap();
+    } catch {
+      // Optimistic rollback is handled by sendMessage.onQueryStarted in api.ts
     }
-
-    // Local / fallback mode
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes().toString().padStart(2, "0");
-    const newMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      senderId: currentUserId || "current-user",
-      isOutgoing: true,
-      text: trimmed,
-      timestamp: `${hours}:${minutes}`,
-    };
-
-    if (resolvedConversationId) {
-      insertMessageInCache(
-        messagesApi,
-        dispatch,
-        resolvedConversationId,
-        newMsg
-      );
-    }
-  }, [
-    inputText,
-    resolvedConversationId,
-    token,
-    sendMessageMutation,
-    currentUserId,
-    dispatch,
-  ]);
+  }, [inputText, resolvedConversationId, token, sendMessageMutation]);
 
   // Emoji picker
   const handleToggleEmoji = useCallback(() => {
@@ -392,8 +381,10 @@ export function useChatThread(targetId?: string) {
   }, []);
 
   const onLoadMore = useCallback(() => {
-    // Handled via cursor query args when available
-  }, []);
+    if (messagesData?.nextCursor && !isFetchingMessages) {
+      setCursor(messagesData.nextCursor);
+    }
+  }, [messagesData?.nextCursor, isFetchingMessages]);
 
   return {
     participant,
@@ -410,7 +401,7 @@ export function useChatThread(targetId?: string) {
     handleBack,
     canSendMessages: resolvedCanSendMessages,
     isLoading: isLoadingMessages,
-    isLoadingMore: isFetchingMessages,
+    isLoadingMore: isFetchingMessages && !isLoadingMessages,
     hasMore: Boolean(messagesData?.nextCursor),
     onLoadMore,
   };

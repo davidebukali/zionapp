@@ -87,11 +87,17 @@ import {
   ChatMessageList,
 } from "./index";
 import ChatScreen from "../../../app/(app)/messages/[id]";
-import { MOCK_ACTIVE_CONTACTS } from "../../../features/messages/mockData";
-import { ChatMessage } from "../../../features/messages/types";
+import { ChatMessage, OnlineContact } from "../../../features/messages/types";
 
 describe("components/Messages/Chat", () => {
-  const mockParticipant = MOCK_ACTIVE_CONTACTS[0]; // Maya Chen, online
+  const mockParticipant: OnlineContact = {
+    id: "user-maya",
+    name: "Maya Chen",
+    username: "mayachen",
+    initials: "MC",
+    isOnline: true,
+    avatarColor: "#7CB342",
+  };
 
   describe("ChatHeader", () => {
     it("renders participant name, presence status, and handles back press", () => {

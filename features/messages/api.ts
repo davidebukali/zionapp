@@ -1,6 +1,5 @@
 import { baseApi } from "../../services/baseApi";
 import {
-  ApiResponse,
   BackendConversation,
   BackendMessage,
   ConversationResponse,
@@ -58,7 +57,9 @@ export const messagesApi = baseApi.injectEndpoints({
       ): ConversationsResult => {
         const rawConversations = Array.isArray(response?.data) ? response.data : [];
         return {
-          conversations: rawConversations.map((c) => normalizeConversation(c)),
+          conversations: rawConversations.map((c) =>
+            normalizeConversation(c, arg?.currentUserId)
+          ),
           nextCursor: response?.meta?.next_cursor ?? null,
         };
       },
@@ -190,7 +191,7 @@ export const messagesApi = baseApi.injectEndpoints({
       ): MessagesResult => {
         const raw = Array.isArray(response?.data) ? response.data : [];
         return {
-          messages: raw.map((m) => normalizeMessage(m)),
+          messages: raw.map((m) => normalizeMessage(m, arg.currentUserId)),
           nextCursor: response?.meta?.next_cursor ?? null,
         };
       },
