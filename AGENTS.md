@@ -44,3 +44,4 @@
 - Run the full test suite (`npm test -- --watchAll=false`) after code changes to guarantee zero regressions.
 - **Always ask for permission before coding**
 - **Never commit code**
+- Always use intuitive variable and function names. Never use letters for a variable name like a, b and c. These make code difficult to read.
