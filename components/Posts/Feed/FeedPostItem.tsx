@@ -27,6 +27,7 @@ export const FeedPostItem = React.memo(function FeedPostItem({
       repostsCount={post.repostsCount}
       bookmarked={Boolean(post.isBookmarked ?? post.bookmarked)}
       isOwnPost={isOwnPost}
+      isFollowingAuthor={!isOwnPost}
       activityType={post.activityType}
       activityActor={resolvedActor}
       onLike={() => actions.onLike(post)}
@@ -35,6 +36,7 @@ export const FeedPostItem = React.memo(function FeedPostItem({
       onPressBookmark={() => actions.onBookmark(post)}
       onPressEdit={() => actions.onEdit(post.id)}
       onPressDelete={() => actions.onDelete(post.id)}
+      onPressFollowToggle={() => actions.onFollowToggle?.(post)}
     />
   );
 });

@@ -3,6 +3,7 @@ import {
   mergeUniquePosts,
   updatePostInCaches,
   removePostFromCaches,
+  removeAuthorPostsFromFeed,
   isPostOwnedBy,
   resolveActivityActor,
   getNewPostsCount,
@@ -195,6 +196,51 @@ describe('features/posts/utils', () => {
       undo();
       expect(undoFeed).toHaveBeenCalledTimes(1);
       expect(undoPosts).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('removeAuthorPostsFromFeed', () => {
+    it('removes all posts matching authorId from getFeed draft and reverts on undo', () => {
+      const undoFeed = jest.fn();
+      let feedCallback: any = null;
+
+      const mockApi = {
+        util: {
+          updateQueryData: jest.fn((endpoint: string, args: any, callback: any) => {
+            if (endpoint === 'getFeed') {
+              feedCallback = callback;
+              return { undo: undoFeed };
+            }
+            return { undo: jest.fn() };
+          }),
+        },
+      };
+
+      const dispatch = jest.fn((action: any) => action);
+
+      const undo = removeAuthorPostsFromFeed(mockApi, dispatch, '123');
+
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        'getFeed',
+        undefined,
+        expect.any(Function)
+      );
+
+      // Verify feed draft filtering for matching authorId (string and number comparisons)
+      const feedDraft = {
+        posts: [
+          { id: 'post-1', authorId: '123' },
+          { id: 'post-2', authorId: 'user-456' },
+          { id: 'post-3', authorId: 123 },
+          { id: 'post-4', authorId: 'user-789' },
+        ],
+      };
+      feedCallback(feedDraft);
+      expect(feedDraft.posts).toHaveLength(2);
+      expect(feedDraft.posts.map((post: any) => post.id)).toEqual(['post-2', 'post-4']);
+
+      undo();
+      expect(undoFeed).toHaveBeenCalledTimes(1);
     });
   });
 

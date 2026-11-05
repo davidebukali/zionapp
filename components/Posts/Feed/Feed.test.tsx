@@ -52,6 +52,7 @@ jest.mock("react-redux", () => ({
 
 import { FeedPostItem } from "./FeedPostItem";
 import { HomeFeedContent } from "./HomeFeedContent";
+import PostCard from "../PostCard";
 import { NewPostsPill } from "./NewPostsPill";
 import PostFeedSkeleton from "../PostFeedSkeleton";
 import ErrorStateView from "../../Common/ErrorStateView";
@@ -117,6 +118,39 @@ describe("components/Posts/Feed", () => {
         likeBtn.props.onPress();
       });
       expect(actions.onLike).toHaveBeenCalledWith(mockPost);
+    });
+
+    it("passes isFollowingAuthor true for other author posts and handles onFollowToggle", () => {
+      const onFollowToggle = jest.fn();
+      const actions = {
+        onLike: jest.fn(),
+        onComment: jest.fn(),
+        onRepost: jest.fn(),
+        onBookmark: jest.fn(),
+        onEdit: jest.fn(),
+        onDelete: jest.fn(),
+        onFollowToggle,
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <FeedPostItem
+            post={mockPost}
+            currentUser={{ id: "user-1", name: "Alice", email: "alice@example.com" }}
+            actions={actions}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const postCard = root.findByType(PostCard);
+      expect(postCard.props.isFollowingAuthor).toBe(true);
+
+      act(() => {
+        postCard.props.onPressFollowToggle();
+      });
+      expect(onFollowToggle).toHaveBeenCalledWith(mockPost);
     });
   });
 

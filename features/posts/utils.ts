@@ -143,6 +143,30 @@ export function removePostFromCaches(
 }
 
 /**
+ * Optimistically removes all posts by a specific author from the active feed cache (getFeed).
+ * Returns an undo function that restores previous cache states if the unfollow request fails.
+ */
+export function removeAuthorPostsFromFeed(
+  api: any,
+  dispatch: any,
+  authorId: string | number
+): () => void {
+  const patchFeed = dispatch(
+    api.util.updateQueryData('getFeed', undefined as any, (draft: any) => {
+      if (draft?.posts) {
+        draft.posts = draft.posts.filter(
+          (existingPost: Post) => String(existingPost.authorId) !== String(authorId)
+        );
+      }
+    })
+  );
+
+  return () => {
+    patchFeed.undo();
+  };
+}
+
+/**
  * Checks whether a post is owned by the current authenticated user.
  */
 export function isPostOwnedBy(

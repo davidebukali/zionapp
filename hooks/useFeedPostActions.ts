@@ -1,21 +1,27 @@
 import { useCallback, useMemo } from "react";
 import { Alert } from "react-native";
 import { useRouter } from "expo-router";
+import { useDispatch } from "react-redux";
 import {
+  postsApi,
   useToggleLikePostMutation,
   useToggleRepostPostMutation,
   useToggleBookmarkPostMutation,
   useDeletePostMutation,
 } from "../features/posts/api";
+import { useUnfollowUserMutation } from "../features/users/api";
+import { removeAuthorPostsFromFeed } from "../features/posts/utils";
 import { Post } from "../features/posts/types";
 import { FeedPostActions } from "../components/Posts/Feed/types";
 
 export function useFeedPostActions(): FeedPostActions {
   const router = useRouter();
+  const dispatch = useDispatch();
   const [toggleLikePost] = useToggleLikePostMutation();
   const [toggleRepostPost] = useToggleRepostPostMutation();
   const [toggleBookmarkPost] = useToggleBookmarkPostMutation();
   const [deletePost] = useDeletePostMutation();
+  const [unfollowUser] = useUnfollowUserMutation();
 
   const handleLike = useCallback(
     (post: Post) => {
@@ -97,6 +103,47 @@ export function useFeedPostActions(): FeedPostActions {
     [deletePost]
   );
 
+  const handleFollowToggle = useCallback(
+    (post: Post) => {
+      const targetUserId = post.authorId;
+      if (!targetUserId) {
+        return;
+      }
+
+      // Delay alert slightly so the menu modal finishes its dismissal animation on iOS
+      setTimeout(() => {
+        Alert.alert(
+          `Unfollow ${post.author}?`,
+          `You will no longer see posts from ${post.author} in your feed.`,
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Unfollow",
+              style: "destructive",
+              onPress: async () => {
+                const undoRemove = removeAuthorPostsFromFeed(
+                  postsApi,
+                  dispatch,
+                  targetUserId
+                );
+                try {
+                  await unfollowUser({ userId: String(targetUserId) }).unwrap();
+                } catch {
+                  undoRemove();
+                  Alert.alert(
+                    "Error",
+                    `Failed to unfollow ${post.author}. Please try again.`
+                  );
+                }
+              },
+            },
+          ]
+        );
+      }, 100);
+    },
+    [dispatch, unfollowUser]
+  );
+
   return useMemo(
     () => ({
       onLike: handleLike,
@@ -105,6 +152,7 @@ export function useFeedPostActions(): FeedPostActions {
       onBookmark: handleBookmark,
       onEdit: handleEdit,
       onDelete: handleDelete,
+      onFollowToggle: handleFollowToggle,
     }),
     [
       handleLike,
@@ -113,6 +161,7 @@ export function useFeedPostActions(): FeedPostActions {
       handleBookmark,
       handleEdit,
       handleDelete,
+      handleFollowToggle,
     ]
   );
 }

@@ -10,6 +10,7 @@ export interface FeedPostActions {
   onBookmark: (post: Post) => void;
   onEdit: (postId: string) => void;
   onDelete: (postId: string) => void;
+  onFollowToggle?: (post: Post) => void;
 }
 
 export interface FeedPostItemProps {
