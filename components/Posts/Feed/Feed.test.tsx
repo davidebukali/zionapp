@@ -2,6 +2,9 @@ import React from "react";
 import ReactTestRenderer, { act } from "react-test-renderer";
 
 jest.mock("@expo/vector-icons/Ionicons", () => "Ionicons");
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 20, left: 0, right: 0 }),
+}));
 jest.mock("expo-router", () => ({
   router: {
     push: jest.fn(),
@@ -38,6 +41,14 @@ jest.mock("../../../hooks/useFeedPostActions", () => ({
 }));
 jest.mock("../../../hooks/useFeedNewPosts", () => ({
   useFeedNewPosts: jest.fn(),
+}));
+jest.mock("../../../hooks/useReportPost", () => ({
+  useReportPost: jest.fn(() => ({
+    reportTarget: null,
+    openReport: jest.fn(),
+    closeReport: jest.fn(),
+    submitReport: jest.fn(),
+  })),
 }));
 jest.mock("react-redux", () => ({
   useSelector: jest.fn((selector) =>
@@ -151,6 +162,38 @@ describe("components/Posts/Feed", () => {
         postCard.props.onPressFollowToggle();
       });
       expect(onFollowToggle).toHaveBeenCalledWith(mockPost);
+    });
+
+    it("forwards onPressReport to actions.onReport with the post object", () => {
+      const onReport = jest.fn();
+      const actions = {
+        onLike: jest.fn(),
+        onComment: jest.fn(),
+        onRepost: jest.fn(),
+        onBookmark: jest.fn(),
+        onEdit: jest.fn(),
+        onDelete: jest.fn(),
+        onReport,
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <FeedPostItem
+            post={mockPost}
+            currentUser={{ id: "user-1", name: "Alice", email: "alice@example.com" }}
+            actions={actions}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const postCard = root.findByType(PostCard);
+
+      act(() => {
+        postCard.props.onPressReport();
+      });
+      expect(onReport).toHaveBeenCalledWith(mockPost);
     });
   });
 

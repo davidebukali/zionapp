@@ -37,6 +37,7 @@ export const FeedPostItem = React.memo(function FeedPostItem({
       onPressEdit={() => actions.onEdit(post.id)}
       onPressDelete={() => actions.onDelete(post.id)}
       onPressFollowToggle={() => actions.onFollowToggle?.(post)}
+      onPressReport={() => actions.onReport?.(post)}
     />
   );
 });

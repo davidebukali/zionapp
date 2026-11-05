@@ -226,3 +226,25 @@ export interface NewPostsState {
   catchUpCount: number;
 }
 
+export type PostReportReason =
+  | 'spam'
+  | 'harassment'
+  | 'hate_speech'
+  | 'violence'
+  | 'sexual_content'
+  | 'false_information'
+  | 'other';
+
+export interface ReportPostRequest {
+  postId: string;
+  reason: PostReportReason;
+  description?: string;
+}
+
+export interface ReportPostResponse {
+  success: boolean;
+  message?: string;
+  data: null;
+  meta: null;
+}
+

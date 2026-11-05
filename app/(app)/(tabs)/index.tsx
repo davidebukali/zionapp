@@ -7,9 +7,11 @@ import { RootState } from "../../../store/store";
 import { globalStyles } from "../../../assets/styles/theme";
 import { Post } from "../../../features/posts/types";
 import { FeedPostItem, HomeFeedContent } from "../../../components/Posts/Feed";
+import { ReportPostSheet } from "../../../components/Posts/Report";
 import { useHomeFeed } from "../../../hooks/useHomeFeed";
 import { useFeedPostActions } from "../../../hooks/useFeedPostActions";
 import { useFeedNewPosts } from "../../../hooks/useFeedNewPosts";
+import { useReportPost } from "../../../hooks/useReportPost";
 
 export default function Index() {
   const theme = useTheme();
@@ -17,7 +19,8 @@ export default function Index() {
   const currentUser = useSelector((state: RootState) => state.auth.user);
 
   const homeFeed = useHomeFeed();
-  const postActions = useFeedPostActions();
+  const reportFlow = useReportPost();
+  const postActions = useFeedPostActions({ onReport: reportFlow.openReport });
 
   const {
     newPostsCount,
@@ -54,6 +57,12 @@ export default function Index() {
         onPullToRefresh={handlePullToRefresh}
         newPostsCount={newPostsCount}
         onPressNewPosts={handlePressNewPosts}
+      />
+      <ReportPostSheet
+        visible={Boolean(reportFlow.reportTarget)}
+        authorName={reportFlow.reportTarget?.author}
+        onClose={reportFlow.closeReport}
+        onSelectReason={reportFlow.submitReport}
       />
     </View>
   );

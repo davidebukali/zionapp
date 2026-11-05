@@ -1,27 +1,29 @@
 import { useCallback, useMemo } from "react";
 import { Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { useDispatch } from "react-redux";
 import {
-  postsApi,
   useToggleLikePostMutation,
   useToggleRepostPostMutation,
   useToggleBookmarkPostMutation,
   useDeletePostMutation,
 } from "../features/posts/api";
-import { useUnfollowUserMutation } from "../features/users/api";
-import { removeAuthorPostsFromFeed } from "../features/posts/utils";
+import { useUnfollowAuthor } from "./useUnfollowAuthor";
 import { Post } from "../features/posts/types";
 import { FeedPostActions } from "../components/Posts/Feed/types";
 
-export function useFeedPostActions(): FeedPostActions {
+interface UseFeedPostActionsOptions {
+  onReport?: (post: Post) => void;
+}
+
+export function useFeedPostActions(
+  options?: UseFeedPostActionsOptions
+): FeedPostActions {
   const router = useRouter();
-  const dispatch = useDispatch();
   const [toggleLikePost] = useToggleLikePostMutation();
   const [toggleRepostPost] = useToggleRepostPostMutation();
   const [toggleBookmarkPost] = useToggleBookmarkPostMutation();
   const [deletePost] = useDeletePostMutation();
-  const [unfollowUser] = useUnfollowUserMutation();
+  const unfollowAuthor = useUnfollowAuthor();
 
   const handleLike = useCallback(
     (post: Post) => {
@@ -120,28 +122,13 @@ export function useFeedPostActions(): FeedPostActions {
             {
               text: "Unfollow",
               style: "destructive",
-              onPress: async () => {
-                const undoRemove = removeAuthorPostsFromFeed(
-                  postsApi,
-                  dispatch,
-                  targetUserId
-                );
-                try {
-                  await unfollowUser({ userId: String(targetUserId) }).unwrap();
-                } catch {
-                  undoRemove();
-                  Alert.alert(
-                    "Error",
-                    `Failed to unfollow ${post.author}. Please try again.`
-                  );
-                }
-              },
+              onPress: () => unfollowAuthor(post),
             },
           ]
         );
       }, 100);
     },
-    [dispatch, unfollowUser]
+    [unfollowAuthor]
   );
 
   return useMemo(
@@ -153,6 +140,7 @@ export function useFeedPostActions(): FeedPostActions {
       onEdit: handleEdit,
       onDelete: handleDelete,
       onFollowToggle: handleFollowToggle,
+      onReport: options?.onReport,
     }),
     [
       handleLike,
@@ -162,6 +150,7 @@ export function useFeedPostActions(): FeedPostActions {
       handleEdit,
       handleDelete,
       handleFollowToggle,
+      options?.onReport,
     ]
   );
 }

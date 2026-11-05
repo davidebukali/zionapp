@@ -8,6 +8,7 @@ import {
   resolveActivityActor,
   getNewPostsCount,
   formatNewPostsLabel,
+  isNotFoundError,
 } from './utils';
 import { BackendPost, PostActivity } from './types';
 
@@ -304,6 +305,28 @@ describe('features/posts/utils', () => {
     it('caps large counts at 99+', () => {
       expect(formatNewPostsLabel(100)).toBe('99+ new posts');
       expect(formatNewPostsLabel(150)).toBe('99+ new posts');
+    });
+  });
+
+  describe('isNotFoundError', () => {
+    it('returns true when error object has status 404', () => {
+      expect(isNotFoundError({ status: 404 })).toBe(true);
+      expect(isNotFoundError({ status: 404, data: { message: 'Not found' } })).toBe(true);
+    });
+
+    it('returns false for other status codes', () => {
+      expect(isNotFoundError({ status: 400 })).toBe(false);
+      expect(isNotFoundError({ status: 401 })).toBe(false);
+      expect(isNotFoundError({ status: 422 })).toBe(false);
+      expect(isNotFoundError({ status: 500 })).toBe(false);
+    });
+
+    it('returns false for non-object, null, or undefined errors', () => {
+      expect(isNotFoundError(null)).toBe(false);
+      expect(isNotFoundError(undefined)).toBe(false);
+      expect(isNotFoundError('FETCH_ERROR')).toBe(false);
+      expect(isNotFoundError(123)).toBe(false);
+      expect(isNotFoundError({})).toBe(false);
     });
   });
 });

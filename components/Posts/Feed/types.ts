@@ -11,6 +11,7 @@ export interface FeedPostActions {
   onEdit: (postId: string) => void;
   onDelete: (postId: string) => void;
   onFollowToggle?: (post: Post) => void;
+  onReport?: (post: Post) => void;
 }
 
 export interface FeedPostItemProps {

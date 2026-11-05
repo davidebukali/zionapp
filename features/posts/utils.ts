@@ -220,4 +220,16 @@ export function formatNewPostsLabel(count: number): string {
   return `${count > 99 ? "99+" : count} new posts`;
 }
 
+/**
+ * Returns true when an RTK Query or API error has an HTTP 404 status (e.g. post was deleted).
+ */
+export function isNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    (error as { status?: unknown }).status === 404
+  );
+}
+
 

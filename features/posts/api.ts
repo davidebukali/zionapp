@@ -15,6 +15,8 @@ import {
   RepostResponse,
   UpdatePostRequest,
   CheckNewerFeedResponse,
+  ReportPostRequest,
+  ReportPostResponse,
 } from './types';
 import {
   normalizePost,
@@ -398,6 +400,17 @@ export const postsApi = baseApi.injectEndpoints({
         { type: 'Post', id: 'LIST' },
       ],
     }),
+
+    /**
+     * Report an abusive or inappropriate post.
+     */
+    reportPost: builder.mutation<ReportPostResponse, ReportPostRequest>({
+      query: ({ postId, reason, description }) => ({
+        url: `/posts/${postId}/report`,
+        method: 'POST',
+        body: { reason, description },
+      }),
+    }),
   }),
   overrideExisting: true,
 });
@@ -422,6 +435,7 @@ export const {
   useCreatePostMutation,
   useDeletePostMutation,
   useUpdatePostMutation,
+  useReportPostMutation,
   useCheckNewerFeedQuery,
   useLazyCheckNewerFeedQuery,
 } = postsApi;
