@@ -173,6 +173,31 @@ describe("Settings components", () => {
       });
       expect(onValueChange).toHaveBeenCalledWith(false);
     });
+
+    it("renders Appearance toggle with active subtitle and triggers change", () => {
+      const onValueChange = jest.fn();
+      const tree = ReactTestRenderer.create(
+        <SettingsToggleItem
+          icon="bulb-outline"
+          title="Appearance"
+          subtitle="Dark"
+          value={true}
+          onValueChange={onValueChange}
+        />
+      );
+
+      const root = tree.root;
+      expect(root.findByProps({ children: "Appearance" })).toBeTruthy();
+      expect(root.findByProps({ children: "Dark" })).toBeTruthy();
+
+      const toggle = root.findByProps({ accessibilityRole: "switch" });
+      expect(toggle.props.value).toBe(true);
+
+      act(() => {
+        toggle.props.onValueChange(false);
+      });
+      expect(onValueChange).toHaveBeenCalledWith(false);
+    });
   });
 
   describe("SettingsFooter", () => {

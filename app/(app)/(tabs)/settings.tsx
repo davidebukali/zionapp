@@ -15,12 +15,14 @@ import {
 import { deleteUserData } from "../../../features/auth/authSlice";
 import { AppDispatch, RootState } from "../../../store/store";
 import { getUserAvatarUrl } from "../../../utils/user";
+import { useAppearance } from "../../../hooks/useAppearance";
 
 export default function Settings() {
   const dispatch = useDispatch<AppDispatch>();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const user = useSelector((state: RootState) => state.auth.user);
+  const { isDark, appearanceLabel, setDarkMode } = useAppearance();
 
   // Switch states
   const [isPrivateAccount, setIsPrivateAccount] = useState(false);
@@ -102,7 +104,15 @@ export default function Settings() {
           <SettingsNavItem
             icon="shield-outline"
             title="Security"
+            showDivider
             onPress={() => {}}
+          />
+          <SettingsToggleItem
+            icon="bulb-outline"
+            title="Appearance"
+            subtitle={appearanceLabel}
+            value={isDark}
+            onValueChange={setDarkMode}
           />
         </SettingsSection>
 

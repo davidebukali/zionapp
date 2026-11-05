@@ -10,6 +10,7 @@ import { darkTheme, lightTheme } from "../assets/styles/theme";
 import { store, RootState, AppDispatch } from "../store/store";
 import { restoreSession } from "../features/auth/authSlice";
 import { GlobalOfflineBanner } from "../components/Common/GlobalOfflineBanner";
+import { useRestoreAppearance } from "../hooks/useAppearance";
 
 // Prevent splash screen from auto-hiding while restoring session
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -19,18 +20,20 @@ function RootNavigation() {
   const isInitializing = useSelector(
     (state: RootState) => state.auth.isInitializing
   );
+  const isAppearanceReady = useRestoreAppearance();
+  const isAppReady = !isInitializing && isAppearanceReady;
 
   useEffect(() => {
     dispatch(restoreSession());
   }, [dispatch]);
 
   useEffect(() => {
-    if (!isInitializing) {
+    if (isAppReady) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [isInitializing]);
+  }, [isAppReady]);
 
-  if (isInitializing) {
+  if (!isAppReady) {
     return null;
   }
 
