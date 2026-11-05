@@ -49,12 +49,14 @@ export function getInitials(name?: string): string {
  * Normalizes a backend recipient into the UI OnlineContact model.
  */
 export function normalizeRecipient(raw: BackendRecipient): OnlineContact {
+  const displayName = raw.name?.trim() || raw.username?.trim() || "";
+
   return {
     id: String(raw.id),
-    name: raw.name || "Unknown",
+    name: displayName,
     username: raw.username || "",
     avatarUrl: raw.avatar?.url || undefined,
-    initials: getInitials(raw.name),
+    initials: getInitials(displayName),
     isOnline: false,
     avatarColor: getAvatarColor(String(raw.id)),
   };

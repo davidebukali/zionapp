@@ -2,6 +2,8 @@ import { baseApi } from "../../services/baseApi";
 import {
   BackendConversation,
   BackendMessage,
+  BackendRecipient,
+  Conversation,
   ConversationResponse,
   ConversationsListResponse,
   ConversationsResult,
@@ -58,9 +60,12 @@ export const messagesApi = baseApi.injectEndpoints({
       ): ConversationsResult => {
         const rawConversations = Array.isArray(response?.data) ? response.data : [];
         return {
-          conversations: rawConversations.map((c) =>
-            normalizeConversation(c, arg?.currentUserId)
-          ),
+          conversations: rawConversations
+            .filter(
+              (c): c is BackendConversation =>
+                Boolean(c?.id && c?.recipient?.id && (c?.recipient?.name || c?.recipient?.username))
+            )
+            .map((c) => normalizeConversation(c, arg?.currentUserId)),
           nextCursor: response?.meta?.next_cursor ?? null,
         };
       },
@@ -70,13 +75,18 @@ export const messagesApi = baseApi.injectEndpoints({
       },
       forceRefetch: ({ currentArg, previousArg }) =>
         currentArg?.cursor !== previousArg?.cursor || currentArg?.q !== previousArg?.q,
-      providesTags: (result) => [
-        { type: "Conversation", id: "LIST" },
-        ...(result?.conversations?.map((c) => ({
-          type: "Conversation" as const,
-          id: c.id,
-        })) || []),
-      ],
+      providesTags: (result) =>
+        result?.conversations
+          ? [
+              { type: "Conversation" as const, id: "LIST" },
+              ...result.conversations
+                .filter((c): c is Conversation => Boolean(c?.id))
+                .map((c) => ({
+                  type: "Conversation" as const,
+                  id: c.id,
+                })),
+            ]
+          : [{ type: "Conversation" as const, id: "LIST" }],
     }),
 
     // 1.2 List Messageable Recipients
@@ -96,7 +106,12 @@ export const messagesApi = baseApi.injectEndpoints({
       transformResponse: (response: RecipientsListResponse): RecipientsResult => {
         const raw = Array.isArray(response?.data) ? response.data : [];
         return {
-          recipients: raw.map(normalizeRecipient),
+          recipients: raw
+            .filter(
+              (r): r is BackendRecipient =>
+                Boolean(r?.id && (r?.name || r?.username))
+            )
+            .map(normalizeRecipient),
           nextCursor: response?.meta?.next_cursor ?? null,
         };
       },
