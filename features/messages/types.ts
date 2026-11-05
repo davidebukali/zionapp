@@ -165,6 +165,7 @@ export interface SendMessageRequest {
   body?: string;
   media_ids?: string[];
   reply_to_message_id?: string | null;
+  optimisticMediaUrls?: string[];
 }
 
 export interface SendMessageResponse {
@@ -224,9 +225,17 @@ export interface ReactionResponse {
   meta?: null;
 }
 
+export type ReportReason =
+  | "spam"
+  | "harassment"
+  | "hate_speech"
+  | "inappropriate_content"
+  | "violence"
+  | "other";
+
 export interface ReportRequest {
   id: string;
-  reason: "spam" | "harassment" | "hate_speech" | "inappropriate_content" | "violence" | "other" | string;
+  reason: ReportReason | string;
   description?: string;
 }
 

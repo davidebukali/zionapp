@@ -8,5 +8,6 @@ export * from "./ChatMessageBubble";
 export * from "./ChatTypingIndicator";
 export * from "./ChatComposer";
 export * from "./ChatMessageList";
+export * from "./ChatThreadOptionsSheet";
 export * from "./types";
 

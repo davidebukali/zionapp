@@ -1,12 +1,12 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { Keyboard } from "react-native";
+import { Alert, Keyboard } from "react-native";
 import { router } from "expo-router";
 import { useSelector, useDispatch } from "react-redux";
 import { EmojiType } from "rn-emoji-keyboard";
 
 import type { RootState, AppDispatch } from "../store/store";
 import { getEchoClient } from "../services/echo";
-import { TYPING_EXPIRY_MS, TYPING_THROTTLE_MS } from "../constants";
+import { MAX_CHAT_MEDIA, TYPING_EXPIRY_MS, TYPING_THROTTLE_MS } from "../constants";
 import {
   ChatMessage,
   MessageDeletedEvent,
@@ -15,6 +15,7 @@ import {
   MessageSentEvent,
   MessageUpdatedEvent,
   OnlineContact,
+  ReportReason,
   TypingStartedEvent,
 } from "../features/messages/types";
 import {
@@ -29,15 +30,32 @@ import {
 } from "../features/messages/utils";
 import {
   messagesApi,
+  useArchiveConversationMutation,
+  useDeleteConversationMutation,
   useGetConversationDetailsQuery,
   useGetConversationsQuery,
   useGetMessageableRecipientsQuery,
   useGetMessagesQuery,
   useMarkConversationAsReadMutation,
+  useMuteConversationMutation,
+  useReportConversationMutation,
   useSendMessageMutation,
   useSendTypingIndicatorMutation,
   useStartOrGetConversationMutation,
+  useUnarchiveConversationMutation,
+  useUnmuteConversationMutation,
 } from "../features/messages/api";
+import {
+  useBlockUserMutation,
+  useUnblockUserMutation,
+} from "../features/users/api";
+import {
+  useConfirmMediaUploadMutation,
+  useGetMediaUploadUrlMutation,
+  useLazyGetMediaStatusQuery,
+} from "../features/posts/api";
+import { MediaItem, uploadAndProcessMedia } from "../utils/mediaUploader";
+import { pickImageFromLibrary } from "../utils/mediaPicker";
 
 export function useChatThread(targetId?: string) {
   const dispatch = useDispatch<AppDispatch>();
@@ -83,9 +101,36 @@ export function useChatThread(targetId?: string) {
       cachedConversation?.participant || cachedRecipient || null
     );
 
+  // Thread options & states
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [isMuted, setIsMuted] = useState(Boolean(cachedConversation?.isMuted));
+  const [isArchived, setIsArchived] = useState(Boolean(cachedConversation?.isArchived));
+  const [isBlocked, setIsBlocked] = useState(Boolean(cachedConversation?.hasBlockedParticipant));
+
+  // Attached media states (Max 4 images, no captions)
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem[]>([]);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [uploadStatusText, setUploadStatusText] = useState<string | null>(null);
+
+  // Additional Mutations
+  const [muteMutation] = useMuteConversationMutation();
+  const [unmuteMutation] = useUnmuteConversationMutation();
+  const [archiveMutation] = useArchiveConversationMutation();
+  const [unarchiveMutation] = useUnarchiveConversationMutation();
+  const [deleteConversationMutation] = useDeleteConversationMutation();
+  const [reportConversationMutation] = useReportConversationMutation();
+  const [blockUserMutation] = useBlockUserMutation();
+  const [unblockUserMutation] = useUnblockUserMutation();
+  const [getMediaUploadUrl] = useGetMediaUploadUrlMutation();
+  const [confirmMediaUpload] = useConfirmMediaUploadMutation();
+  const [getMediaStatus] = useLazyGetMediaStatusQuery();
+
   useEffect(() => {
     if (cachedConversation) {
       setResolvedConversationId(cachedConversation.id);
+      setIsMuted(Boolean(cachedConversation.isMuted));
+      setIsArchived(Boolean(cachedConversation.isArchived));
+      setIsBlocked(Boolean(cachedConversation.hasBlockedParticipant));
       setResolvedCanSendMessages(
         cachedConversation.canSendMessages !== false &&
           !cachedConversation.hasBlockedParticipant
@@ -106,6 +151,9 @@ export function useChatThread(targetId?: string) {
       .then((conv) => {
         if (!isMounted) return;
         setResolvedConversationId(conv.id);
+        setIsMuted(Boolean(conv.is_muted));
+        setIsArchived(Boolean(conv.is_archived));
+        setIsBlocked(Boolean(conv.has_blocked_participant));
         setResolvedCanSendMessages(
           conv.can_send_messages !== false && !conv.has_blocked_participant
         );
@@ -139,6 +187,9 @@ export function useChatThread(targetId?: string) {
 
   useEffect(() => {
     if (convDetails) {
+      setIsMuted(Boolean(convDetails.is_muted));
+      setIsArchived(Boolean(convDetails.is_archived));
+      setIsBlocked(Boolean(convDetails.has_blocked_participant));
       setResolvedCanSendMessages(
         convDetails.can_send_messages !== false &&
           !convDetails.has_blocked_participant
@@ -344,22 +395,220 @@ export function useChatThread(targetId?: string) {
     [resolvedConversationId, token, sendTypingMutation]
   );
 
-  // Send message via API (optimistic cache insertion handled in api.ts)
-  const handleSendMessage = useCallback(async () => {
-    const trimmed = inputText.trim();
-    if (!trimmed || !resolvedConversationId || !token) return;
+  // Media picker (max 4 images, no captions: clears text input)
+  const handlePickMedia = useCallback(async () => {
+    if (selectedMedia.length >= MAX_CHAT_MEDIA) {
+      Alert.alert("Limit Reached", `You can attach up to ${MAX_CHAT_MEDIA} images.`);
+      return;
+    }
 
+    const assets = await pickImageFromLibrary({
+      allowsEditing: false,
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_CHAT_MEDIA - selectedMedia.length,
+      quality: 0.8,
+    });
+
+    if (assets && assets.length > 0) {
+      const newItems: MediaItem[] = assets.map((asset) => ({
+        uri: asset.uri,
+        filename: asset.fileName || undefined,
+        mimeType: asset.mimeType || undefined,
+        fileSize: asset.fileSize || undefined,
+      }));
+      // Enforce no captions: clear text input when images are selected
+      setInputText("");
+      setSelectedMedia((prev) => [...prev, ...newItems].slice(0, MAX_CHAT_MEDIA));
+    }
+  }, [selectedMedia.length]);
+
+  const handleRemoveMedia = useCallback((index: number) => {
+    setSelectedMedia((prev) => prev.filter((_, idx) => idx !== index));
+  }, []);
+
+  // Send message via API (supporting images or text)
+  const handleSendMessage = useCallback(async () => {
+    if (!resolvedConversationId || !token) return;
+
+    const trimmed = inputText.trim();
+    const hasImages = selectedMedia.length > 0;
+
+    if (!trimmed && !hasImages) return;
+
+    // Reset input states
     setInputText("");
+    const mediaToSend = [...selectedMedia];
+    setSelectedMedia([]);
 
     try {
+      let uploadedMediaIds: string[] | undefined = undefined;
+
+      if (hasImages) {
+        setIsUploadingMedia(true);
+        uploadedMediaIds = await uploadAndProcessMedia(
+          mediaToSend,
+          { getMediaUploadUrl, confirmMediaUpload, getMediaStatus },
+          setUploadStatusText
+        );
+      }
+
       await sendMessageMutation({
         conversationId: resolvedConversationId,
-        body: trimmed,
+        body: hasImages ? undefined : trimmed,
+        media_ids: uploadedMediaIds,
+        optimisticMediaUrls: hasImages ? mediaToSend.map((m) => m.uri) : undefined,
       }).unwrap();
-    } catch {
-      // Optimistic rollback is handled by sendMessage.onQueryStarted in api.ts
+    } catch (error: any) {
+      const message =
+        error?.data?.message || error?.message || "Failed to send message.";
+      Alert.alert("Error", message);
+    } finally {
+      setIsUploadingMedia(false);
+      setUploadStatusText(null);
     }
-  }, [inputText, resolvedConversationId, token, sendMessageMutation]);
+  }, [
+    inputText,
+    selectedMedia,
+    resolvedConversationId,
+    token,
+    sendMessageMutation,
+    getMediaUploadUrl,
+    confirmMediaUpload,
+    getMediaStatus,
+  ]);
+
+  // Thread options handlers
+  const handleOpenOptions = useCallback(() => {
+    setIsOptionsOpen(true);
+  }, []);
+
+  const handleCloseOptions = useCallback(() => {
+    setIsOptionsOpen(false);
+  }, []);
+
+  const handleToggleMute = useCallback(async () => {
+    if (!resolvedConversationId || !token) return;
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    try {
+      if (nextMuted) {
+        await muteMutation(resolvedConversationId).unwrap();
+      } else {
+        await unmuteMutation(resolvedConversationId).unwrap();
+      }
+    } catch {
+      setIsMuted(!nextMuted);
+    }
+  }, [resolvedConversationId, token, isMuted, muteMutation, unmuteMutation]);
+
+  const handleToggleArchive = useCallback(async () => {
+    if (!resolvedConversationId || !token) return;
+    const nextArchived = !isArchived;
+    setIsArchived(nextArchived);
+    try {
+      if (nextArchived) {
+        await archiveMutation(resolvedConversationId).unwrap();
+      } else {
+        await unarchiveMutation(resolvedConversationId).unwrap();
+      }
+    } catch {
+      setIsArchived(!nextArchived);
+    }
+  }, [resolvedConversationId, token, isArchived, archiveMutation, unarchiveMutation]);
+
+  const handleClearHistory = useCallback(() => {
+    if (!resolvedConversationId || !token) return;
+
+    Alert.alert(
+      "Clear Chat History?",
+      "This will remove the conversation history for your account.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: async () => {
+            handleCloseOptions();
+            try {
+              await deleteConversationMutation(resolvedConversationId).unwrap();
+              router.replace("/(app)/(tabs)/messages" as any);
+            } catch {
+              Alert.alert("Error", "Could not clear chat history.");
+            }
+          },
+        },
+      ]
+    );
+  }, [resolvedConversationId, token, deleteConversationMutation, handleCloseOptions]);
+
+  const handleReport = useCallback(
+    async (reason: ReportReason) => {
+      if (!resolvedConversationId || !token) return;
+      handleCloseOptions();
+      try {
+        await reportConversationMutation({
+          id: resolvedConversationId,
+          reason,
+        }).unwrap();
+        Alert.alert(
+          "Report Submitted",
+          "Thank you for helping keep Tsiyon safe. We will review this conversation."
+        );
+      } catch {
+        Alert.alert("Error", "Could not submit report. Please try again.");
+      }
+    },
+    [resolvedConversationId, token, reportConversationMutation, handleCloseOptions]
+  );
+
+  const handleToggleBlock = useCallback(async () => {
+    const targetUserId = participant.id || targetId;
+    if (!targetUserId || !token) return;
+
+    if (isBlocked) {
+      // Unblock
+      try {
+        await unblockUserMutation(targetUserId).unwrap();
+        setIsBlocked(false);
+        setResolvedCanSendMessages(true);
+      } catch {
+        Alert.alert("Error", "Could not unblock user.");
+      }
+      return;
+    }
+
+    // Block with confirmation
+    Alert.alert(
+      `Block ${participant.name || "User"}?`,
+      "They will not be able to send you messages or view your updates.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: async () => {
+            handleCloseOptions();
+            try {
+              await blockUserMutation(targetUserId).unwrap();
+              setIsBlocked(true);
+              setResolvedCanSendMessages(false);
+            } catch {
+              Alert.alert("Error", "Could not block user.");
+            }
+          },
+        },
+      ]
+    );
+  }, [
+    participant.id,
+    participant.name,
+    targetId,
+    token,
+    isBlocked,
+    unblockUserMutation,
+    blockUserMutation,
+    handleCloseOptions,
+  ]);
 
   // Emoji picker
   const handleToggleEmoji = useCallback(() => {
@@ -404,5 +653,21 @@ export function useChatThread(targetId?: string) {
     isLoadingMore: isFetchingMessages && !isLoadingMessages,
     hasMore: Boolean(messagesData?.nextCursor),
     onLoadMore,
+    isOptionsOpen,
+    isMuted,
+    isArchived,
+    isBlocked,
+    handleOpenOptions,
+    handleCloseOptions,
+    handleToggleMute,
+    handleToggleArchive,
+    handleClearHistory,
+    handleReport,
+    handleToggleBlock,
+    selectedMedia,
+    handlePickMedia,
+    handleRemoveMedia,
+    isUploadingMedia,
+    uploadStatusText,
   };
 }

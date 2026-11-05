@@ -29,3 +29,4 @@ export const BROADCAST_AUTH_URL = `${BASE_URL}/api/broadcasting/auth`;
 export const TYPING_THROTTLE_MS = 3000;
 export const TYPING_EXPIRY_MS = 3500;
 export const MAX_MESSAGE_LENGTH = 5000;
+export const MAX_CHAT_MEDIA = 4;

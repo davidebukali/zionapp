@@ -5,14 +5,18 @@ import { normalizePost } from "../posts/utils";
 import {
   BackendProfile,
   BackendUser,
+  BlockedUsersListResponse,
+  BlockUserResponse,
   Church,
   ChurchesResponse,
   FollowResponse,
   GetChurchesParams,
   SearchUsersParams,
   SearchUsersResponse,
+  UnblockUserResponse,
   UnfollowResponse,
   UpdateProfilePayload,
+  UserBlockRecord,
 } from "./types";
 import {
   normalizeDiscoverAccount,
@@ -236,6 +240,49 @@ export const usersApi = baseApi.injectEndpoints({
         return [];
       },
     }),
+
+    blockUser: builder.mutation<BlockUserResponse, string>({
+      query: (userId) => ({
+        url: `/users/${userId}/block`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, userId) => [
+        { type: "User", id: userId },
+        { type: "Conversation", id: "LIST" },
+        { type: "Conversation", id: "RECIPIENTS" },
+      ],
+    }),
+
+    unblockUser: builder.mutation<UnblockUserResponse, string>({
+      query: (userId) => ({
+        url: `/users/${userId}/block`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_result, _error, userId) => [
+        { type: "User", id: userId },
+        { type: "Conversation", id: "LIST" },
+        { type: "Conversation", id: "RECIPIENTS" },
+      ],
+    }),
+
+    getBlockedUsers: builder.query<
+      UserBlockRecord[],
+      { cursor?: string; perPage?: number } | void
+    >({
+      query: (params) => {
+        const queryParams: Record<string, string | number> = {};
+        if (params?.cursor) queryParams.cursor = params.cursor;
+        if (params?.perPage) queryParams.per_page = params.perPage;
+        return {
+          url: "/blocks",
+          params: queryParams,
+        };
+      },
+      transformResponse: (response: BlockedUsersListResponse): UserBlockRecord[] => {
+        return Array.isArray(response?.data) ? response.data : [];
+      },
+      providesTags: [{ type: "User", id: "BLOCKS" }],
+    }),
   }),
   overrideExisting: true,
 });
@@ -254,5 +301,9 @@ export const {
   useUpdateProfileMutation,
   useGetChurchesQuery,
   useLazyGetChurchesQuery,
+  useBlockUserMutation,
+  useUnblockUserMutation,
+  useGetBlockedUsersQuery,
+  useLazyGetBlockedUsersQuery,
 } = usersApi;
 

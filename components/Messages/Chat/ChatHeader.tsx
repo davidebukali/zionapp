@@ -10,6 +10,8 @@ import { MessageAvatar } from "../MessageAvatar";
 export const ChatHeader = React.memo(function ChatHeader({
   participant,
   onPressBack,
+  isMuted = false,
+  onPressOptions,
 }: ChatHeaderProps) {
   const theme = useTheme();
 
@@ -50,12 +52,22 @@ export const ChatHeader = React.memo(function ChatHeader({
         />
 
         <View style={styles.infoCol}>
-          <Text
-            style={[styles.nameText, { color: theme.colors.onBackground }]}
-            numberOfLines={1}
-          >
-            {participant.name}
-          </Text>
+          <View style={styles.nameRow}>
+            <Text
+              style={[styles.nameText, { color: theme.colors.onBackground }]}
+              numberOfLines={1}
+            >
+              {participant.name}
+            </Text>
+            {isMuted && (
+              <Ionicons
+                name="volume-mute-outline"
+                size={15}
+                color={theme.colors.onSurfaceVariant}
+                style={styles.mutedIcon}
+              />
+            )}
+          </View>
           <Text
             style={[
               styles.presenceText,
@@ -66,6 +78,23 @@ export const ChatHeader = React.memo(function ChatHeader({
           </Text>
         </View>
       </View>
+
+      {onPressOptions && (
+        <TouchableOpacity
+          onPress={onPressOptions}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Thread options"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={globalStyles.postIconButton}
+        >
+          <Ionicons
+            name="ellipsis-vertical"
+            size={20}
+            color={theme.colors.onBackground}
+          />
+        </TouchableOpacity>
+      )}
     </View>
   );
 });
@@ -79,6 +108,13 @@ const styles = StyleSheet.create({
   infoCol: {
     marginLeft: 10,
     justifyContent: "center",
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  mutedIcon: {
+    marginLeft: 4,
   },
   nameText: {
     fontSize: 16,

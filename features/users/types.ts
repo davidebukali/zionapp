@@ -174,3 +174,37 @@ export interface UnfollowResponse {
   meta?: any;
 }
 
+export interface UserBlockRecord {
+  id: number | string;
+  blocker_id: string;
+  blocked_id: string;
+  blocked?: BackendUser;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BlockUserResponse {
+  success: boolean;
+  message: string;
+  data: UserBlockRecord;
+  meta: null;
+}
+
+export interface UnblockUserResponse {
+  success: boolean;
+  message: string;
+  data: null;
+  meta: null;
+}
+
+export interface BlockedUsersListResponse {
+  success: boolean;
+  message: string;
+  data: UserBlockRecord[];
+  meta?: {
+    prev_cursor?: string | null;
+    next_cursor?: string | null;
+    per_page?: number;
+  } | null;
+}
+

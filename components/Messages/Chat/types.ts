@@ -1,8 +1,11 @@
-import { ChatMessage, OnlineContact } from "../../../features/messages/types";
+import { ChatMessage, OnlineContact, ReportReason } from "../../../features/messages/types";
+import { MediaItem } from "../../../utils/mediaUploader";
 
 export interface ChatHeaderProps {
   participant: OnlineContact;
   onPressBack: () => void;
+  isMuted?: boolean;
+  onPressOptions?: () => void;
 }
 
 export interface ChatDateSeparatorProps {
@@ -25,7 +28,8 @@ export interface ChatTextBubbleProps {
 }
 
 export interface ChatMediaBubbleProps {
-  mediaUrl: string;
+  mediaUrl?: string;
+  mediaUrls?: string[];
 }
 
 export interface ChatMessageBubbleProps {
@@ -44,6 +48,11 @@ export interface ChatComposerProps {
   onToggleEmoji: () => void;
   placeholder?: string;
   disabled?: boolean;
+  selectedMedia?: MediaItem[];
+  onPickMedia?: () => void;
+  onRemoveMedia?: (index: number) => void;
+  isUploadingMedia?: boolean;
+  uploadStatusText?: string | null;
 }
 
 export interface ChatMessageListProps {
@@ -54,5 +63,19 @@ export interface ChatMessageListProps {
   onLoadMore?: () => void;
   isLoadingMore?: boolean;
   hasMore?: boolean;
+}
+
+export interface ChatThreadOptionsSheetProps {
+  visible: boolean;
+  participant: OnlineContact;
+  isMuted: boolean;
+  isArchived: boolean;
+  isBlocked: boolean;
+  onClose: () => void;
+  onToggleMute: () => void;
+  onToggleArchive: () => void;
+  onClearHistory: () => void;
+  onReport: (reason: ReportReason) => void;
+  onToggleBlock: () => void;
 }
 

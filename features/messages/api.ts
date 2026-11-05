@@ -241,11 +241,22 @@ export const messagesApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: SendMessageResponse) => response.data,
       async onQueryStarted(
-        { conversationId, body, media_ids, reply_to_message_id },
+        { conversationId, body, media_ids, reply_to_message_id, optimisticMediaUrls },
         { dispatch, getState, queryFulfilled }
       ) {
         const currentUserId = (getState() as RootState).auth?.user?.id;
         const tempId = `temp-${Date.now()}`;
+        const optimisticMedia =
+          optimisticMediaUrls && optimisticMediaUrls.length > 0
+            ? optimisticMediaUrls.map((url, index) => ({
+                id: `opt-media-${index}-${Date.now()}`,
+                url,
+                type: "image",
+                mime_type: "image/jpeg",
+                size: 0,
+              }))
+            : [];
+
         const optimisticMessage = normalizeMessage(
           {
             id: tempId,
@@ -257,7 +268,7 @@ export const messagesApi = baseApi.injectEndpoints({
               username: "",
             },
             body: body || null,
-            media: [],
+            media: optimisticMedia,
             reply_to: null,
             reactions: [],
             is_edited: false,

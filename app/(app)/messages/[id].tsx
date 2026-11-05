@@ -11,6 +11,7 @@ import {
   ChatHeader,
   ChatMessageList,
   ChatComposer,
+  ChatThreadOptionsSheet,
 } from "../../../components/Messages/Chat";
 
 export default function ChatScreen() {
@@ -34,6 +35,22 @@ export default function ChatScreen() {
     isLoadingMore,
     hasMore,
     onLoadMore,
+    isOptionsOpen,
+    isMuted,
+    isArchived,
+    isBlocked,
+    handleOpenOptions,
+    handleCloseOptions,
+    handleToggleMute,
+    handleToggleArchive,
+    handleClearHistory,
+    handleReport,
+    handleToggleBlock,
+    selectedMedia,
+    handlePickMedia,
+    handleRemoveMedia,
+    isUploadingMedia,
+    uploadStatusText,
   } = useChatThread(id);
 
   return (
@@ -48,7 +65,12 @@ export default function ChatScreen() {
       ]}
     >
       {/* Recipient Header */}
-      <ChatHeader participant={participant} onPressBack={handleBack} />
+      <ChatHeader
+        participant={participant}
+        onPressBack={handleBack}
+        isMuted={isMuted}
+        onPressOptions={handleOpenOptions}
+      />
 
       {/* Keyboard Avoiding Container */}
       <KeyboardAvoidingView
@@ -72,8 +94,28 @@ export default function ChatScreen() {
           onSend={handleSendMessage}
           onToggleEmoji={handleToggleEmoji}
           disabled={!canSendMessages}
+          selectedMedia={selectedMedia}
+          onPickMedia={handlePickMedia}
+          onRemoveMedia={handleRemoveMedia}
+          isUploadingMedia={isUploadingMedia}
+          uploadStatusText={uploadStatusText}
         />
       </KeyboardAvoidingView>
+
+      {/* Thread & User Actions Bottom Sheet */}
+      <ChatThreadOptionsSheet
+        visible={isOptionsOpen}
+        participant={participant}
+        isMuted={isMuted}
+        isArchived={isArchived}
+        isBlocked={isBlocked}
+        onClose={handleCloseOptions}
+        onToggleMute={handleToggleMute}
+        onToggleArchive={handleToggleArchive}
+        onClearHistory={handleClearHistory}
+        onReport={handleReport}
+        onToggleBlock={handleToggleBlock}
+      />
 
       {/* Emoji Keyboard Picker */}
       <EmojiPicker

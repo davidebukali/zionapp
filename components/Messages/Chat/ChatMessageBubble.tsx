@@ -14,11 +14,15 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
     isOutgoing,
     text,
     mediaUrl,
+    media,
     reactions,
     readReceipt,
     isDeletedForEveryone,
     isEdited,
   } = message;
+
+  const mediaUrls =
+    media && media.length > 0 ? media.map((m) => m.url) : undefined;
 
   return (
     <View
@@ -28,8 +32,8 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
       ]}
     >
       <View style={styles.bubbleWrapper}>
-        {!isDeletedForEveryone && mediaUrl ? (
-          <ChatMediaBubble mediaUrl={mediaUrl} />
+        {!isDeletedForEveryone && (mediaUrl || (mediaUrls && mediaUrls.length > 0)) ? (
+          <ChatMediaBubble mediaUrl={mediaUrl} mediaUrls={mediaUrls} />
         ) : (
           text && (
             <ChatTextBubble

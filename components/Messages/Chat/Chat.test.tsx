@@ -1,4 +1,5 @@
 import React from "react";
+import { TouchableOpacity } from "react-native";
 import ReactTestRenderer, { act } from "react-test-renderer";
 
 jest.mock("@expo/vector-icons/Ionicons", () => "Ionicons");
@@ -71,6 +72,22 @@ jest.mock("../../../hooks/useChatThread", () => ({
     isLoadingMore: false,
     hasMore: false,
     onLoadMore: jest.fn(),
+    isOptionsOpen: false,
+    isMuted: false,
+    isArchived: false,
+    isBlocked: false,
+    handleOpenOptions: jest.fn(),
+    handleCloseOptions: jest.fn(),
+    handleToggleMute: jest.fn(),
+    handleToggleArchive: jest.fn(),
+    handleClearHistory: jest.fn(),
+    handleReport: jest.fn(),
+    handleToggleBlock: jest.fn(),
+    selectedMedia: [],
+    handlePickMedia: jest.fn(),
+    handleRemoveMedia: jest.fn(),
+    isUploadingMedia: false,
+    uploadStatusText: null,
   })),
 }));
 
@@ -85,6 +102,7 @@ import {
   ChatTypingIndicator,
   ChatComposer,
   ChatMessageList,
+  ChatThreadOptionsSheet,
 } from "./index";
 import ChatScreen from "../../../app/(app)/messages/[id]";
 import { ChatMessage, OnlineContact } from "../../../features/messages/types";
@@ -100,18 +118,25 @@ describe("components/Messages/Chat", () => {
   };
 
   describe("ChatHeader", () => {
-    it("renders participant name, presence status, and handles back press", () => {
+    it("renders participant name, presence status, and handles back and options press", () => {
       const onBack = jest.fn();
+      const onOptions = jest.fn();
       let renderer: ReactTestRenderer.ReactTestRenderer;
       act(() => {
         renderer = ReactTestRenderer.create(
-          <ChatHeader participant={mockParticipant} onPressBack={onBack} />
+          <ChatHeader
+            participant={mockParticipant}
+            onPressBack={onBack}
+            isMuted={true}
+            onPressOptions={onOptions}
+          />
         );
       });
 
       const json = JSON.stringify(renderer!.toJSON());
       expect(json).toContain("Maya Chen");
       expect(json).toContain("Active now");
+      expect(json).toContain("volume-mute-outline");
 
       const root = renderer!.root;
       const backBtn = root.findByProps({ accessibilityLabel: "Go back" });
@@ -119,6 +144,12 @@ describe("components/Messages/Chat", () => {
         backBtn.props.onPress();
       });
       expect(onBack).toHaveBeenCalled();
+
+      const optionsBtn = root.findByProps({ accessibilityLabel: "Thread options" });
+      act(() => {
+        optionsBtn.props.onPress();
+      });
+      expect(onOptions).toHaveBeenCalled();
     });
   });
 
@@ -203,6 +234,25 @@ describe("components/Messages/Chat", () => {
       const img = root.findByProps({ resizeMode: "cover" });
       expect(img.props.source.uri).toBe("https://example.com/banner.jpg");
     });
+
+    it("renders multi-image grid when multiple mediaUrls are provided", () => {
+      const urls = [
+        "https://example.com/img1.jpg",
+        "https://example.com/img2.jpg",
+        "https://example.com/img3.jpg",
+      ];
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMediaBubble mediaUrls={urls} />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("https://example.com/img1.jpg");
+      expect(json).toContain("https://example.com/img2.jpg");
+      expect(json).toContain("https://example.com/img3.jpg");
+    });
   });
 
   describe("ChatMessageBubble", () => {
@@ -276,6 +326,141 @@ describe("components/Messages/Chat", () => {
         emojiBtn.props.onPress();
       });
       expect(onEmoji).toHaveBeenCalled();
+    });
+
+    it("renders media thumbnails, handles remove, and disables caption typing when images are attached", () => {
+      const onRemoveMedia = jest.fn();
+      const onPickMedia = jest.fn();
+      const onSend = jest.fn();
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatComposer
+            text="Trying to type caption"
+            onChangeText={jest.fn()}
+            onSend={onSend}
+            onToggleEmoji={jest.fn()}
+            selectedMedia={[{ uri: "file://photo1.jpg" }, { uri: "file://photo2.jpg" }]}
+            onPickMedia={onPickMedia}
+            onRemoveMedia={onRemoveMedia}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const removeButtons = root
+        .findAllByType(TouchableOpacity)
+        .filter((node) => node.props.accessibilityLabel === "Remove photo");
+      expect(removeButtons.length).toBe(2);
+
+      act(() => {
+        removeButtons[0].props.onPress();
+      });
+      expect(onRemoveMedia).toHaveBeenCalledWith(0);
+
+      // Verify text input is disabled (no caption allowed)
+      const input = root.findByProps({ accessibilityLabel: "Message input" });
+      expect(input.props.editable).toBe(false);
+      expect(input.props.value).toBe("");
+      expect(input.props.placeholder).toBe("Photos ready to send (no captions)");
+
+      // Send button is enabled even though text is empty
+      const sendBtn = root.findByProps({ accessibilityLabel: "Send message" });
+      expect(sendBtn.props.disabled).toBe(false);
+    });
+
+    it("renders upload indicator when isUploadingMedia is true", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatComposer
+            text=""
+            onChangeText={jest.fn()}
+            onSend={jest.fn()}
+            onToggleEmoji={jest.fn()}
+            selectedMedia={[{ uri: "file://photo1.jpg" }]}
+            isUploadingMedia={true}
+            uploadStatusText="Uploading 1 of 1..."
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Uploading 1 of 1...");
+    });
+  });
+
+  describe("ChatThreadOptionsSheet", () => {
+    it("renders options and triggers action handlers", () => {
+      const onToggleMute = jest.fn();
+      const onToggleArchive = jest.fn();
+      const onClearHistory = jest.fn();
+      const onToggleBlock = jest.fn();
+      const onReport = jest.fn();
+      const onClose = jest.fn();
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatThreadOptionsSheet
+            visible={true}
+            participant={mockParticipant}
+            isMuted={false}
+            isArchived={false}
+            isBlocked={false}
+            onClose={onClose}
+            onToggleMute={onToggleMute}
+            onToggleArchive={onToggleArchive}
+            onClearHistory={onClearHistory}
+            onReport={onReport}
+            onToggleBlock={onToggleBlock}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+
+      // Mute
+      const muteBtn = root.findByProps({ accessibilityLabel: "Mute notifications" });
+      act(() => {
+        muteBtn.props.onPress();
+      });
+      expect(onToggleMute).toHaveBeenCalled();
+
+      // Archive
+      const archiveBtn = root.findByProps({ accessibilityLabel: "Archive conversation" });
+      act(() => {
+        archiveBtn.props.onPress();
+      });
+      expect(onToggleArchive).toHaveBeenCalled();
+
+      // Clear History
+      const clearBtn = root.findByProps({ accessibilityLabel: "Clear chat history" });
+      act(() => {
+        clearBtn.props.onPress();
+      });
+      expect(onClearHistory).toHaveBeenCalled();
+
+      // Block
+      const blockBtn = root.findByProps({ accessibilityLabel: "Block user" });
+      act(() => {
+        blockBtn.props.onPress();
+      });
+      expect(onToggleBlock).toHaveBeenCalled();
+
+      // Open report flow
+      const reportTrigger = root.findByProps({ accessibilityLabel: "Report conversation" });
+      act(() => {
+        reportTrigger.props.onPress();
+      });
+
+      // Select Spam report reason
+      const spamReasonBtn = root.findByProps({ accessibilityLabel: "Report as Spam or Scam" });
+      act(() => {
+        spamReasonBtn.props.onPress();
+      });
+      expect(onReport).toHaveBeenCalledWith("spam");
     });
   });
 
