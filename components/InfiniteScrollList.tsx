@@ -17,6 +17,7 @@ interface InfiniteScrollListProps<T> extends Omit<FlatListProps<T>, "data" | "re
   hasMore: boolean;
   onRefresh?: () => Promise<void> | void;
   isRefreshing?: boolean;
+  listRef?: React.Ref<FlatList<T>>;
 }
 
 export function InfiniteScrollList<T>({
@@ -27,6 +28,7 @@ export function InfiniteScrollList<T>({
   hasMore,
   onRefresh,
   isRefreshing = false,
+  listRef,
   ...flatListProps
 }: InfiniteScrollListProps<T>) {
   const theme = useTheme();
@@ -49,6 +51,7 @@ export function InfiniteScrollList<T>({
 
   return (
     <FlatList
+      ref={listRef}
       data={data}
       renderItem={renderItem}
       keyExtractor={(item, index) => (item as any).id?.toString() || index.toString()}

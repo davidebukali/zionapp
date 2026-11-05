@@ -5,10 +5,12 @@ import { getEchoClient } from "../services/echo";
 import { messagesApi } from "../features/messages/api";
 import { MessageSentEvent } from "../features/messages/types";
 import { normalizeMessage } from "../features/messages/utils";
+import { newFeedItemReceived } from "../features/posts/newPostsSlice";
+import { NewFeedItemEvent } from "../features/posts/types";
 
 /**
  * Subscribes to the global user channel `private-users.{userId}`
- * to receive incoming messages, update unread counts, and keep the inbox in sync.
+ * to receive incoming messages, update unread counts, and track new feed items.
  */
 export function useGlobalUserChannel() {
   const dispatch = useDispatch<AppDispatch>();
@@ -30,6 +32,14 @@ export function useGlobalUserChannel() {
         dispatch(
           messagesApi.util.invalidateTags([{ type: "Conversation", id: "LIST" }])
         );
+      });
+
+      channel.listen(".feed.new_item", (event: NewFeedItemEvent) => {
+        // Ignore real-time events for our own published posts
+        if (String(event.actor_id) === currentUserId) {
+          return;
+        }
+        dispatch(newFeedItemReceived(String(event.post_id)));
       });
 
       return () => {

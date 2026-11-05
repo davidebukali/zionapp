@@ -205,3 +205,24 @@ export interface UpdatePostRequest {
   visibility?: PostVisibility;
   media_ids?: string[];
 }
+
+export interface NewFeedItemEvent {
+  post_id: string | number;
+  type: FeedItemType;
+  actor_id: string | number;
+  published_at?: string;
+}
+
+export interface CheckNewerFeedResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    new_posts_count?: number;
+  };
+}
+
+export interface NewPostsState {
+  pendingPostIds: string[];
+  catchUpCount: number;
+}
+

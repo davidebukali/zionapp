@@ -13,7 +13,10 @@
     "server": "json-server db.json --port 3000"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "moduleNameMapper": {
+      "^immer$": "<rootDir>/node_modules/immer/dist/cjs/index.js"
+    }
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",

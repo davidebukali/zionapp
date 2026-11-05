@@ -14,6 +14,7 @@ import {
   MediaStatusResponse,
   RepostResponse,
   UpdatePostRequest,
+  CheckNewerFeedResponse,
 } from './types';
 import {
   normalizePost,
@@ -307,6 +308,22 @@ export const postsApi = baseApi.injectEndpoints({
     }),
 
     /**
+     * Checks how many newer feed items exist since a given feed item ID.
+     */
+    checkNewerFeed: builder.query<number, { afterId: string | number }>({
+      query: ({ afterId }) => ({
+        url: '/feed/check-newer',
+        params: {
+          after_id: afterId,
+        },
+      }),
+      transformResponse: (response: CheckNewerFeedResponse): number => {
+        return response?.data?.new_posts_count ?? 0;
+      },
+      keepUnusedDataFor: 0,
+    }),
+
+    /**
      * Step 4: Create post with content and confirmed media IDs.
      * Invalidates Feed and Post lists so newly published post appears at top.
      */
@@ -405,4 +422,6 @@ export const {
   useCreatePostMutation,
   useDeletePostMutation,
   useUpdatePostMutation,
+  useCheckNewerFeedQuery,
+  useLazyCheckNewerFeedQuery,
 } = postsApi;

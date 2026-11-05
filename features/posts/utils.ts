@@ -142,3 +142,58 @@ export function removePostFromCaches(
   };
 }
 
+/**
+ * Checks whether a post is owned by the current authenticated user.
+ */
+export function isPostOwnedBy(
+  post: Pick<Post, "authorId" | "author">,
+  currentUser?: { id?: string | number; name?: string } | null
+): boolean {
+  if (!currentUser?.id) {
+    return false;
+  }
+  return (
+    String(post.authorId) === String(currentUser.id) ||
+    post.author === currentUser.name
+  );
+}
+
+/**
+ * Resolves the actor display label, converting the user's own actions to "You".
+ */
+export function resolveActivityActor(
+  activityActor: string | undefined,
+  currentUserName?: string
+): string | undefined {
+  if (activityActor && currentUserName && activityActor === currentUserName) {
+    return "You";
+  }
+  return activityActor;
+}
+
+/**
+ * Calculates the number of unseen new posts by filtering out already loaded posts
+ * and taking the maximum between real-time pending count and server catch-up count.
+ */
+export function getNewPostsCount(
+  pendingPostIds: string[],
+  catchUpCount: number,
+  loadedPostIds: Set<string>
+): number {
+  const unseenCount = pendingPostIds.filter(
+    (postId) => !loadedPostIds.has(postId)
+  ).length;
+  return Math.max(unseenCount, Math.max(0, catchUpCount));
+}
+
+/**
+ * Formats the badge label for the new posts indicator pill.
+ */
+export function formatNewPostsLabel(count: number): string {
+  if (count === 1) {
+    return "1 new post";
+  }
+  return `${count > 99 ? "99+" : count} new posts`;
+}
+
+
