@@ -291,6 +291,7 @@ export function usePostComments(postId: string) {
   );
 
   return {
+    post,
     comments,
     displayedCount,
     currentUser,

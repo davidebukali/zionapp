@@ -45,6 +45,16 @@ export function useFeedPostActions(
     [router]
   );
 
+  const handlePressPost = useCallback(
+    (postId: string) => {
+      router.push({
+        pathname: "/posts/[postId]",
+        params: { postId },
+      });
+    },
+    [router]
+  );
+
   const handleRepost = useCallback(
     (post: Post) => {
       toggleRepostPost({
@@ -141,10 +151,12 @@ export function useFeedPostActions(
       onDelete: handleDelete,
       onFollowToggle: handleFollowToggle,
       onReport: options?.onReport,
+      onPressPost: handlePressPost,
     }),
     [
       handleLike,
       handleComment,
+      handlePressPost,
       handleRepost,
       handleBookmark,
       handleEdit,

@@ -7,11 +7,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { globalStyles } from "../../assets/styles/theme";
 
 type CommentsHeaderProps = {
-  count: string;
+  count?: string;
   onBack: () => void;
+  title?: string;
 };
 
-export function CommentsHeader({ count, onBack }: CommentsHeaderProps) {
+export function CommentsHeader({
+  count,
+  onBack,
+  title = "Comments",
+}: CommentsHeaderProps) {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -44,18 +49,20 @@ export function CommentsHeader({ count, onBack }: CommentsHeaderProps) {
         <Ionicons name="arrow-back" size={23} color={theme.colors.onSurface} />
       </TouchableOpacity>
       <Text style={[globalStyles.commentsHeaderTitle, { color: theme.colors.onSurface }]}>
-        Comments
+        {title}
       </Text>
-      <View
-        style={[
-          globalStyles.commentsCountBadge,
-          { backgroundColor: theme.colors.surfaceVariant },
-        ]}
-      >
-        <Text style={[globalStyles.commentsCountText, { color: theme.colors.onSurface }]}>
-          {count}
-        </Text>
-      </View>
+      {Boolean(count) && (
+        <View
+          style={[
+            globalStyles.commentsCountBadge,
+            { backgroundColor: theme.colors.surfaceVariant },
+          ]}
+        >
+          <Text style={[globalStyles.commentsCountText, { color: theme.colors.onSurface }]}>
+            {count}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }

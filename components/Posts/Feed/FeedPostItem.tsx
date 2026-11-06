@@ -20,6 +20,7 @@ export const FeedPostItem = React.memo(function FeedPostItem({
       imageUrl={post.imageUrl}
       mediaWidth={post.mediaWidth}
       mediaHeight={post.mediaHeight}
+      media={post.media}
       likes={post.likes}
       comments={post.comments}
       liked={post.liked}
@@ -30,6 +31,9 @@ export const FeedPostItem = React.memo(function FeedPostItem({
       isFollowingAuthor={!isOwnPost}
       activityType={post.activityType}
       activityActor={resolvedActor}
+      onPressBody={() => actions.onPressPost?.(post.id)}
+      onPressImage={() => actions.onPressPost?.(post.id)}
+      onPressImageIndex={() => actions.onPressPost?.(post.id)}
       onLike={() => actions.onLike(post)}
       onComment={() => actions.onComment(post.id)}
       onPressRepost={() => actions.onRepost(post)}

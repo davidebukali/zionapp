@@ -316,4 +316,56 @@ describe("PostCard & Action components", () => {
     // Reposted entry MUST render the activity banner text
     expect(repostedJson).toContain("Jane Doe reposted");
   });
+
+  it("calls onPressBody when post body is tapped", () => {
+    const handlePressBody = jest.fn();
+    let tree: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = ReactTestRenderer.create(
+        <PostCard
+          title="Jane Doe"
+          createdAt="2026-10-30T10:00:00Z"
+          body="Clickable body text"
+          onPressBody={handlePressBody}
+        />
+      );
+    });
+
+    const root = tree!.root;
+    const bodyButton = root.findByProps({ accessibilityLabel: "View post details" });
+    act(() => {
+      bodyButton.props.onPress();
+    });
+
+    expect(handlePressBody).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders MediaCollage and handles onPressImageIndex when media contains multiple images", () => {
+    const handlePressImageIndex = jest.fn();
+    const media = [
+      { id: "m-1", url: "https://example.com/photo1.jpg" },
+      { id: "m-2", url: "https://example.com/photo2.jpg" },
+      { id: "m-3", url: "https://example.com/photo3.jpg" },
+    ];
+
+    let tree: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = ReactTestRenderer.create(
+        <PostCard
+          title="Jane Doe"
+          createdAt="2026-10-30T10:00:00Z"
+          body="Multi-image post"
+          media={media}
+          onPressImageIndex={handlePressImageIndex}
+        />
+      );
+    });
+
+    const root = tree!.root;
+    const tile2 = root.findByProps({ accessibilityLabel: "Media item 2" });
+    act(() => {
+      tile2.props.onPress();
+    });
+    expect(handlePressImageIndex).toHaveBeenCalledWith(1);
+  });
 });

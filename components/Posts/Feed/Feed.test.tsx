@@ -195,6 +195,43 @@ describe("components/Posts/Feed", () => {
       });
       expect(onReport).toHaveBeenCalledWith(mockPost);
     });
+
+    it("forwards onPressBody and onPressImage to actions.onPressPost with post id", () => {
+      const onPressPost = jest.fn();
+      const actions = {
+        onLike: jest.fn(),
+        onComment: jest.fn(),
+        onRepost: jest.fn(),
+        onBookmark: jest.fn(),
+        onEdit: jest.fn(),
+        onDelete: jest.fn(),
+        onPressPost,
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <FeedPostItem
+            post={mockPost}
+            currentUser={{ id: "user-1", name: "Alice", email: "alice@example.com" }}
+            actions={actions}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const postCard = root.findByType(PostCard);
+
+      act(() => {
+        postCard.props.onPressBody();
+      });
+      expect(onPressPost).toHaveBeenCalledWith(mockPost.id);
+
+      act(() => {
+        postCard.props.onPressImage();
+      });
+      expect(onPressPost).toHaveBeenCalledWith(mockPost.id);
+    });
   });
 
   describe("NewPostsPill", () => {

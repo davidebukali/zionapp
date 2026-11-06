@@ -53,6 +53,13 @@ export default function AppGroupLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="posts/[postId]/index"
+        options={{
+          presentation: "card",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

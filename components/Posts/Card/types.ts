@@ -1,5 +1,5 @@
 import { ImageSourcePropType } from "react-native";
-import { PostActivity } from "../../../features/posts/types";
+import { LaravelMedia, PostActivity } from "../../../features/posts/types";
 
 export interface PostCardActionsProps {
   // Ownership & Flags
@@ -34,6 +34,7 @@ export interface PostCardProps extends Partial<PostCardActionsProps> {
   imageUrl?: string;
   mediaWidth?: number;
   mediaHeight?: number;
+  media?: LaravelMedia[];
   imageSource?: ImageSourcePropType;
   likes?: string;
   comments?: string;
@@ -42,6 +43,11 @@ export interface PostCardProps extends Partial<PostCardActionsProps> {
   activityType?: "post" | "repost" | "like" | "comment";
   activityActor?: string;
   activity?: PostActivity;
+
+  // Body interaction
+  onPressBody?: () => void;
+  onPressImage?: () => void;
+  onPressImageIndex?: (index: number) => void;
 
   // Legacy callback aliases for seamless backwards-compatibility
   onLike?: () => void;

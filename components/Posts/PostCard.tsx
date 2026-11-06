@@ -18,6 +18,7 @@ export function PostCard({
   imageUrl,
   mediaWidth,
   mediaHeight,
+  media,
   imageSource,
   likes,
   comments,
@@ -43,6 +44,9 @@ export function PostCard({
   onPressBookmark,
   onPressShareDM,
   onPressShareSystem,
+  onPressBody,
+  onPressImage,
+  onPressImageIndex,
 }: PostCardProps) {
   const theme = useTheme();
 
@@ -108,7 +112,11 @@ export function PostCard({
         imageUrl={imageUrl}
         mediaWidth={mediaWidth}
         mediaHeight={mediaHeight}
+        media={media}
         imageSource={imageSource}
+        onPressBody={onPressBody}
+        onPressImage={onPressImage}
+        onPressImageIndex={onPressImageIndex}
       />
 
       <PostCardFooter

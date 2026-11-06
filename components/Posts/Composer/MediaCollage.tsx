@@ -1,80 +1,122 @@
 import React from "react";
 import {
   Image,
+  StyleProp,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from "react-native";
 import { useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { globalStyles } from "../../../assets/styles/theme";
-import { MediaItem } from "../../../hooks/useCreatePostComposer";
 
-interface MediaCollageProps {
-  items: MediaItem[];
-  onEdit: () => void;
-  onRemoveAll: () => void;
+export type MediaCollageItem = string | { uri?: string; url?: string };
+
+export interface MediaCollageProps {
+  items: MediaCollageItem[];
+  onEdit?: () => void;
+  onRemoveAll?: () => void;
+  onPressItem?: (index: number) => void;
+  borderRadius?: number;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
-export function MediaCollage({ items, onEdit, onRemoveAll }: MediaCollageProps) {
+export function MediaCollage({
+  items,
+  onEdit,
+  onRemoveAll,
+  onPressItem,
+  borderRadius = 18,
+  containerStyle,
+}: MediaCollageProps) {
   const theme = useTheme();
 
-  if (items.length === 0) return null;
+  if (!items || items.length === 0) return null;
 
-  const renderThumbnail = (item: MediaItem, index: number, isOverlay = false, overlayCount = 0) => (
-    <View style={styles.thumbnailWrapper} key={`${item.uri}-${index}`}>
-      <Image source={{ uri: item.uri }} style={styles.thumbnailImage} resizeMode="cover" />
-      {isOverlay && (
-        <View style={styles.moreOverlay}>
-          <Text style={styles.moreOverlayText}>+{overlayCount}</Text>
-        </View>
-      )}
-    </View>
-  );
+  const getMediaUri = (item: MediaCollageItem): string => {
+    if (typeof item === "string") return item;
+    return item.uri ?? item.url ?? "";
+  };
+
+  const renderThumbnail = (
+    item: MediaCollageItem,
+    index: number,
+    isOverlay = false,
+    overlayCount = 0
+  ) => {
+    const uri = getMediaUri(item);
+    const handlePress = onPressItem ? () => onPressItem(index) : onEdit;
+
+    return (
+      <TouchableOpacity
+        key={`${uri}-${index}`}
+        style={styles.thumbnailWrapper}
+        activeOpacity={handlePress ? 0.85 : 1}
+        disabled={!handlePress}
+        onPress={handlePress}
+        accessibilityRole={handlePress ? "button" : undefined}
+        accessibilityLabel={`Media item ${index + 1}`}
+      >
+        <Image source={{ uri }} style={styles.thumbnailImage} resizeMode="cover" />
+        {isOverlay && (
+          <View style={styles.moreOverlay}>
+            <Text style={styles.moreOverlayText}>{`+${overlayCount}`}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const hasControls = Boolean(onEdit || onRemoveAll);
 
   return (
     <View
       style={[
         styles.collageContainer,
-        { borderRadius: 18 },
+        hasControls ? { marginTop: 16 } : null,
+        { borderRadius },
+        containerStyle,
       ]}
     >
-      {/* Floating Action Controls */}
-      <View style={styles.collageControls}>
-        <TouchableOpacity
-          style={[
-            globalStyles.postIconButton,
-            styles.floatingButton,
-            { backgroundColor: theme.colors.surfaceVariant },
-          ]}
-          onPress={onEdit}
-          activeOpacity={0.8}
-          accessibilityLabel="Edit attached media"
-        >
-          <Ionicons name="pencil" size={16} color={theme.colors.onSurface} />
-        </TouchableOpacity>
+      {/* Floating Action Controls for Composer */}
+      {hasControls && (
+        <View style={styles.collageControls}>
+          {onEdit && (
+            <TouchableOpacity
+              style={[
+                globalStyles.postIconButton,
+                styles.floatingButton,
+                { backgroundColor: theme.colors.surfaceVariant },
+              ]}
+              onPress={onEdit}
+              activeOpacity={0.8}
+              accessibilityLabel="Edit attached media"
+            >
+              <Ionicons name="pencil" size={16} color={theme.colors.onSurface} />
+            </TouchableOpacity>
+          )}
 
-        <TouchableOpacity
-          style={[
-            globalStyles.postIconButton,
-            styles.floatingButton,
-            { backgroundColor: theme.colors.surfaceVariant },
-          ]}
-          onPress={onRemoveAll}
-          activeOpacity={0.8}
-          accessibilityLabel="Remove all attached media"
-        >
-          <Ionicons name="close" size={18} color={theme.colors.onSurface} />
-        </TouchableOpacity>
-      </View>
+          {onRemoveAll && (
+            <TouchableOpacity
+              style={[
+                globalStyles.postIconButton,
+                styles.floatingButton,
+                { backgroundColor: theme.colors.surfaceVariant },
+              ]}
+              onPress={onRemoveAll}
+              activeOpacity={0.8}
+              accessibilityLabel="Remove all attached media"
+            >
+              <Ionicons name="close" size={18} color={theme.colors.onSurface} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={onEdit}
-        style={[styles.collagePressable, { borderRadius: 18 }]}
-      >
+      <View style={[styles.collageContent, { borderRadius }]}>
         {items.length === 1 && (
           <View style={styles.singleContainer}>
             {renderThumbnail(items[0], 0)}
@@ -107,14 +149,13 @@ export function MediaCollage({ items, onEdit, onRemoveAll }: MediaCollageProps) 
             </View>
           </View>
         )}
-      </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   collageContainer: {
-    marginTop: 16,
     position: "relative",
     overflow: "hidden",
   },
@@ -136,7 +177,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
   },
-  collagePressable: {
+  collageContent: {
     overflow: "hidden",
   },
   singleContainer: {
