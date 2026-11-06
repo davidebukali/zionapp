@@ -10,7 +10,7 @@ import { useTheme } from "react-native-paper";
 
 import { globalStyles } from "../../assets/styles/theme";
 import { EditProfileForm, EditProfileHeader } from "../../components/profile/edit";
-import { Church } from "../../features/users/types";
+import { AccountClassificationType, Church } from "../../features/users/types";
 import { useEditProfile } from "../../hooks/useEditProfile";
 
 export default function EditProfileScreen() {
@@ -47,7 +47,7 @@ export default function EditProfileScreen() {
   } = useEditProfile();
 
   const handleChangeClassification = useCallback(
-    (type: "individual" | "organization", newCategory: string) => {
+    (type: AccountClassificationType, newCategory: string) => {
       setAccountType(type);
       setCategory(newCategory);
     },

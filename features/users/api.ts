@@ -3,6 +3,8 @@ import { DiscoverAccount } from "../../components/Discover/types";
 import { FeedResult } from "../posts/types";
 import { normalizePost } from "../posts/utils";
 import {
+  AccountTypeCategoryGroup,
+  AccountTypesResponse,
   BackendProfile,
   BackendUser,
   BlockedUsersListResponse,
@@ -331,6 +333,16 @@ export const usersApi = baseApi.injectEndpoints({
         currentArg?.q !== previousArg?.q,
       providesTags: [{ type: "User", id: "TAGGABLE" }],
     }),
+    getAccountTypes: builder.query<AccountTypeCategoryGroup[], void>({
+      query: () => ({
+        url: "/account-types",
+        method: "GET",
+      }),
+      transformResponse: (
+        response: AccountTypesResponse | { data: AccountTypeCategoryGroup[] }
+      ): AccountTypeCategoryGroup[] => response?.data || [],
+      providesTags: [{ type: "User", id: "ACCOUNT_TYPES" }],
+    }),
   }),
   overrideExisting: true,
 });
@@ -355,5 +367,7 @@ export const {
   useLazyGetBlockedUsersQuery,
   useGetTaggableUsersQuery,
   useLazyGetTaggableUsersQuery,
+  useGetAccountTypesQuery,
+  useLazyGetAccountTypesQuery,
 } = usersApi;
 

@@ -131,12 +131,12 @@ export function ClassificationOptionCard({
             {subCategoryLabel}
           </Text>
           <View style={styles.chipsWrap}>
-            {categories.map((cat) => {
-              const isChipSelected = selectedCategory === cat;
+            {categories.map((categoryItem) => {
+              const isChipSelected = selectedCategory === categoryItem;
               return (
                 <TouchableOpacity
-                  key={cat}
-                  onPress={() => onSelectCategory(cat)}
+                  key={categoryItem}
+                  onPress={() => onSelectCategory(categoryItem)}
                   activeOpacity={0.8}
                   style={[
                     styles.chip,
@@ -163,7 +163,7 @@ export function ClassificationOptionCard({
                       },
                     ]}
                   >
-                    {isChipSelected ? `✓ ${cat}` : cat}
+                    {isChipSelected ? `✓ ${categoryItem}` : categoryItem}
                   </Text>
                 </TouchableOpacity>
               );

@@ -7,6 +7,7 @@ import type { AppDispatch, RootState } from "../store/store";
 import { useGetMeQuery } from "../features/auth/api";
 import { setUser } from "../features/auth/authSlice";
 import { useUpdateProfileMutation } from "../features/users/api";
+import type { AccountClassificationType } from "../features/users/types";
 import {
   useConfirmMediaUploadMutation,
   useGetMediaUploadUrlMutation,
@@ -45,8 +46,8 @@ export function useEditProfile() {
   const [bio, setBio] = useState(activeProfile?.bio || "");
   const [website, setWebsite] = useState(activeProfile?.website || "");
   const [location, setLocation] = useState(activeProfile?.location || "");
-  const [accountType, setAccountType] = useState<"individual" | "organization">(
-    activeProfile?.account_type || "individual"
+  const [accountType, setAccountType] = useState<AccountClassificationType>(
+    activeProfile?.account_type || "personal"
   );
   const [category, setCategory] = useState(
     activeProfile?.category || "Believer"
@@ -87,7 +88,7 @@ export function useEditProfile() {
       setBio(activeProfile?.bio || "");
       setWebsite(activeProfile?.website || "");
       setLocation(activeProfile?.location || "");
-      setAccountType(activeProfile?.account_type || "individual");
+      setAccountType(activeProfile?.account_type || "personal");
       setCategory(activeProfile?.category || "Believer");
       setChurchId(activeProfile?.church_id || null);
       setAvatarUri(getUserAvatarUrl(activeUser) || null);

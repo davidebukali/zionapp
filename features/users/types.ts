@@ -33,6 +33,18 @@ export interface ChurchesResponse {
   };
 }
 
+export type AccountClassificationType = "personal" | "organization";
+
+export interface AccountTypeCategoryGroup {
+  type: AccountClassificationType;
+  label: string;
+  categories: string[];
+}
+
+export interface AccountTypesResponse {
+  data: AccountTypeCategoryGroup[];
+}
+
 export interface BackendProfile {
   id?: string;
   user_id?: string;
@@ -40,7 +52,7 @@ export interface BackendProfile {
   display_name?: string;
   bio?: string;
   is_following?: boolean;
-  account_type?: 'individual' | 'organization' | null;
+  account_type?: AccountClassificationType | null;
   category?: string | null;
   church_id?: string | null;
   church?: Church | null;
@@ -72,7 +84,7 @@ export interface UserProfileData {
   bio: string;
   website: string | null;
   location: string | null;
-  accountType?: 'individual' | 'organization' | null;
+  accountType?: AccountClassificationType | null;
   category?: string | null;
   church?: Church | null;
   joinedAt: string | null;
@@ -91,7 +103,7 @@ export interface UpdateProfilePayload {
   cover_media_id?: string | null;
   website?: string | null;
   location?: string | null;
-  account_type?: 'individual' | 'organization' | null;
+  account_type?: AccountClassificationType | null;
   category?: string | null;
   church_id?: string | null;
   church_name?: string | null;

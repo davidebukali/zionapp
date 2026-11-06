@@ -10,41 +10,43 @@ export function AccountClassificationCardRow({
   accountType,
   category,
   onPressCard,
+  title = "Account Type",
+  subtitle = "",
+  isOptional = false,
 }: AccountClassificationCardRowProps) {
   const theme = useTheme();
 
-  const isIndividual = accountType === "individual";
+  const isPersonal = accountType === "personal";
   const isOrganization = accountType === "organization";
 
-  const personalSubtitle = isIndividual ? category?.trim() || "Not selected" : "Not selected";
+  const personalSubtitle = isPersonal ? category?.trim() || "Not selected" : "Not selected";
   const organizationSubtitle = isOrganization ? category?.trim() || "Not selected" : "Not selected";
+
+  const displayTitle = isOptional ? `${title} (Optional)` : title;
 
   return (
     <View style={styles.container}>
       <Text style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
-        ACCOUNT TYPE
-      </Text>
-      <Text style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        Choose your community identity
+        {displayTitle}
       </Text>
 
       <View style={styles.row}>
         {/* Personal Account Card */}
         <TouchableOpacity
-          onPress={() => onPressCard("individual")}
+          onPress={() => onPressCard("personal")}
           activeOpacity={0.8}
           accessibilityRole="radio"
-          accessibilityState={{ selected: isIndividual }}
+          accessibilityState={{ selected: isPersonal }}
           accessibilityLabel="Personal Account"
           style={[
             styles.card,
             {
-              backgroundColor: isIndividual
+              backgroundColor: isPersonal
                 ? theme.dark
                   ? "rgba(186, 26, 26, 0.12)"
                   : "rgba(186, 26, 26, 0.06)"
                 : theme.colors.surfaceVariant,
-              borderColor: isIndividual
+              borderColor: isPersonal
                 ? theme.colors.primary
                 : theme.colors.outlineVariant,
             },
@@ -55,7 +57,7 @@ export function AccountClassificationCardRow({
               style={[
                 styles.iconContainer,
                 {
-                  backgroundColor: isIndividual
+                  backgroundColor: isPersonal
                     ? theme.colors.primary
                     : "rgba(255, 255, 255, 0.1)",
                 },
@@ -64,7 +66,7 @@ export function AccountClassificationCardRow({
               <Ionicons
                 name="person"
                 size={18}
-                color={isIndividual ? "#FFFFFF" : theme.colors.onSurfaceVariant}
+                color={isPersonal ? "#FFFFFF" : theme.colors.onSurfaceVariant}
               />
             </View>
 
@@ -72,13 +74,13 @@ export function AccountClassificationCardRow({
               style={[
                 styles.radioOuter,
                 {
-                  borderColor: isIndividual
+                  borderColor: isPersonal
                     ? theme.colors.primary
                     : theme.colors.onSurfaceVariant,
                 },
               ]}
             >
-              {isIndividual && (
+              {isPersonal && (
                 <View
                   style={[
                     styles.radioInner,
@@ -195,7 +197,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     letterSpacing: 0.6,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   sectionSubtitle: {
     fontSize: 13,

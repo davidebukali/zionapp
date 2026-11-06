@@ -3,10 +3,13 @@ import { StyleSheet, View } from "react-native";
 
 import { EditProfileBanner } from "./EditProfileBanner";
 import { ProfileInputField } from "./ProfileInputField";
-import { AccountClassificationCardRow } from "./AccountClassificationCardRow";
-import { AccountClassificationBottomSheet } from "./AccountClassificationBottomSheet";
+import {
+  AccountClassificationBottomSheet,
+  AccountClassificationCardRow,
+} from "../../Common/AccountClassification";
 import { ChurchDropdownSelector } from "./ChurchDropdownSelector";
 import { EditProfileFormProps } from "./types";
+import { useAccountTypes } from "../../../hooks/useAccountTypes";
 
 export function EditProfileForm({
   displayName,
@@ -35,6 +38,7 @@ export function EditProfileForm({
   onPickAvatar,
 }: EditProfileFormProps) {
   const [sheetVisible, setSheetVisible] = useState(false);
+  const { personalCategories, organizationCategories } = useAccountTypes();
 
   return (
     <View style={styles.container}>
@@ -119,6 +123,8 @@ export function EditProfileForm({
         visible={sheetVisible}
         initialAccountType={accountType}
         initialCategory={category}
+        personalCategories={personalCategories}
+        organizationCategories={organizationCategories}
         onClose={() => setSheetVisible(false)}
         onConfirm={onChangeClassification}
       />

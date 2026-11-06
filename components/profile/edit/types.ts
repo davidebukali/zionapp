@@ -1,7 +1,18 @@
 import { KeyboardTypeOptions } from "react-native";
 import { Church } from "../../../features/users/types";
+import {
+  AccountClassificationBottomSheetProps,
+  AccountClassificationCardRowProps,
+  AccountClassificationType,
+  ClassificationOptionCardProps,
+} from "../../Common/AccountClassification";
 
-export type AccountClassificationType = "individual" | "organization";
+export type {
+  AccountClassificationBottomSheetProps,
+  AccountClassificationCardRowProps,
+  AccountClassificationType,
+  ClassificationOptionCardProps,
+};
 
 export interface EditProfileHeaderProps {
   isSaving: boolean;
@@ -31,37 +42,6 @@ export interface ProfileInputFieldProps {
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   autoCorrect?: boolean;
   keyboardType?: KeyboardTypeOptions;
-}
-
-export interface AccountClassificationCardRowProps {
-  accountType: AccountClassificationType;
-  category?: string;
-  onPressCard: (type: AccountClassificationType) => void;
-}
-
-export interface ClassificationOptionCardProps {
-  type: AccountClassificationType;
-  title: string;
-  description: string;
-  iconName: "person" | "church";
-  isSelected: boolean;
-  onSelect: () => void;
-  categories: readonly string[];
-  selectedCategory: string;
-  onSelectCategory: (category: string) => void;
-  subCategoryLabel: string;
-  hasVerifiedBadge?: boolean;
-}
-
-export interface AccountClassificationBottomSheetProps {
-  visible: boolean;
-  initialAccountType: AccountClassificationType;
-  initialCategory: string;
-  onClose: () => void;
-  onConfirm: (
-    accountType: AccountClassificationType,
-    category: string
-  ) => void;
 }
 
 export interface ChurchDropdownSelectorProps {

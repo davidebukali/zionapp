@@ -16,21 +16,11 @@ import {
   AccountClassificationBottomSheetProps,
   AccountClassificationType,
 } from "./types";
+import {
+  DEFAULT_ORGANIZATION_CATEGORIES,
+  DEFAULT_PERSONAL_CATEGORIES,
+} from "./constants";
 import { ClassificationOptionCard } from "./ClassificationOptionCard";
-
-export const INDIVIDUAL_CATEGORIES = [
-  "Believer",
-  "Pastor / Elder",
-  "Worship Leader",
-  "Teacher",
-] as const;
-
-export const ORGANIZATION_CATEGORIES = [
-  "Local Church",
-  "Non-Profit",
-  "Fellowship Group",
-  "Media / Publishing",
-] as const;
 
 export function AccountClassificationBottomSheet({
   visible,
@@ -38,43 +28,38 @@ export function AccountClassificationBottomSheet({
   initialCategory,
   onClose,
   onConfirm,
+  personalCategories = DEFAULT_PERSONAL_CATEGORIES as unknown as string[],
+  organizationCategories = DEFAULT_ORGANIZATION_CATEGORIES as unknown as string[],
 }: AccountClassificationBottomSheetProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
   const [selectedType, setSelectedType] =
-    useState<AccountClassificationType>(initialAccountType);
-  const [selectedCategory, setSelectedCategory] = useState<string>(
-    initialCategory || INDIVIDUAL_CATEGORIES[0]
+    useState<AccountClassificationType>(initialAccountType || "personal");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(
+    initialCategory || null
   );
 
   // Sync state when opened with initial values
   useEffect(() => {
     if (visible) {
-      setSelectedType(initialAccountType);
-      setSelectedCategory(
-        initialCategory ||
-          (initialAccountType === "organization"
-            ? ORGANIZATION_CATEGORIES[0]
-            : INDIVIDUAL_CATEGORIES[0])
-      );
+      setSelectedType(initialAccountType || "personal");
+      setSelectedCategory(initialCategory || null);
     }
   }, [visible, initialAccountType, initialCategory]);
 
   const handleSelectType = (type: AccountClassificationType) => {
     setSelectedType(type);
-    if (type === "individual") {
-      if (!INDIVIDUAL_CATEGORIES.includes(selectedCategory as any)) {
-        setSelectedCategory(INDIVIDUAL_CATEGORIES[0]);
-      }
-    } else {
-      if (!ORGANIZATION_CATEGORIES.includes(selectedCategory as any)) {
-        setSelectedCategory(ORGANIZATION_CATEGORIES[0]);
-      }
+    const activeList = type === "personal" ? personalCategories : organizationCategories;
+    if (selectedCategory && !activeList.includes(selectedCategory)) {
+      setSelectedCategory(null);
     }
   };
 
+  const isConfirmDisabled = !selectedCategory;
+
   const handleConfirm = () => {
+    if (!selectedCategory) return;
     onConfirm(selectedType, selectedCategory);
     onClose();
   };
@@ -137,14 +122,14 @@ export function AccountClassificationBottomSheet({
           >
             {/* Card 1: Personal Account */}
             <ClassificationOptionCard
-              type="individual"
+              type="personal"
               title="Personal Account"
-              description="For individuals, families, pastors, elders, and worship leaders."
+              description="For individuals, believers, pastors, elders, leaders, and teachers."
               iconName="person"
-              isSelected={selectedType === "individual"}
-              onSelect={() => handleSelectType("individual")}
-              categories={INDIVIDUAL_CATEGORIES}
-              selectedCategory={selectedCategory}
+              isSelected={selectedType === "personal"}
+              onSelect={() => handleSelectType("personal")}
+              categories={personalCategories}
+              selectedCategory={selectedType === "personal" ? selectedCategory : null}
               onSelectCategory={setSelectedCategory}
               subCategoryLabel="Select specific role:"
             />
@@ -153,12 +138,12 @@ export function AccountClassificationBottomSheet({
             <ClassificationOptionCard
               type="organization"
               title="Organization"
-              description="For local congregations, campus fellowships, Christian non-profits, and outreach ministries."
+              description="For local congregations, fellowships, non-profits, businesses, and colleges."
               iconName="church"
               isSelected={selectedType === "organization"}
               onSelect={() => handleSelectType("organization")}
-              categories={ORGANIZATION_CATEGORIES}
-              selectedCategory={selectedCategory}
+              categories={organizationCategories}
+              selectedCategory={selectedType === "organization" ? selectedCategory : null}
               onSelectCategory={setSelectedCategory}
               subCategoryLabel="Select specific category:"
               hasVerifiedBadge
@@ -168,15 +153,31 @@ export function AccountClassificationBottomSheet({
           {/* Action Button */}
           <TouchableOpacity
             onPress={handleConfirm}
+            disabled={isConfirmDisabled}
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel="Confirm Classification"
             style={[
               styles.confirmButton,
-              { backgroundColor: theme.colors.primary },
+              {
+                backgroundColor: isConfirmDisabled
+                  ? theme.dark
+                    ? "rgba(255, 255, 255, 0.12)"
+                    : "rgba(0, 0, 0, 0.12)"
+                  : theme.colors.primary,
+              },
             ]}
           >
-            <Text style={styles.confirmButtonText}>
+            <Text
+              style={[
+                styles.confirmButtonText,
+                {
+                  color: isConfirmDisabled
+                    ? theme.colors.onSurfaceDisabled
+                    : "#FFFFFF",
+                },
+              ]}
+            >
               Confirm
             </Text>
           </TouchableOpacity>
@@ -243,13 +244,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   confirmButtonText: {
-    color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "700",
   },
   footerCaption: {
     fontSize: 11,
     textAlign: "center",
-    marginTop: 8,
+    marginTop: 10,
   },
 });

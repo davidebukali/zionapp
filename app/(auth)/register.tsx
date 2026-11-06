@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -21,6 +21,12 @@ import {
   AuthHeader,
   AuthInput,
 } from "../../components/Auth";
+import {
+  AccountClassificationBottomSheet,
+  AccountClassificationCardRow,
+  AccountClassificationType,
+} from "../../components/Common/AccountClassification";
+import { useAccountTypes } from "../../hooks/useAccountTypes";
 import { saveUserData } from "../../features/auth/authSlice";
 import { useRegisterMutation, useLoginMutation } from "../../features/auth/api";
 import { AppDispatch } from "../../store/store";
@@ -37,6 +43,27 @@ export default function RegisterScreen() {
   const isDark = useColorScheme() === "dark";
 
   const [submissionPhase, setSubmissionPhase] = useState<SubmissionPhase>("idle");
+  const [accountType, setAccountType] = useState<AccountClassificationType | null>(null);
+  const [category, setCategory] = useState<string | null>(null);
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [sheetInitialType, setSheetInitialType] = useState<AccountClassificationType>("personal");
+  const { personalCategories, organizationCategories } = useAccountTypes();
+
+  const handlePressClassificationCard = useCallback(
+    (type: AccountClassificationType) => {
+      setSheetInitialType(type);
+      setSheetVisible(true);
+    },
+    []
+  );
+
+  const handleConfirmClassification = useCallback(
+    (newType: AccountClassificationType, newCategory: string) => {
+      setAccountType(newType);
+      setCategory(newCategory);
+    },
+    []
+  );
 
   const {
     control,
@@ -62,6 +89,8 @@ export default function RegisterScreen() {
         name: trimmedName,
         email: trimmedEmail,
         password: data.password,
+        ...(accountType ? { account_type: accountType } : {}),
+        ...(category ? { category } : {}),
       }).unwrap();
 
       const user =
@@ -205,6 +234,13 @@ export default function RegisterScreen() {
               )}
             />
 
+            <AccountClassificationCardRow
+              accountType={accountType}
+              category={category}
+              isOptional
+              onPressCard={handlePressClassificationCard}
+            />
+
             <View style={styles.spacing} />
 
             <AuthButton
@@ -221,6 +257,16 @@ export default function RegisterScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <AccountClassificationBottomSheet
+        visible={sheetVisible}
+        initialAccountType={sheetInitialType}
+        initialCategory={category}
+        personalCategories={personalCategories}
+        organizationCategories={organizationCategories}
+        onClose={() => setSheetVisible(false)}
+        onConfirm={handleConfirmClassification}
+      />
     </View>
   );
 }

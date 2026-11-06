@@ -1,5 +1,5 @@
 import z from "zod";
-import { Church } from "../users/types";
+import { AccountClassificationType, Church } from "../users/types";
 
 export interface UserProfile {
   id?: string;
@@ -11,7 +11,7 @@ export interface UserProfile {
   cover_media_id?: string | null;
   website?: string | null;
   location?: string | null;
-  account_type?: 'individual' | 'organization' | null;
+  account_type?: AccountClassificationType | null;
   category?: string | null;
   church_id?: string | null;
   church?: Church | null;
@@ -50,6 +50,12 @@ export interface RegisterRequest {
   name: string;
   email: string;
   password: string;
+  account_type?: AccountClassificationType;
+  category?: string;
+  location?: string;
+  church_id?: string;
+  church_name?: string;
+  church_location?: string;
 }
 
 export interface RegisterResponse {

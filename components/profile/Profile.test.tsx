@@ -35,9 +35,11 @@ import { ProfileInfo } from "./ProfileInfo";
 import { ProfileTabs } from "./ProfileTabs";
 import { EditProfileBanner } from "./edit/EditProfileBanner";
 import { ProfileInputField } from "./edit/ProfileInputField";
-import { AccountClassificationCardRow } from "./edit/AccountClassificationCardRow";
-import { AccountClassificationBottomSheet } from "./edit/AccountClassificationBottomSheet";
-import { ClassificationOptionCard } from "./edit/ClassificationOptionCard";
+import {
+  AccountClassificationBottomSheet,
+  AccountClassificationCardRow,
+  ClassificationOptionCard,
+} from "../Common/AccountClassification";
 import { UserProfileData } from "../../features/users/types";
 
 const mockProfile: UserProfileData = {
@@ -247,8 +249,8 @@ describe("components/profile", () => {
       act(() => {
         renderer = ReactTestRenderer.create(
           <AccountClassificationCardRow
-            accountType="individual"
-            category="Pastor / Elder"
+            accountType="personal"
+            category="Pastor"
             onPressCard={onPressCard}
           />
         );
@@ -257,7 +259,7 @@ describe("components/profile", () => {
       const json = JSON.stringify(renderer!.toJSON());
       expect(json).toContain("Personal Account");
       expect(json).toContain("Church / Ministry");
-      expect(json).toContain("Pastor / Elder");
+      expect(json).toContain("Pastor");
       expect(json).toContain("Not selected");
 
       const root = renderer!.root;
@@ -292,7 +294,7 @@ describe("components/profile", () => {
       act(() => {
         renderer = ReactTestRenderer.create(
           <AccountClassificationCardRow
-            accountType="individual"
+            accountType="personal"
             category=""
             onPressCard={jest.fn()}
           />
@@ -313,7 +315,7 @@ describe("components/profile", () => {
         renderer = ReactTestRenderer.create(
           <AccountClassificationBottomSheet
             visible={true}
-            initialAccountType="individual"
+            initialAccountType="personal"
             initialCategory="Believer"
             onClose={onClose}
             onConfirm={onConfirm}
@@ -324,7 +326,7 @@ describe("components/profile", () => {
       const json = JSON.stringify(renderer!.toJSON());
       expect(json).toContain("Account Type");
       expect(json).toContain("Believer");
-      expect(json).toContain("Pastor / Elder");
+      expect(json).toContain("Pastor");
 
       const root = renderer!.root;
       const confirmButton = root.findByProps({
@@ -334,7 +336,7 @@ describe("components/profile", () => {
       act(() => {
         confirmButton.props.onPress();
       });
-      expect(onConfirm).toHaveBeenCalledWith("individual", "Believer");
+      expect(onConfirm).toHaveBeenCalledWith("personal", "Believer");
       expect(onClose).toHaveBeenCalled();
     });
   });
@@ -347,13 +349,13 @@ describe("components/profile", () => {
       act(() => {
         renderer = ReactTestRenderer.create(
           <ClassificationOptionCard
-            type="individual"
+            type="personal"
             title="Personal Account"
-            description="Individual description"
+            description="Personal description"
             iconName="person"
             isSelected={true}
             onSelect={onSelect}
-            categories={["Believer", "Pastor / Elder"]}
+            categories={["Believer", "Pastor"]}
             selectedCategory="Believer"
             onSelectCategory={onSelectCategory}
             subCategoryLabel="Select role:"
@@ -363,10 +365,10 @@ describe("components/profile", () => {
 
       const json = JSON.stringify(renderer!.toJSON());
       expect(json).toContain("Personal Account");
-      expect(json).toContain("Individual description");
+      expect(json).toContain("Personal description");
       expect(json).toContain("SELECTED");
       expect(json).toContain("✓ Believer");
-      expect(json).toContain("Pastor / Elder");
+      expect(json).toContain("Pastor");
     });
   });
 

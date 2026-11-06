@@ -231,7 +231,7 @@ describe("features/users/utils", () => {
           username: "janedoe",
           display_name: "Jane | Designer",
           bio: "Product designer and thinker.",
-          account_type: "individual",
+          account_type: "personal",
           avatar: {
             id: "01J00000000000000000000003",
             url: "https://cdn.example.com/avatars/jane.jpg",
