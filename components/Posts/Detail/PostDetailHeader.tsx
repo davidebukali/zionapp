@@ -55,6 +55,7 @@ export const PostDetailHeader = React.memo(function PostDetailHeader({
         onPressDelete={() => actions.onDelete(post.id)}
         onPressFollowToggle={() => actions.onFollowToggle?.(post)}
         onPressReport={() => actions.onReport?.(post)}
+        onPressShareDM={() => actions.onShareDM?.(post)}
         onPressImage={
           onPressImage && post.imageUrl
             ? () => onPressImage(post.imageUrl!)

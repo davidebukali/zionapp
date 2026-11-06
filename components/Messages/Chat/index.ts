@@ -9,5 +9,9 @@ export * from "./ChatTypingIndicator";
 export * from "./ChatComposer";
 export * from "./ChatMessageList";
 export * from "./ChatThreadOptionsSheet";
+export * from "./ChatPostCard";
+export * from "./ChatPostCardAuthorRow";
+export * from "./ChatPostCardImage";
+export * from "./ChatPostCardStates";
 export * from "./types";
 

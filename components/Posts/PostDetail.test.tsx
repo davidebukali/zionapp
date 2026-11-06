@@ -173,6 +173,24 @@ jest.mock("../../hooks/useReportPost", () => ({
   }),
 }));
 
+jest.mock("../../hooks/useSharePostViaDM", () => ({
+  useSharePostViaDM: () => ({
+    shareTarget: null,
+    isOpen: false,
+    recipients: [],
+    searchQuery: "",
+    setSearchQuery: jest.fn(),
+    handleClearSearch: jest.fn(),
+    openShareDM: jest.fn(),
+    closeShareDM: jest.fn(),
+    handleSelectRecipient: jest.fn(),
+    onLoadMore: jest.fn(),
+    isLoadingMore: false,
+    hasMore: false,
+    isSending: false,
+  }),
+}));
+
 import PostDetailScreen from "../../app/(app)/posts/[postId]/index";
 import PostCard from "./PostCard";
 import { CommentsHeader } from "../Comments/CommentsHeader";

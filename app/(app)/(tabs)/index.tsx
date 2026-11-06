@@ -8,10 +8,12 @@ import { globalStyles } from "../../../assets/styles/theme";
 import { Post } from "../../../features/posts/types";
 import { FeedPostItem, HomeFeedContent } from "../../../components/Posts/Feed";
 import { ReportPostSheet } from "../../../components/Posts/Report";
+import { SharePostBottomSheet } from "../../../components/Posts/Share";
 import { useHomeFeed } from "../../../hooks/useHomeFeed";
 import { useFeedPostActions } from "../../../hooks/useFeedPostActions";
 import { useFeedNewPosts } from "../../../hooks/useFeedNewPosts";
 import { useReportPost } from "../../../hooks/useReportPost";
+import { useSharePostViaDM } from "../../../hooks/useSharePostViaDM";
 
 export default function Index() {
   const theme = useTheme();
@@ -20,7 +22,11 @@ export default function Index() {
 
   const homeFeed = useHomeFeed();
   const reportFlow = useReportPost();
-  const postActions = useFeedPostActions({ onReport: reportFlow.openReport });
+  const shareFlow = useSharePostViaDM();
+  const postActions = useFeedPostActions({
+    onReport: reportFlow.openReport,
+    onShareDM: shareFlow.openShareDM,
+  });
 
   const {
     newPostsCount,
@@ -63,6 +69,19 @@ export default function Index() {
         authorName={reportFlow.reportTarget?.author}
         onClose={reportFlow.closeReport}
         onSelectReason={reportFlow.submitReport}
+      />
+      <SharePostBottomSheet
+        visible={shareFlow.isOpen}
+        post={shareFlow.shareTarget}
+        recipients={shareFlow.recipients}
+        searchQuery={shareFlow.searchQuery}
+        onChangeSearch={shareFlow.setSearchQuery}
+        onClearSearch={shareFlow.handleClearSearch}
+        onSelectRecipient={shareFlow.handleSelectRecipient}
+        onClose={shareFlow.closeShareDM}
+        onLoadMore={shareFlow.onLoadMore}
+        isLoadingMore={shareFlow.isLoadingMore}
+        hasMore={shareFlow.hasMore}
       />
     </View>
   );

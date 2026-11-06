@@ -222,6 +222,48 @@ describe("features/messages/utils", () => {
       expect(result.text).toBe("This message was deleted");
       expect(result.isDeletedForEveryone).toBe(true);
     });
+
+    it("extracts sharedPostId and separates companion text", () => {
+      const raw: BackendMessage = {
+        id: "msg-post-1",
+        conversation_id: "conv-1",
+        sender_id: "user-2",
+        sender: { id: "user-2", name: "Maya", username: "maya" },
+        body: "[zion:post:post-xyz-123] Check this amazing post!",
+        media: [],
+        reply_to: null,
+        reactions: [],
+        is_edited: false,
+        is_deleted_for_everyone: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const result = normalizeMessage(raw, "user-1");
+      expect(result.sharedPostId).toBe("post-xyz-123");
+      expect(result.text).toBe("Check this amazing post!");
+    });
+
+    it("extracts sharedPostId with no companion text", () => {
+      const raw: BackendMessage = {
+        id: "msg-post-2",
+        conversation_id: "conv-1",
+        sender_id: "user-1",
+        sender: { id: "user-1", name: "Me", username: "me" },
+        body: "[zion:post:post-solo-456]",
+        media: [],
+        reply_to: null,
+        reactions: [],
+        is_edited: false,
+        is_deleted_for_everyone: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const result = normalizeMessage(raw, "user-1");
+      expect(result.sharedPostId).toBe("post-solo-456");
+      expect(result.text).toBeUndefined();
+    });
   });
 
   describe("filterConversations", () => {

@@ -13,6 +13,7 @@ export interface FeedPostActions {
   onFollowToggle?: (post: Post) => void;
   onReport?: (post: Post) => void;
   onPressPost?: (postId: string) => void;
+  onShareDM?: (post: Post) => void;
 }
 
 export interface FeedPostItemProps {

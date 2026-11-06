@@ -166,6 +166,9 @@ import {
   ConversationPreview,
   MessagesEmptyState,
   NewMessageBottomSheet,
+  NewMessageSheetHeader,
+  NewMessageRecipientRow,
+  NewMessageEmptyState,
 } from "./index";
 import MessagesScreen from "../../app/(app)/(tabs)/messages";
 
@@ -543,6 +546,103 @@ describe("components/Messages", () => {
       const root = renderer!.root;
       const emptyIcon = root.findAllByProps({ name: "search-outline" });
       expect(emptyIcon.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe("NewMessageSheetHeader", () => {
+    it("renders default title and triggers close", () => {
+      const onClose = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <NewMessageSheetHeader onClose={onClose} />
+        );
+      });
+
+      const root = renderer!.root;
+      expect(root.findByProps({ children: "New Message" })).toBeDefined();
+
+      const closeBtn = root.findByProps({
+        accessibilityLabel: "Close new message",
+      });
+      act(() => {
+        closeBtn.props.onPress();
+      });
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it("renders custom title and subtitle", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <NewMessageSheetHeader
+            title="Share via Direct Message"
+            subtitle="Post by Maya"
+            onClose={jest.fn()}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      expect(
+        root.findByProps({ children: "Share via Direct Message" })
+      ).toBeDefined();
+      expect(root.findByProps({ children: "Post by Maya" })).toBeDefined();
+    });
+  });
+
+  describe("NewMessageRecipientRow", () => {
+    it("renders contact info and triggers haptic press", () => {
+      const onSelect = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <NewMessageRecipientRow
+            contact={MOCK_ACTIVE_CONTACTS[0]}
+            onPress={onSelect}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const row = root.findByProps({
+        accessibilityLabel: "Message Maya Chen",
+      });
+      expect(row).toBeDefined();
+
+      act(() => {
+        row.props.onPress();
+      });
+      expect(Haptics.impactAsync).toHaveBeenCalled();
+      expect(onSelect).toHaveBeenCalledWith(MOCK_ACTIVE_CONTACTS[0]);
+    });
+  });
+
+  describe("NewMessageEmptyState", () => {
+    it("renders search empty state when searchQuery is provided", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <NewMessageEmptyState searchQuery="xyz" />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain('No matching accounts for \\"xyz\\"');
+      expect(json).toContain("search-outline");
+    });
+
+    it("renders following empty state when searchQuery is empty", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <NewMessageEmptyState searchQuery="" />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Follow accounts to start a conversation.");
+      expect(json).toContain("people-outline");
     });
   });
 

@@ -21,12 +21,14 @@ import {
 import { PostDetailHeader, PostImagePreviewModal } from "../../../../components/Posts/Detail";
 import { FollowedUsersBottomSheet } from "../../../../components/Users";
 import { ReportPostSheet } from "../../../../components/Posts/Report";
+import { SharePostBottomSheet } from "../../../../components/Posts/Share";
 import { InfiniteScrollList } from "../../../../components/InfiniteScrollList";
 import { Comment } from "../../../../features/comments/types";
 import { isPostOwnedBy, resolveActivityActor } from "../../../../features/posts/utils";
 import { usePostComments } from "../../../../hooks/usePostComments";
 import { useFeedPostActions } from "../../../../hooks/useFeedPostActions";
 import { useReportPost } from "../../../../hooks/useReportPost";
+import { useSharePostViaDM } from "../../../../hooks/useSharePostViaDM";
 
 export default function PostDetailScreen() {
   const params = useLocalSearchParams<{ postId: string; commentId?: string }>();
@@ -42,7 +44,11 @@ export default function PostDetailScreen() {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const reportFlow = useReportPost();
-  const postActions = useFeedPostActions({ onReport: reportFlow.openReport });
+  const shareFlow = useSharePostViaDM();
+  const postActions = useFeedPostActions({
+    onReport: reportFlow.openReport,
+    onShareDM: shareFlow.openShareDM,
+  });
 
   const {
     post,
@@ -193,6 +199,20 @@ export default function PostDetailScreen() {
         authorName={reportFlow.reportTarget?.author}
         onClose={reportFlow.closeReport}
         onSelectReason={reportFlow.submitReport}
+      />
+
+      <SharePostBottomSheet
+        visible={shareFlow.isOpen}
+        post={shareFlow.shareTarget}
+        recipients={shareFlow.recipients}
+        searchQuery={shareFlow.searchQuery}
+        onChangeSearch={shareFlow.setSearchQuery}
+        onClearSearch={shareFlow.handleClearSearch}
+        onSelectRecipient={shareFlow.handleSelectRecipient}
+        onClose={shareFlow.closeShareDM}
+        onLoadMore={shareFlow.onLoadMore}
+        isLoadingMore={shareFlow.isLoadingMore}
+        hasMore={shareFlow.hasMore}
       />
 
       <PostImagePreviewModal

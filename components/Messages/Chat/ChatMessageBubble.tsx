@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native";
 import { ChatMessageBubbleProps } from "./types";
 import { ChatTextBubble } from "./ChatTextBubble";
 import { ChatMediaBubble } from "./ChatMediaBubble";
+import { ChatPostCard } from "./ChatPostCard";
 import { ChatReactionBadge } from "./ChatReactionBadge";
 import { ChatReadReceipt } from "./ChatReadReceipt";
 
@@ -13,6 +14,7 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
   const {
     isOutgoing,
     text,
+    sharedPostId,
     mediaUrl,
     media,
     reactions,
@@ -32,7 +34,24 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
       ]}
     >
       <View style={styles.bubbleWrapper}>
-        {!isDeletedForEveryone && (mediaUrl || (mediaUrls && mediaUrls.length > 0)) ? (
+        {!isDeletedForEveryone && sharedPostId ? (
+          <View
+            style={[
+              styles.sharedPostWrapper,
+              isOutgoing ? styles.wrapperOutgoing : styles.wrapperIncoming,
+            ]}
+          >
+            {Boolean(text) && (
+              <ChatTextBubble
+                text={text!}
+                isOutgoing={isOutgoing}
+                isDeleted={isDeletedForEveryone}
+                isEdited={isEdited}
+              />
+            )}
+            <ChatPostCard postId={sharedPostId} isOutgoing={isOutgoing} />
+          </View>
+        ) : !isDeletedForEveryone && (mediaUrl || (mediaUrls && mediaUrls.length > 0)) ? (
           <ChatMediaBubble mediaUrl={mediaUrl} mediaUrls={mediaUrls} />
         ) : (
           text && (
@@ -68,5 +87,14 @@ const styles = StyleSheet.create({
   },
   bubbleWrapper: {
     position: "relative",
+  },
+  sharedPostWrapper: {
+    gap: 4,
+  },
+  wrapperIncoming: {
+    alignItems: "flex-start",
+  },
+  wrapperOutgoing: {
+    alignItems: "flex-end",
   },
 });

@@ -6,6 +6,9 @@ export * from "./MessageAvatar";
 export * from "./ConversationPreview";
 export * from "./MessagesEmptyState";
 export * from "./NewMessageBottomSheet";
+export * from "./NewMessageSheetHeader";
+export * from "./NewMessageRecipientRow";
+export * from "./NewMessageEmptyState";
 export * from "./types";
 
 

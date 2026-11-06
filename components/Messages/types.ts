@@ -37,6 +37,8 @@ export interface NewMessageBottomSheetProps {
   onLoadMore: () => void;
   isLoadingMore: boolean;
   hasMore: boolean;
+  title?: string;
+  subtitle?: string;
 }
 
 

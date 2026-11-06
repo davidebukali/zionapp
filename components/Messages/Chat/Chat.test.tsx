@@ -91,6 +91,35 @@ jest.mock("../../../hooks/useChatThread", () => ({
   })),
 }));
 
+jest.mock("react-redux", () => ({
+  useSelector: jest.fn(() => ({})),
+  useDispatch: () => jest.fn(),
+  useStore: () => ({
+    getState: () => ({}),
+    subscribe: () => () => {},
+    dispatch: jest.fn(),
+  }),
+}));
+
+jest.mock("../../../features/posts/api", () => ({
+  useGetPostQuery: jest.fn((postId: string) => ({
+    data: {
+      id: postId,
+      title: "Golden Hour Summit",
+      author: "Jane Doe",
+      authorId: "user-jane",
+      content: "Stunning mountain views from today's trail climb.",
+      createdAt: "2026-11-05T10:00:00Z",
+      imageUrl: "https://example.com/mountain.jpg",
+      likes: "25",
+      comments: "4",
+      liked: false,
+    },
+    isLoading: false,
+    isError: false,
+  })),
+}));
+
 import {
   ChatHeader,
   ChatDateSeparator,
@@ -103,6 +132,11 @@ import {
   ChatComposer,
   ChatMessageList,
   ChatThreadOptionsSheet,
+  ChatPostCard,
+  ChatPostCardAuthorRow,
+  ChatPostCardImage,
+  ChatPostCardLoading,
+  ChatPostCardUnavailable,
 } from "./index";
 import ChatScreen from "../../../app/(app)/messages/[id]";
 import { ChatMessage, OnlineContact } from "../../../features/messages/types";
@@ -511,6 +545,182 @@ describe("components/Messages/Chat", () => {
 
       const sendBtn = root.findByProps({ accessibilityLabel: "Send message" });
       expect(sendBtn).toBeDefined();
+    });
+  });
+
+  describe("ChatPostCard", () => {
+    it("renders post card details with image, author, (1d), truncated body, and navigates on tap", () => {
+      const { router } = require("expo-router");
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatPostCard postId="post-123" isOutgoing={false} />
+        );
+      });
+
+      const root = renderer!.root;
+      const card = root.findByProps({
+        accessibilityLabel: "Post by Jane Doe",
+      });
+      expect(card).toBeDefined();
+
+      // Check author name, relative time, and truncated body
+      expect(root.findByProps({ children: "Jane Doe" })).toBeDefined();
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toMatch(/\(\d+d\)/);
+      expect(
+        root.findByProps({
+          children: "Stunning mountain views from today's trail climb.",
+        })
+      ).toBeDefined();
+
+      act(() => {
+        card.props.onPress();
+      });
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: "/posts/[postId]",
+        params: { postId: "post-123" },
+      });
+    });
+
+    it("renders fallback state when post is unavailable", () => {
+      const { useGetPostQuery } = require("../../../features/posts/api");
+      useGetPostQuery.mockReturnValueOnce({
+        data: null,
+        isLoading: false,
+        isError: true,
+      });
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatPostCard postId="post-deleted" isOutgoing={false} />
+        );
+      });
+
+      const root = renderer!.root;
+      expect(
+        root.findByProps({ children: "This post is unavailable" })
+      ).toBeDefined();
+    });
+  });
+
+  describe("ChatPostCardAuthorRow", () => {
+    it("renders author avatar, name aligned left, and relative timestamp", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatPostCardAuthorRow
+            author="Alice Walker"
+            avatarUrl="https://example.com/alice.jpg"
+            createdAt="2026-11-05T10:00:00Z"
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      expect(root.findByProps({ children: "Alice Walker" })).toBeDefined();
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("https://example.com/alice.jpg");
+      expect(json).toContain("flex-start");
+    });
+
+    it("renders initials fallback when avatarUrl is absent", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatPostCardAuthorRow
+            author="Bob Miller"
+            createdAt="2026-11-06T10:00:00Z"
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("BM");
+      expect(json).toContain("Bob Miller");
+    });
+  });
+
+  describe("ChatPostCardImage", () => {
+    it("renders image with cover mode when imageUrl is given", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatPostCardImage imageUrl="https://example.com/banner.jpg" />
+        );
+      });
+
+      const root = renderer!.root;
+      const img = root.findByProps({ resizeMode: "cover" });
+      expect(img.props.source.uri).toBe("https://example.com/banner.jpg");
+    });
+
+    it("returns null when imageUrl is omitted", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatPostCardImage />
+        );
+      });
+
+      expect(renderer!.toJSON()).toBeNull();
+    });
+  });
+
+  describe("ChatPostCardStates", () => {
+    it("renders loading indicator with card width", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatPostCardLoading width={280} />
+        );
+      });
+
+      const root = renderer!.root;
+      expect(root.findByProps({ size: "small" })).toBeDefined();
+    });
+
+    it("renders unavailable text with card width", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatPostCardUnavailable width={280} />
+        );
+      });
+
+      const root = renderer!.root;
+      expect(root.findByProps({ children: "This post is unavailable" })).toBeDefined();
+    });
+  });
+
+  describe("ChatMessageBubble with sharedPostId", () => {
+    it("renders ChatPostCard and companion text inside the message bubble", () => {
+      const message: ChatMessage = {
+        id: "msg-shared-1",
+        senderId: "user-maya",
+        isOutgoing: false,
+        text: "Check this out!",
+        timestamp: "10:30",
+        sharedPostId: "post-123",
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMessageBubble message={message} />
+        );
+      });
+
+      const root = renderer!.root;
+      const postCard = root.findByProps({
+        accessibilityLabel: "Post by Jane Doe",
+      });
+      expect(postCard).toBeDefined();
+
+      // Companion text is rendered above the post card
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Check this out!");
     });
   });
 });

@@ -13,6 +13,7 @@ import { FeedPostActions } from "../components/Posts/Feed/types";
 
 interface UseFeedPostActionsOptions {
   onReport?: (post: Post) => void;
+  onShareDM?: (post: Post) => void;
 }
 
 export function useFeedPostActions(
@@ -141,6 +142,20 @@ export function useFeedPostActions(
     [unfollowAuthor]
   );
 
+  const handleShareDM = useCallback(
+    (post: Post) => {
+      if (options?.onShareDM) {
+        options.onShareDM(post);
+      } else {
+        router.push({
+          pathname: "/(app)/(tabs)/messages" as any,
+          params: { sharePostId: post.id },
+        });
+      }
+    },
+    [options?.onShareDM, router]
+  );
+
   return useMemo(
     () => ({
       onLike: handleLike,
@@ -152,6 +167,7 @@ export function useFeedPostActions(
       onFollowToggle: handleFollowToggle,
       onReport: options?.onReport,
       onPressPost: handlePressPost,
+      onShareDM: handleShareDM,
     }),
     [
       handleLike,
@@ -162,6 +178,7 @@ export function useFeedPostActions(
       handleEdit,
       handleDelete,
       handleFollowToggle,
+      handleShareDM,
       options?.onReport,
     ]
   );

@@ -309,6 +309,7 @@ export interface ChatMessage {
   senderId: string;
   isOutgoing: boolean;
   text?: string;
+  sharedPostId?: string;
   mediaUrl?: string;
   media?: BackendMessageMedia[];
   replyTo?: BackendMessageReply | null;

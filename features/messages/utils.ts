@@ -138,6 +138,8 @@ export function normalizeConversation(
   };
 }
 
+export const ZION_POST_TAG_REGEX = /\[zion:post:([a-zA-Z0-9_-]+)\]/;
+
 /**
  * Normalizes a backend message record into the UI ChatMessage model.
  */
@@ -150,9 +152,22 @@ export function normalizeMessage(
     String(raw.sender_id) === String(currentUserId);
 
   const isDeleted = Boolean(raw.is_deleted_for_everyone);
+  const rawBody = raw.body ?? undefined;
+  let sharedPostId: string | undefined;
+  let cleanedText = rawBody;
+
+  if (!isDeleted && rawBody) {
+    const match = rawBody.match(ZION_POST_TAG_REGEX);
+    if (match) {
+      sharedPostId = match[1];
+      const stripped = rawBody.replace(ZION_POST_TAG_REGEX, "").trim();
+      cleanedText = stripped.length > 0 ? stripped : undefined;
+    }
+  }
+
   const text = isDeleted
     ? "This message was deleted"
-    : raw.body ?? undefined;
+    : cleanedText;
 
   const mediaUrl =
     !isDeleted && raw.media && raw.media.length > 0
@@ -170,6 +185,7 @@ export function normalizeMessage(
     senderId: String(raw.sender_id),
     isOutgoing,
     text,
+    sharedPostId,
     mediaUrl,
     media: isDeleted ? [] : raw.media,
     replyTo: raw.reply_to || null,

@@ -50,6 +50,23 @@ jest.mock("../../../hooks/useReportPost", () => ({
     submitReport: jest.fn(),
   })),
 }));
+jest.mock("../../../hooks/useSharePostViaDM", () => ({
+  useSharePostViaDM: jest.fn(() => ({
+    shareTarget: null,
+    isOpen: false,
+    recipients: [],
+    searchQuery: "",
+    setSearchQuery: jest.fn(),
+    handleClearSearch: jest.fn(),
+    openShareDM: jest.fn(),
+    closeShareDM: jest.fn(),
+    handleSelectRecipient: jest.fn(),
+    onLoadMore: jest.fn(),
+    isLoadingMore: false,
+    hasMore: false,
+    isSending: false,
+  })),
+}));
 jest.mock("react-redux", () => ({
   useSelector: jest.fn((selector) =>
     selector({
@@ -59,6 +76,13 @@ jest.mock("react-redux", () => ({
     })
   ),
   useDispatch: () => jest.fn(),
+  useStore: () => ({
+    getState: () => ({
+      auth: { user: { id: "user-1", name: "Alice" } },
+    }),
+    subscribe: () => () => {},
+    dispatch: jest.fn(),
+  }),
 }));
 
 import { FeedPostItem } from "./FeedPostItem";
