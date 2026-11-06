@@ -71,7 +71,7 @@ describe("AccountClassification Components", () => {
       });
 
       const json = JSON.stringify(renderer!.toJSON());
-      expect(json).toContain("ACCOUNT TYPE (OPTIONAL)");
+      expect(json).toContain("Account Type (Optional)");
       expect(json).toContain("Personal Account");
       expect(json).toContain("Church / Ministry");
       expect(json).toContain("Not selected");

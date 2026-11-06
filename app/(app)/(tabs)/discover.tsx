@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -26,8 +26,9 @@ import { ReportPostSheet } from "../../../components/Posts/Report/ReportPostShee
 import { SharePostBottomSheet } from "../../../components/Posts/Share/SharePostBottomSheet";
 import { Post } from "../../../features/posts/types";
 import { useDiscover } from "../../../hooks/useDiscover";
+import { useAccountTypes } from "../../../hooks/useAccountTypes";
 
-const CATEGORIES = [
+const FALLBACK_CATEGORIES = [
   "All",
   "Churches",
   "Ministries",
@@ -44,6 +45,22 @@ const DISCOVER_TABS = [
 export default function Discover() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { personalCategories, organizationCategories, isError: isAccountTypesError } =
+    useAccountTypes();
+
+  const categories = useMemo(() => {
+    if (isAccountTypesError) {
+      return FALLBACK_CATEGORIES;
+    }
+
+    const dynamicCategories = Array.from(
+      new Set([...personalCategories, ...organizationCategories])
+    );
+
+    return dynamicCategories.length > 0
+      ? ["All", ...dynamicCategories]
+      : FALLBACK_CATEGORIES;
+  }, [personalCategories, organizationCategories, isAccountTypesError]);
 
   const {
     activeTab,
@@ -148,7 +165,7 @@ export default function Discover() {
           style={styles.tabsContainer}
         />
         <DiscoverFilterBar
-          categories={CATEGORIES}
+          categories={categories}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
         />
