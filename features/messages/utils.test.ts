@@ -2,6 +2,7 @@ import {
   applyReactionEventToMessage,
   filterConversations,
   filterRecipients,
+  formatConversationPreviewText,
   formatMessageTimestamp,
   getAvatarColor,
   getInitials,
@@ -13,6 +14,7 @@ import {
   normalizeConversation,
   normalizeMessage,
   normalizeRecipient,
+  POST_SHARE_PREVIEW_TEXT,
   updateMessageInCache,
 } from "./utils";
 import {
@@ -173,6 +175,72 @@ describe("features/messages/utils", () => {
 
       const result = normalizeConversation(raw, "user-1");
       expect(result.lastMessage.text).toBe("This message was deleted");
+    });
+
+    it("formats incoming post share preview cleanly as 'shared a post'", () => {
+      const raw: BackendConversation = {
+        id: "conv-post-incoming",
+        unread_count: 1,
+        is_archived: false,
+        is_muted: false,
+        recipient: { id: "user-2", name: "Jane", username: "jane" },
+        last_message: {
+          id: "msg-post-1",
+          sender_id: "user-2",
+          body: "[zion:post:post-999]",
+          created_at: new Date().toISOString(),
+        },
+      };
+
+      const result = normalizeConversation(raw, "user-1");
+      expect(result.lastMessage.text).toBe("shared a post");
+      expect(result.lastMessage.type).toBe("text");
+    });
+
+    it("formats outgoing post share preview cleanly as 'shared a post' with outgoing type", () => {
+      const raw: BackendConversation = {
+        id: "conv-post-outgoing",
+        unread_count: 0,
+        is_archived: false,
+        is_muted: false,
+        recipient: { id: "user-2", name: "Jane", username: "jane" },
+        last_message: {
+          id: "msg-post-2",
+          sender_id: "user-1",
+          body: "zion:post:post-888",
+          created_at: new Date().toISOString(),
+        },
+      };
+
+      const result = normalizeConversation(raw, "user-1");
+      expect(result.lastMessage.text).toBe("shared a post");
+      expect(result.lastMessage.type).toBe("outgoing");
+    });
+  });
+
+  describe("formatConversationPreviewText", () => {
+    it("converts bracketed post share tag to 'shared a post'", () => {
+      expect(formatConversationPreviewText("[zion:post:post-123]")).toBe(
+        POST_SHARE_PREVIEW_TEXT
+      );
+    });
+
+    it("converts unbracketed post share tag to 'shared a post'", () => {
+      expect(formatConversationPreviewText("zion:post:post-123")).toBe(
+        POST_SHARE_PREVIEW_TEXT
+      );
+    });
+
+    it("converts post share tag with companion text to 'shared a post'", () => {
+      expect(
+        formatConversationPreviewText("[zion:post:post-123] Look at this!")
+      ).toBe(POST_SHARE_PREVIEW_TEXT);
+    });
+
+    it("leaves standard text messages unchanged", () => {
+      expect(formatConversationPreviewText("Hey, what are you up to?")).toBe(
+        "Hey, what are you up to?"
+      );
     });
   });
 
@@ -511,6 +579,48 @@ describe("features/messages/utils", () => {
       expect(dispatch).toHaveBeenCalledTimes(2);
       undo();
       expect(fakeUndo).toHaveBeenCalledTimes(2);
+    });
+
+    it("insertMessageInCache updates conversation lastMessage to 'shared a post' when message has sharedPostId", () => {
+      const fakeUndo = jest.fn();
+      const dispatch = jest.fn().mockReturnValue({ undo: fakeUndo });
+      let conversationDraft: any;
+
+      const api = {
+        util: {
+          updateQueryData: jest.fn().mockImplementation((endpoint, arg, updater) => {
+            if (endpoint === "getConversations") {
+              conversationDraft = {
+                conversations: [
+                  {
+                    id: "c-1",
+                    unreadCount: 0,
+                    lastMessage: { text: "old", type: "text", timestamp: "1m" },
+                  },
+                ],
+              };
+              updater(conversationDraft);
+            }
+            return { type: "patch" };
+          }),
+        },
+      };
+
+      const postShareMsg: ChatMessage = {
+        id: "m-post-share",
+        senderId: "u-1",
+        isOutgoing: true,
+        sharedPostId: "post-123",
+        timestamp: "Just now",
+      };
+
+      insertMessageInCache(api, dispatch, "c-1", postShareMsg);
+      expect(conversationDraft.conversations[0].lastMessage.text).toBe(
+        POST_SHARE_PREVIEW_TEXT
+      );
+      expect(conversationDraft.conversations[0].lastMessage.type).toBe(
+        "outgoing"
+      );
     });
 
     it("updateMessageInCache updates message in draft", () => {

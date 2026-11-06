@@ -108,7 +108,7 @@ export function normalizeConversation(
       previewText = "This message was deleted";
       previewType = "text";
     } else if (raw.last_message.body) {
-      previewText = raw.last_message.body;
+      previewText = formatConversationPreviewText(raw.last_message.body);
       previewType = isOutgoing ? "outgoing" : "text";
     } else {
       previewText = "Attachment";
@@ -138,7 +138,20 @@ export function normalizeConversation(
   };
 }
 
-export const ZION_POST_TAG_REGEX = /\[zion:post:([a-zA-Z0-9_-]+)\]/;
+export const POST_SHARE_PREVIEW_TEXT = "shared a post";
+
+export const ZION_POST_TAG_REGEX = /\[?zion:post:([a-zA-Z0-9_-]+)\]?/;
+
+/**
+ * Normalizes raw message body text into conversation preview text.
+ * Renders post share messages cleanly as "shared a post".
+ */
+export function formatConversationPreviewText(body: string): string {
+  if (ZION_POST_TAG_REGEX.test(body)) {
+    return POST_SHARE_PREVIEW_TEXT;
+  }
+  return body;
+}
 
 /**
  * Normalizes a backend message record into the UI ChatMessage model.
@@ -390,8 +403,16 @@ export function insertMessageInCache(
         );
         if (convIndex !== -1) {
           const conv = draft.conversations[convIndex];
+          const previewText = message.sharedPostId
+            ? POST_SHARE_PREVIEW_TEXT
+            : message.text
+              ? formatConversationPreviewText(message.text)
+              : message.mediaUrl
+                ? "Photo"
+                : "";
+
           conv.lastMessage = {
-            text: message.text || (message.mediaUrl ? "Photo" : ""),
+            text: previewText,
             type: message.isOutgoing ? "outgoing" : "text",
             timestamp: message.timestamp || "Just now",
           };
