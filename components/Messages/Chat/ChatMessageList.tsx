@@ -22,12 +22,13 @@ export const ChatMessageList = React.memo(function ChatMessageList({
     <FlatList
       ref={listRef}
       data={messages}
+      inverted
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => <ChatMessageBubble message={item} />}
-      ListHeaderComponent={<ChatDateSeparator label={dateLabel} />}
-      ListFooterComponent={
+      ListHeaderComponent={
         <ChatTypingIndicator participant={participant} visible={isTyping} />
       }
+      ListFooterComponent={<ChatDateSeparator label={dateLabel} />}
       onEndReached={hasMore && !isLoadingMore ? onLoadMore : undefined}
       onEndReachedThreshold={0.2}
       contentContainerStyle={styles.contentContainer}

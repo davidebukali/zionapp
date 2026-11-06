@@ -1,5 +1,5 @@
 import React from "react";
-import { TouchableOpacity } from "react-native";
+import { FlatList, TouchableOpacity } from "react-native";
 import ReactTestRenderer, { act } from "react-test-renderer";
 
 jest.mock("@expo/vector-icons/Ionicons", () => "Ionicons");
@@ -522,6 +522,8 @@ describe("components/Messages/Chat", () => {
       });
 
       const root = renderer!.root;
+      const flatList = root.findByType(FlatList);
+      expect(flatList.props.inverted).toBe(true);
       expect(root.findByProps({ label: "Today · 9:12" })).toBeDefined();
       expect(root.findByProps({ visible: true })).toBeDefined();
     });

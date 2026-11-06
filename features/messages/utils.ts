@@ -305,8 +305,8 @@ export function mergeMessagesCache(
   const uniqueIncoming = newItems.messages.filter(
     (m) => !existingIds.has(m.id)
   );
-  // Chronological order: older messages prepended or appended based on cursor
-  currentCache.messages = [...uniqueIncoming, ...currentCache.messages];
+  // Reverse-chronological order (newest first for inverted FlatList): older messages appended
+  currentCache.messages = [...currentCache.messages, ...uniqueIncoming];
   currentCache.nextCursor = newItems.nextCursor;
 }
 
@@ -373,7 +373,7 @@ export function insertMessageInCache(
         if (!draft || !draft.messages) return;
         const exists = draft.messages.some((m) => m.id === message.id);
         if (!exists) {
-          draft.messages.push(message);
+          draft.messages.unshift(message);
         }
       }
     )

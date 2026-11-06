@@ -368,29 +368,29 @@ describe("features/messages/utils", () => {
       expect(current.nextCursor).toBe("cursor-3");
     });
 
-    it("merges messages cache and prepends older messages", () => {
-      const msg1: ChatMessage = {
+    it("merges messages cache and appends older messages in reverse-chronological order", () => {
+      const msgOlder: ChatMessage = {
         id: "m-1",
         senderId: "u-1",
         isOutgoing: false,
-        text: "first",
+        text: "older",
         timestamp: "9:00",
       };
-      const msg2: ChatMessage = {
+      const msgNewer: ChatMessage = {
         id: "m-2",
         senderId: "u-1",
         isOutgoing: false,
-        text: "second",
+        text: "newer",
         timestamp: "9:01",
       };
 
-      const current: MessagesResult = { messages: [msg2], nextCursor: "c-1" };
-      const next: MessagesResult = { messages: [msg1], nextCursor: "c-2" };
+      const current: MessagesResult = { messages: [msgNewer], nextCursor: "c-1" };
+      const next: MessagesResult = { messages: [msgOlder], nextCursor: "c-2" };
 
       mergeMessagesCache(current, next, "c-1");
       expect(current.messages).toHaveLength(2);
-      expect(current.messages[0].id).toBe("m-1");
-      expect(current.messages[1].id).toBe("m-2");
+      expect(current.messages[0].id).toBe("m-2");
+      expect(current.messages[1].id).toBe("m-1");
     });
   });
 
@@ -472,14 +472,28 @@ describe("features/messages/utils", () => {
   });
 
   describe("Dependency-Injected Cache Updaters", () => {
-    it("insertMessageInCache dispatches updateQueryData on api", () => {
+    it("insertMessageInCache unshifts new message to front of cache and dispatches updateQueryData", () => {
       const fakeUndo = jest.fn();
       const dispatch = jest.fn().mockReturnValue({ undo: fakeUndo });
       const api = {
         util: {
           updateQueryData: jest.fn().mockImplementation((endpoint, arg, updater) => {
-            const draft = { messages: [] as ChatMessage[], conversations: [] as any[] };
-            updater(draft);
+            if (endpoint === "getMessages") {
+              const existingMsg: ChatMessage = {
+                id: "m-existing",
+                senderId: "u-1",
+                isOutgoing: false,
+                text: "existing",
+                timestamp: "9:00",
+              };
+              const draft = { messages: [existingMsg] as ChatMessage[] };
+              updater(draft);
+              expect(draft.messages[0].id).toBe("m-new");
+              expect(draft.messages[1].id).toBe("m-existing");
+            } else if (endpoint === "getConversations") {
+              const draft = { conversations: [] as any[] };
+              updater(draft);
+            }
             return { type: "patch" };
           }),
         },
