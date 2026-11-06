@@ -16,6 +16,7 @@ export const FeedPostItem = React.memo(function FeedPostItem({
       title={post.title}
       createdAt={post.createdAt}
       body={post.content}
+      truncateBody={true}
       avatarUrl={post.avatarUrl}
       imageUrl={post.imageUrl}
       mediaWidth={post.mediaWidth}

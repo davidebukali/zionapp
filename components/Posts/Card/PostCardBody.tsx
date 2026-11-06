@@ -5,6 +5,7 @@ import { Card, useTheme } from "react-native-paper";
 import { globalStyles, postTokens } from "../../../assets/styles/theme";
 import { LaravelMedia } from "../../../features/posts/types";
 import { MediaCollage } from "../../Common/MediaCollage";
+import { ExpandableText } from "../../Common/ExpandableText";
 
 interface PostCardBodyProps {
   body?: string;
@@ -16,6 +17,8 @@ interface PostCardBodyProps {
   onPressBody?: () => void;
   onPressImage?: () => void;
   onPressImageIndex?: (index: number) => void;
+  truncateBody?: boolean;
+  maxTruncatedLines?: number;
 }
 
 export function PostCardBody({
@@ -28,6 +31,8 @@ export function PostCardBody({
   onPressBody,
   onPressImage,
   onPressImageIndex,
+  truncateBody = false,
+  maxTruncatedLines = 3,
 }: PostCardBodyProps) {
   const theme = useTheme();
 
@@ -50,24 +55,34 @@ export function PostCardBody({
   return (
     <>
       {body ? (
-        <TouchableOpacity
-          disabled={!onPressBody}
-          onPress={onPressBody}
-          activeOpacity={0.8}
-          accessibilityRole={onPressBody ? "button" : undefined}
-          accessibilityLabel={onPressBody ? "View post details" : undefined}
+        <Card.Content
+          style={[
+            globalStyles.postBodyContent,
+            hasMedia ? { paddingBottom: 12 } : null,
+          ]}
         >
-          <Card.Content
-            style={[
-              globalStyles.postBodyContent,
-              hasMedia ? { paddingBottom: 12 } : null,
-            ]}
-          >
-            <Text style={[globalStyles.postBodyText, { color: theme.colors.onSurface }]}>
-              {body}
-            </Text>
-          </Card.Content>
-        </TouchableOpacity>
+          {truncateBody ? (
+            <ExpandableText
+              text={body}
+              maxLines={maxTruncatedLines}
+              isTruncationEnabled={true}
+              onPressText={onPressBody}
+              textStyle={[globalStyles.postBodyText, { color: theme.colors.onSurface }]}
+            />
+          ) : (
+            <TouchableOpacity
+              disabled={!onPressBody}
+              onPress={onPressBody}
+              activeOpacity={0.8}
+              accessibilityRole={onPressBody ? "button" : undefined}
+              accessibilityLabel={onPressBody ? "View post details" : undefined}
+            >
+              <Text style={[globalStyles.postBodyText, { color: theme.colors.onSurface }]}>
+                {body}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </Card.Content>
       ) : null}
 
       {isMultiMedia && media ? (

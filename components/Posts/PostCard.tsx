@@ -47,6 +47,8 @@ export function PostCard({
   onPressBody,
   onPressImage,
   onPressImageIndex,
+  truncateBody,
+  maxTruncatedLines,
 }: PostCardProps) {
   const theme = useTheme();
 
@@ -117,6 +119,8 @@ export function PostCard({
         onPressBody={onPressBody}
         onPressImage={onPressImage}
         onPressImageIndex={onPressImageIndex}
+        truncateBody={truncateBody}
+        maxTruncatedLines={maxTruncatedLines}
       />
 
       <PostCardFooter

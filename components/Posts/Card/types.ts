@@ -49,6 +49,10 @@ export interface PostCardProps extends Partial<PostCardActionsProps> {
   onPressImage?: () => void;
   onPressImageIndex?: (index: number) => void;
 
+  // Truncation options
+  truncateBody?: boolean;
+  maxTruncatedLines?: number;
+
   // Legacy callback aliases for seamless backwards-compatibility
   onLike?: () => void;
   onComment?: () => void;

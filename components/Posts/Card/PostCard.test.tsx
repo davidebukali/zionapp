@@ -368,4 +368,44 @@ describe("PostCard & Action components", () => {
     });
     expect(handlePressImageIndex).toHaveBeenCalledWith(1);
   });
+
+  it("truncates body with 'Read more' and expands without triggering onPressBody", () => {
+    const handlePressBody = jest.fn();
+    const longBody = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
+
+    let tree: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      tree = ReactTestRenderer.create(
+        <PostCard
+          title="Jane Doe"
+          createdAt="2026-10-30T10:00:00Z"
+          body={longBody}
+          truncateBody={true}
+          maxTruncatedLines={3}
+          onPressBody={handlePressBody}
+        />
+      );
+    });
+
+    const root = tree!.root;
+    const readMoreButton = root.findByProps({ accessibilityLabel: "Read more" });
+    expect(readMoreButton).toBeDefined();
+
+    // Tapping 'Read more' should NOT fire handlePressBody
+    act(() => {
+      readMoreButton.props.onPress();
+    });
+    expect(handlePressBody).not.toHaveBeenCalled();
+
+    // Now button should show 'Show less'
+    const showLessButton = root.findByProps({ accessibilityLabel: "Show less" });
+    expect(showLessButton).toBeDefined();
+
+    // Tapping the body itself SHOULD fire handlePressBody
+    const bodyButton = root.findByProps({ accessibilityLabel: "View post details" });
+    act(() => {
+      bodyButton.props.onPress();
+    });
+    expect(handlePressBody).toHaveBeenCalledTimes(1);
+  });
 });
