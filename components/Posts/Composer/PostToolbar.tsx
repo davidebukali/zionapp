@@ -8,6 +8,7 @@ import { globalStyles } from "../../../assets/styles/theme";
 
 interface PostToolbarProps {
   onPickMedia: () => void;
+  onOpenMentions?: () => void;
   onOpenEmoji: () => void;
   remainingChars: number;
   disabled: boolean;
@@ -15,6 +16,7 @@ interface PostToolbarProps {
 
 export function PostToolbar({
   onPickMedia,
+  onOpenMentions,
   onOpenEmoji,
   remainingChars,
   disabled,
@@ -48,6 +50,7 @@ export function PostToolbar({
         <TouchableOpacity
           accessibilityLabel="Mention"
           style={globalStyles.postIconButton}
+          onPress={onOpenMentions}
           disabled={disabled}
           activeOpacity={0.7}
         >

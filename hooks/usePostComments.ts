@@ -1,4 +1,9 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  NativeSyntheticEvent,
+  TextInputSelectionChangeEventData,
+} from "react-native";
 import { useSelector } from "react-redux";
 
 import {
@@ -10,6 +15,12 @@ import {
 } from "../features/comments/api";
 import { Comment } from "../features/comments/types";
 import { postsApi, useGetPostQuery } from "../features/posts/api";
+import { TaggableUser } from "../features/users/types";
+import {
+  replaceMentionAtCursor,
+  shouldTriggerMentionSheet,
+  syncTaggedUserIds,
+} from "../features/users/utils";
 import { RootState } from "../store/store";
 import { getErrorMessage } from "../utils/network";
 import { getUserAvatarUrl, getUserInitials } from "../utils/user";
@@ -28,6 +39,13 @@ export function usePostComments(postId: string) {
   const [replyingTo, setReplyingTo] = useState<ReplyingToTarget | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Mention and tagging state
+  const [isMentionSheetVisible, setIsMentionSheetVisible] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [hadTypedAtSymbol, setHadTypedAtSymbol] = useState(false);
+  const taggedUsersMap = useRef<Map<string, string>>(new Map());
+  const [taggedUserIds, setTaggedUserIds] = useState<string[]>([]);
 
   // Authenticated user profile
   const authUser = useSelector((state: RootState) => state.auth.user);
@@ -110,6 +128,34 @@ export function usePostComments(postId: string) {
     postId,
   ]);
 
+  // Selection change tracking for cursor position
+  const handleSelectionChange = useCallback(
+    (event: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
+      setCursorPosition(event.nativeEvent.selection.start);
+    },
+    []
+  );
+
+  // Draft change handler detecting '@' trigger and syncing active mentions
+  const handleDraftChange = useCallback(
+    (newText: string) => {
+      const isAddingChar = newText.length > draft.length;
+      setDraft(newText);
+
+      const activeIds = syncTaggedUserIds(newText, taggedUsersMap.current);
+      setTaggedUserIds(activeIds);
+
+      if (isAddingChar) {
+        const textBeforeCursor = newText.slice(0, cursorPosition + 1);
+        if (shouldTriggerMentionSheet(textBeforeCursor)) {
+          setHadTypedAtSymbol(true);
+          setIsMentionSheetVisible(true);
+        }
+      }
+    },
+    [cursorPosition, draft.length]
+  );
+
   // Select reply target
   const handleSelectReply = useCallback(
     (targetComment: Comment, topLevelParent?: Comment) => {
@@ -124,12 +170,19 @@ export function usePostComments(postId: string) {
         authorName: targetComment.author,
       });
 
+      if (targetComment.userId) {
+        taggedUsersMap.current.set(targetUsername, String(targetComment.userId));
+      }
+
       setDraft((previousDraft) => {
         const mention = `@${targetUsername} `;
-        if (previousDraft.startsWith(mention)) {
-          return previousDraft;
-        }
-        return `${mention}${previousDraft.replace(/^@\w+\s*/, "")}`;
+        const newDraft = previousDraft.startsWith(mention)
+          ? previousDraft
+          : `${mention}${previousDraft.replace(/^@\w+\s*/, "")}`;
+
+        const activeIds = syncTaggedUserIds(newDraft, taggedUsersMap.current);
+        setTaggedUserIds(activeIds);
+        return newDraft;
       });
     },
     []
@@ -138,8 +191,47 @@ export function usePostComments(postId: string) {
   // Cancel reply target
   const handleCancelReply = useCallback(() => {
     setReplyingTo(null);
-    setDraft((previousDraft) => previousDraft.replace(/^@\w+\s*/, ""));
+    setDraft((previousDraft) => {
+      const newDraft = previousDraft.replace(/^@\w+\s*/, "");
+      const activeIds = syncTaggedUserIds(newDraft, taggedUsersMap.current);
+      setTaggedUserIds(activeIds);
+      return newDraft;
+    });
   }, []);
+
+  // Select taggable user from bottom sheet
+  const handleSelectMention = useCallback(
+    (selectedUser: TaggableUser) => {
+      if (
+        taggedUserIds.length >= 20 &&
+        !taggedUserIds.includes(selectedUser.id)
+      ) {
+        Alert.alert(
+          "Limit Reached",
+          "You can tag up to 20 people in a comment."
+        );
+        return;
+      }
+
+      taggedUsersMap.current.set(selectedUser.username, selectedUser.id);
+
+      const { newText, newCursorPosition } = replaceMentionAtCursor(
+        draft,
+        cursorPosition,
+        selectedUser.username,
+        hadTypedAtSymbol
+      );
+
+      setDraft(newText);
+      setCursorPosition(newCursorPosition);
+
+      const updatedIds = syncTaggedUserIds(newText, taggedUsersMap.current);
+      setTaggedUserIds(updatedIds);
+
+      setIsMentionSheetVisible(false);
+    },
+    [cursorPosition, draft, hadTypedAtSymbol, taggedUserIds]
+  );
 
   // Submit comment or reply
   const handleSubmitComment = useCallback(async () => {
@@ -152,19 +244,34 @@ export function usePostComments(postId: string) {
           commentId: replyingTo.topLevelParentId,
           postId,
           content: trimmed,
+          ...(taggedUserIds.length > 0
+            ? { tagged_user_ids: taggedUserIds }
+            : {}),
         }).unwrap();
         setReplyingTo(null);
       } else {
         await createComment({
           postId,
           content: trimmed,
+          ...(taggedUserIds.length > 0
+            ? { tagged_user_ids: taggedUserIds }
+            : {}),
         }).unwrap();
       }
       setDraft("");
+      setTaggedUserIds([]);
     } catch {
       // Handled by mutation error state
     }
-  }, [createComment, createReply, draft, isSubmitting, postId, replyingTo]);
+  }, [
+    createComment,
+    createReply,
+    draft,
+    isSubmitting,
+    postId,
+    replyingTo,
+    taggedUserIds,
+  ]);
 
   // Like comment
   const handleLikeComment = useCallback(
@@ -202,5 +309,11 @@ export function usePostComments(postId: string) {
     cancelReply: handleCancelReply,
     submitComment: handleSubmitComment,
     likeComment: handleLikeComment,
+    handleDraftChange,
+    handleSelectionChange,
+    isMentionSheetVisible,
+    setIsMentionSheetVisible,
+    handleSelectMention,
+    taggedUserIds,
   };
 }

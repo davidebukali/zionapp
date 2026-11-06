@@ -160,6 +160,7 @@ export interface CreatePostRequest {
   content: string;
   media_ids?: string[];
   visibility?: PostVisibility;
+  tagged_user_ids?: string[];
 }
 
 export interface CreatePostResponse {

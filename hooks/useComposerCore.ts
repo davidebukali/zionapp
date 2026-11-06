@@ -1,5 +1,9 @@
-import { useState, useMemo, useCallback } from "react";
-import { Alert } from "react-native";
+import { useState, useMemo, useCallback, useRef } from "react";
+import {
+  Alert,
+  NativeSyntheticEvent,
+  TextInputSelectionChangeEventData,
+} from "react-native";
 import { useSelector } from "react-redux";
 import * as ImagePicker from "expo-image-picker";
 import { EmojiType } from "rn-emoji-keyboard";
@@ -8,6 +12,12 @@ import { RootState } from "../store/store";
 import { MAX_CHARACTERS, MAX_MEDIA } from "../constants";
 import { MediaItem } from "../utils/mediaUploader";
 import { getUserInitials, getUserAvatarUrl } from "../utils/user";
+import { TaggableUser } from "../features/users/types";
+import {
+  replaceMentionAtCursor,
+  shouldTriggerMentionSheet,
+  syncTaggedUserIds,
+} from "../features/users/utils";
 
 export function useComposerCore() {
   const [content, setContent] = useState("");
@@ -16,6 +26,13 @@ export function useComposerCore() {
   const [reviewIndex, setReviewIndex] = useState(0);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
+  // Mention sheet and tagging state
+  const [isMentionSheetVisible, setIsMentionSheetVisible] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [hadTypedAtSymbol, setHadTypedAtSymbol] = useState(false);
+  const taggedUsersMap = useRef<Map<string, string>>(new Map());
+  const [taggedUserIds, setTaggedUserIds] = useState<string[]>([]);
+
   // Authenticated user initials & avatar
   const user = useSelector((state: RootState) => state.auth.user);
   const initials = useMemo(
@@ -23,6 +40,78 @@ export function useComposerCore() {
     [user?.name, user?.email]
   );
   const avatarUrl = useMemo(() => getUserAvatarUrl(user), [user]);
+
+  // Selection change tracking for cursor position
+  const handleSelectionChange = useCallback(
+    (event: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
+      setCursorPosition(event.nativeEvent.selection.start);
+    },
+    []
+  );
+
+  // Content change handler detecting '@' trigger and syncing active mentions
+  const handleContentChange = useCallback(
+    (newText: string) => {
+      const textCapped = newText.slice(0, MAX_CHARACTERS);
+      const isAddingChar = textCapped.length > content.length;
+      setContent(textCapped);
+
+      const activeIds = syncTaggedUserIds(textCapped, taggedUsersMap.current);
+      setTaggedUserIds(activeIds);
+
+      if (isAddingChar) {
+        const textBeforeCursor = textCapped.slice(0, cursorPosition + 1);
+        if (shouldTriggerMentionSheet(textBeforeCursor)) {
+          setHadTypedAtSymbol(true);
+          setIsMentionSheetVisible(true);
+          return;
+        }
+      }
+    },
+    [content.length, cursorPosition]
+  );
+
+  const handleOpenMentions = useCallback(() => {
+    setHadTypedAtSymbol(false);
+    setIsMentionSheetVisible(true);
+  }, []);
+
+  const handleCloseMentions = useCallback(() => {
+    setIsMentionSheetVisible(false);
+  }, []);
+
+  const handleSelectTaggableUser = useCallback(
+    (selectedUser: TaggableUser) => {
+      if (
+        taggedUserIds.length >= 20 &&
+        !taggedUserIds.includes(selectedUser.id)
+      ) {
+        Alert.alert(
+          "Limit Reached",
+          "You can tag up to 20 people in a single post."
+        );
+        return;
+      }
+
+      taggedUsersMap.current.set(selectedUser.username, selectedUser.id);
+
+      const { newText, newCursorPosition } = replaceMentionAtCursor(
+        content,
+        cursorPosition,
+        selectedUser.username,
+        hadTypedAtSymbol
+      );
+
+      setContent(newText.slice(0, MAX_CHARACTERS));
+      setCursorPosition(newCursorPosition);
+
+      const updatedIds = syncTaggedUserIds(newText, taggedUsersMap.current);
+      setTaggedUserIds(updatedIds);
+
+      setIsMentionSheetVisible(false);
+    },
+    [content, cursorPosition, hadTypedAtSymbol, taggedUserIds]
+  );
 
   // Media picking
   const pickMedia = useCallback(async () => {
@@ -90,6 +179,9 @@ export function useComposerCore() {
   return {
     content,
     setContent,
+    handleContentChange,
+    cursorPosition,
+    handleSelectionChange,
     mediaItems,
     setMediaItems,
     isReviewModalVisible,
@@ -99,6 +191,11 @@ export function useComposerCore() {
     openReviewModal,
     isEmojiPickerOpen,
     setIsEmojiPickerOpen,
+    isMentionSheetVisible,
+    handleOpenMentions,
+    handleCloseMentions,
+    handleSelectTaggableUser,
+    taggedUserIds,
     pickMedia,
     removeAllMedia,
     deleteReviewItem,

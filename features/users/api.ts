@@ -11,15 +11,20 @@ import {
   ChurchesResponse,
   FollowResponse,
   GetChurchesParams,
+  GetTaggableUsersParams,
   SearchUsersParams,
   SearchUsersResponse,
+  TaggableUsersResponse,
+  TaggableUsersResult,
   UnblockUserResponse,
   UnfollowResponse,
   UpdateProfilePayload,
   UserBlockRecord,
 } from "./types";
 import {
+  mergeTaggableUsersCache,
   normalizeDiscoverAccount,
+  normalizeTaggableUser,
   updateProfileFollowInCaches,
   updateUserInCaches,
 } from "./utils";
@@ -283,6 +288,49 @@ export const usersApi = baseApi.injectEndpoints({
       },
       providesTags: [{ type: "User", id: "BLOCKS" }],
     }),
+
+    getTaggableUsers: builder.query<
+      TaggableUsersResult,
+      GetTaggableUsersParams | void
+    >({
+      query: (params) => {
+        const queryParams: Record<string, string | number> = {
+          per_page: params?.per_page ?? 20,
+        };
+        if (params?.q && params.q.trim()) {
+          queryParams.q = params.q.trim();
+        }
+        if (params?.cursor) {
+          queryParams.cursor = params.cursor;
+        }
+
+        return {
+          url: "/users/taggable",
+          method: "GET",
+          params: queryParams,
+        };
+      },
+      transformResponse: (
+        response: TaggableUsersResponse
+      ): TaggableUsersResult => {
+        const rawUsers = Array.isArray(response?.data) ? response.data : [];
+        return {
+          users: rawUsers.map(normalizeTaggableUser),
+          nextCursor:
+            response?.meta?.meta?.next_cursor ??
+            (response?.meta as any)?.next_cursor ??
+            null,
+        };
+      },
+      serializeQueryArgs: ({ endpointName }) => endpointName,
+      merge: (currentCache, newItems, { arg }) => {
+        mergeTaggableUsersCache(currentCache, newItems, arg?.cursor);
+      },
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.cursor !== previousArg?.cursor ||
+        currentArg?.q !== previousArg?.q,
+      providesTags: [{ type: "User", id: "TAGGABLE" }],
+    }),
   }),
   overrideExisting: true,
 });
@@ -305,5 +353,7 @@ export const {
   useUnblockUserMutation,
   useGetBlockedUsersQuery,
   useLazyGetBlockedUsersQuery,
+  useGetTaggableUsersQuery,
+  useLazyGetTaggableUsersQuery,
 } = usersApi;
 

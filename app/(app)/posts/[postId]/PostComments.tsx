@@ -15,6 +15,7 @@ import {
   CommentItem,
   CommentsHeader,
 } from "../../../../components/Comments";
+import { FollowedUsersBottomSheet } from "../../../../components/Users";
 import { InfiniteScrollList } from "../../../../components/InfiniteScrollList";
 import { Comment } from "../../../../features/comments/types";
 import { usePostComments } from "../../../../hooks/usePostComments";
@@ -44,6 +45,11 @@ export default function PostComments() {
     cancelReply,
     submitComment,
     likeComment,
+    handleDraftChange,
+    handleSelectionChange,
+    isMentionSheetVisible,
+    setIsMentionSheetVisible,
+    handleSelectMention,
   } = usePostComments(postId ?? "");
 
   const renderComment = useCallback(
@@ -108,8 +114,14 @@ export default function PostComments() {
         isSubmitting={isSubmitting}
         replyingTo={replyingTo}
         onCancelReply={cancelReply}
-        onChangeText={setDraft}
+        onChangeText={handleDraftChange}
+        onSelectionChange={handleSelectionChange}
         onSubmit={submitComment}
+      />
+      <FollowedUsersBottomSheet
+        visible={isMentionSheetVisible}
+        onClose={() => setIsMentionSheetVisible(false)}
+        onSelectUser={handleSelectMention}
       />
     </KeyboardAvoidingView>
   );

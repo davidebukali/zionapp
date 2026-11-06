@@ -1,5 +1,14 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  NativeSyntheticEvent,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextInputSelectionChangeEventData,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Avatar, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -13,6 +22,9 @@ type CommentInputProps = {
   replyingTo?: { username: string } | null;
   onCancelReply?: () => void;
   onChangeText: (value: string) => void;
+  onSelectionChange?: (
+    event: NativeSyntheticEvent<TextInputSelectionChangeEventData>
+  ) => void;
   onSubmit: () => void;
 };
 
@@ -24,6 +36,7 @@ export function CommentInput({
   replyingTo,
   onCancelReply,
   onChangeText,
+  onSelectionChange,
   onSubmit,
 }: CommentInputProps) {
   const theme = useTheme();
@@ -96,6 +109,7 @@ export function CommentInput({
             placeholderTextColor={theme.colors.onSurfaceVariant}
             value={value}
             onChangeText={onChangeText}
+            onSelectionChange={onSelectionChange}
             onSubmitEditing={onSubmit}
             style={[globalStyles.commentComposerInput, { color: theme.colors.onSurface }]}
           />

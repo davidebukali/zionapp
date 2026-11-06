@@ -1,6 +1,13 @@
 import { DiscoverAccount } from "../../components/Discover/types";
 import { getUserAvatarUrl, getUserInitials } from "../../utils/user";
-import { BackendProfile, BackendUser, UserProfileData } from "./types";
+import {
+  BackendProfile,
+  BackendTaggableUser,
+  BackendUser,
+  TaggableUser,
+  TaggableUsersResult,
+  UserProfileData,
+} from "./types";
 
 /**
  * Normalizes a raw BackendProfile or BackendUser into a strongly typed UserProfileData model.
@@ -167,5 +174,115 @@ export function updateProfileFollowInCaches(
     patches.forEach((p) => p.undo());
   };
 }
+
+/**
+ * Normalizes a raw BackendTaggableUser from GET /users/taggable to client TaggableUser model.
+ */
+export function normalizeTaggableUser(raw: BackendTaggableUser): TaggableUser {
+  const displayName =
+    raw.profile?.display_name?.trim() || raw.name?.trim() || "Member";
+  const username =
+    raw.profile?.username?.trim() ||
+    raw.name?.toLowerCase().replace(/\s+/g, "") ||
+    "user";
+  const initials = getUserInitials(displayName, raw.email || undefined);
+  const avatarUrl = raw.profile?.avatar?.url || null;
+
+  return {
+    id: String(raw.id),
+    name: displayName,
+    username,
+    avatarUrl,
+    initials,
+    isFollowing: raw.is_following ?? false,
+  };
+}
+
+/**
+ * Merges paginated taggable users into RTK Query cache avoiding duplicates by ID.
+ */
+export function mergeTaggableUsersCache(
+  currentCache: TaggableUsersResult,
+  incoming: TaggableUsersResult,
+  cursor?: string | null
+): void {
+  if (!cursor) {
+    currentCache.users = incoming.users;
+    currentCache.nextCursor = incoming.nextCursor;
+    return;
+  }
+
+  const existingIds = new Set(currentCache.users.map((user) => user.id));
+  const uniqueIncoming = incoming.users.filter(
+    (user) => !existingIds.has(user.id)
+  );
+  currentCache.users = [...currentCache.users, ...uniqueIncoming];
+  currentCache.nextCursor = incoming.nextCursor;
+}
+
+/**
+ * Synchronizes active @username mentions in content with registered tagged user IDs.
+ * Deduplicates and caps at a maximum of 20 IDs.
+ */
+export function syncTaggedUserIds(
+  content: string,
+  taggedUsersMap: Map<string, string>
+): string[] {
+  if (!content || taggedUsersMap.size === 0) {
+    return [];
+  }
+
+  const mentionRegex = /@([a-zA-Z0-9_.-]+)/g;
+  const activeUsernames = new Set<string>();
+  let match: RegExpExecArray | null;
+
+  while ((match = mentionRegex.exec(content)) !== null) {
+    activeUsernames.add(match[1]);
+  }
+
+  const matchedIds = new Set<string>();
+  for (const username of activeUsernames) {
+    const userId = taggedUsersMap.get(username);
+    if (userId) {
+      matchedIds.add(userId);
+    }
+  }
+
+  return Array.from(matchedIds).slice(0, 20);
+}
+
+/**
+ * Inserts or replaces @username at the current cursor position.
+ * If hadTypedAtSymbol is true, replaces the preceding '@' character to avoid '@@username'.
+ */
+export function replaceMentionAtCursor(
+  text: string,
+  cursorPosition: number,
+  username: string,
+  hadTypedAtSymbol: boolean
+): { newText: string; newCursorPosition: number } {
+  const safeCursor = Math.max(0, Math.min(cursorPosition, text.length));
+  const mentionText = `@${username} `;
+
+  let start = safeCursor;
+  if (hadTypedAtSymbol && safeCursor > 0 && text.charAt(safeCursor - 1) === "@") {
+    start = safeCursor - 1;
+  }
+
+  const before = text.slice(0, start);
+  const after = text.slice(safeCursor);
+  const newText = `${before}${mentionText}${after}`;
+  const newCursorPosition = start + mentionText.length;
+
+  return { newText, newCursorPosition };
+}
+
+/**
+ * Checks whether the text up to cursor ends with an '@' preceded by start-of-line or whitespace.
+ */
+export function shouldTriggerMentionSheet(textBeforeCursor: string): boolean {
+  return /(?:^|\s)@$/.test(textBeforeCursor);
+}
+
 
 

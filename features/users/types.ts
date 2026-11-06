@@ -208,3 +208,65 @@ export interface BlockedUsersListResponse {
   } | null;
 }
 
+export interface TaggableUserProfile {
+  id: string;
+  user_id: string;
+  username: string;
+  display_name?: string | null;
+  bio?: string | null;
+  account_type?: string | null;
+  avatar?: {
+    id?: string;
+    url?: string | null;
+  } | null;
+}
+
+export interface BackendTaggableUser {
+  id: string;
+  name: string;
+  email?: string | null;
+  is_following?: boolean;
+  profile?: TaggableUserProfile | null;
+}
+
+export interface TaggableUser {
+  id: string;
+  name: string;
+  username: string;
+  avatarUrl?: string | null;
+  initials: string;
+  isFollowing?: boolean;
+}
+
+export interface GetTaggableUsersParams {
+  q?: string;
+  per_page?: number;
+  cursor?: string | null;
+}
+
+export interface TaggableUsersResponse {
+  success: boolean;
+  message: string;
+  data: BackendTaggableUser[];
+  meta?: {
+    links?: {
+      first?: string | null;
+      last?: string | null;
+      prev?: string | null;
+      next?: string | null;
+    };
+    meta?: {
+      path?: string;
+      per_page?: number;
+      next_cursor?: string | null;
+      prev_cursor?: string | null;
+    };
+  } | null;
+}
+
+export interface TaggableUsersResult {
+  users: TaggableUser[];
+  nextCursor: string | null;
+}
+
+

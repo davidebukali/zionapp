@@ -45,3 +45,4 @@
 - **Always ask for permission before coding**
 - **Never commit code**
 - Always use intuitive variable and function names. Never use letters for a variable name like a, b and c. These make code difficult to read.
+- Always check global utilities in /utils folder for reuseable code. Create more if needed. Refactor existing code to use them if applicable.

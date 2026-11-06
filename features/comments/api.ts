@@ -90,13 +90,14 @@ export const commentsApi = baseApi.injectEndpoints({
     }),
 
     createComment: builder.mutation<Comment, CreateCommentRequest>({
-      query: ({ postId, content, media_ids, parent_comment_id }) => ({
+      query: ({ postId, content, media_ids, parent_comment_id, tagged_user_ids }) => ({
         url: `/posts/${postId}/comments`,
         method: 'POST',
         body: {
           content,
           ...(media_ids && media_ids.length > 0 ? { media_ids } : {}),
           ...(parent_comment_id ? { parent_comment_id } : {}),
+          ...(tagged_user_ids && tagged_user_ids.length > 0 ? { tagged_user_ids } : {}),
         },
       }),
       transformResponse: (response: SingleCommentResponse): Comment =>
@@ -117,11 +118,12 @@ export const commentsApi = baseApi.injectEndpoints({
     }),
 
     createReply: builder.mutation<Comment, CreateReplyRequest>({
-      query: ({ commentId, content }) => ({
+      query: ({ commentId, content, tagged_user_ids }) => ({
         url: `/comments/${commentId}/replies`,
         method: 'POST',
         body: {
           content,
+          ...(tagged_user_ids && tagged_user_ids.length > 0 ? { tagged_user_ids } : {}),
         },
       }),
       transformResponse: (response: SingleCommentResponse): Comment =>

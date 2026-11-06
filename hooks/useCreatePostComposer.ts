@@ -23,7 +23,7 @@ const POST_VISIBILITY_KEY = "preferred_post_visibility";
  */
 export function useCreatePostComposer() {
   const composer = useComposerCore();
-  const { content, mediaItems, hasContent } = composer;
+  const { content, mediaItems, hasContent, taggedUserIds } = composer;
 
   const [isPosting, setIsPosting] = useState(false);
   const [postingStatus, setPostingStatus] = useState<string | null>(null);
@@ -96,6 +96,7 @@ export function useCreatePostComposer() {
         content: trimmed,
         visibility,
         ...(mediaIds.length > 0 ? { media_ids: mediaIds } : {}),
+        ...(taggedUserIds.length > 0 ? { tagged_user_ids: taggedUserIds } : {}),
       }).unwrap();
 
       router.back();
@@ -117,6 +118,7 @@ export function useCreatePostComposer() {
     getMediaStatus,
     getMediaUploadUrl,
     mediaItems,
+    taggedUserIds,
     visibility,
   ]);
 

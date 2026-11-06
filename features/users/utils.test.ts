@@ -1,10 +1,15 @@
 import {
+  mergeTaggableUsersCache,
   normalizeDiscoverAccount,
+  normalizeTaggableUser,
   normalizeUserProfile,
+  replaceMentionAtCursor,
+  shouldTriggerMentionSheet,
+  syncTaggedUserIds,
   updateProfileFollowInCaches,
   updateUserInCaches,
 } from "./utils";
-import { BackendProfile, BackendUser } from "./types";
+import { BackendProfile, BackendTaggableUser, BackendUser, TaggableUsersResult } from "./types";
 import { DiscoverAccount } from "../../components/Discover/types";
 
 describe("features/users/utils", () => {
@@ -210,6 +215,170 @@ describe("features/users/utils", () => {
 
       undo();
       expect(undoMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("normalizeTaggableUser", () => {
+    it("normalizes a full BackendTaggableUser with profile", () => {
+      const raw: BackendTaggableUser = {
+        id: "01J00000000000000000000001",
+        name: "Jane Doe",
+        email: "jane@example.com",
+        is_following: true,
+        profile: {
+          id: "01J00000000000000000000002",
+          user_id: "01J00000000000000000000001",
+          username: "janedoe",
+          display_name: "Jane | Designer",
+          bio: "Product designer and thinker.",
+          account_type: "individual",
+          avatar: {
+            id: "01J00000000000000000000003",
+            url: "https://cdn.example.com/avatars/jane.jpg",
+          },
+        },
+      };
+
+      const result = normalizeTaggableUser(raw);
+
+      expect(result.id).toBe("01J00000000000000000000001");
+      expect(result.name).toBe("Jane | Designer");
+      expect(result.username).toBe("janedoe");
+      expect(result.avatarUrl).toBe("https://cdn.example.com/avatars/jane.jpg");
+      expect(result.initials).toBe("J|");
+      expect(result.isFollowing).toBe(true);
+    });
+
+    it("falls back gracefully when profile is missing", () => {
+      const raw: BackendTaggableUser = {
+        id: "01J00000000000000000000002",
+        name: "Mark Stone",
+        email: "mark@example.com",
+        is_following: false,
+        profile: null,
+      };
+
+      const result = normalizeTaggableUser(raw);
+
+      expect(result.id).toBe("01J00000000000000000000002");
+      expect(result.name).toBe("Mark Stone");
+      expect(result.username).toBe("markstone");
+      expect(result.avatarUrl).toBeNull();
+      expect(result.initials).toBe("MS");
+      expect(result.isFollowing).toBe(false);
+    });
+  });
+
+  describe("mergeTaggableUsersCache", () => {
+    it("replaces cache when no cursor is provided", () => {
+      const currentCache: TaggableUsersResult = {
+        users: [
+          { id: "1", name: "User 1", username: "u1", initials: "U1", avatarUrl: null },
+        ],
+        nextCursor: "cursor-1",
+      };
+
+      const incoming: TaggableUsersResult = {
+        users: [
+          { id: "2", name: "User 2", username: "u2", initials: "U2", avatarUrl: null },
+        ],
+        nextCursor: "cursor-2",
+      };
+
+      mergeTaggableUsersCache(currentCache, incoming, null);
+
+      expect(currentCache.users).toHaveLength(1);
+      expect(currentCache.users[0].id).toBe("2");
+      expect(currentCache.nextCursor).toBe("cursor-2");
+    });
+
+    it("appends unique items when cursor is present", () => {
+      const currentCache: TaggableUsersResult = {
+        users: [
+          { id: "1", name: "User 1", username: "u1", initials: "U1", avatarUrl: null },
+        ],
+        nextCursor: "cursor-1",
+      };
+
+      const incoming: TaggableUsersResult = {
+        users: [
+          { id: "1", name: "User 1", username: "u1", initials: "U1", avatarUrl: null },
+          { id: "2", name: "User 2", username: "u2", initials: "U2", avatarUrl: null },
+        ],
+        nextCursor: "cursor-2",
+      };
+
+      mergeTaggableUsersCache(currentCache, incoming, "cursor-1");
+
+      expect(currentCache.users).toHaveLength(2);
+      expect(currentCache.users[0].id).toBe("1");
+      expect(currentCache.users[1].id).toBe("2");
+      expect(currentCache.nextCursor).toBe("cursor-2");
+    });
+  });
+
+  describe("syncTaggedUserIds", () => {
+    it("extracts matching active user IDs and removes unmentioned ones", () => {
+      const map = new Map<string, string>();
+      map.set("alice", "id-alice");
+      map.set("bob", "id-bob");
+      map.set("carol", "id-carol");
+
+      const content = "Hello @alice and @bob!";
+      const activeIds = syncTaggedUserIds(content, map);
+
+      expect(activeIds).toEqual(["id-alice", "id-bob"]);
+      expect(activeIds).not.toContain("id-carol");
+    });
+
+    it("caps at a maximum of 20 IDs", () => {
+      const map = new Map<string, string>();
+      let content = "";
+      for (let i = 1; i <= 25; i++) {
+        map.set(`user${i}`, `id-${i}`);
+        content += `@user${i} `;
+      }
+
+      const activeIds = syncTaggedUserIds(content, map);
+      expect(activeIds).toHaveLength(20);
+    });
+
+    it("returns empty array for empty content or empty map", () => {
+      expect(syncTaggedUserIds("", new Map())).toEqual([]);
+    });
+  });
+
+  describe("replaceMentionAtCursor", () => {
+    it("replaces typed @ at cursor without double @", () => {
+      const text = "Hello @";
+      const result = replaceMentionAtCursor(text, 7, "janedoe", true);
+
+      expect(result.newText).toBe("Hello @janedoe ");
+      expect(result.newCursorPosition).toBe(15);
+    });
+
+    it("inserts @username at cursor when opened via toolbar", () => {
+      const text = "Hello world";
+      const result = replaceMentionAtCursor(text, 5, "janedoe", false);
+
+      expect(result.newText).toBe("Hello@janedoe  world");
+      expect(result.newCursorPosition).toBe(14);
+    });
+  });
+
+  describe("shouldTriggerMentionSheet", () => {
+    it("triggers on start-of-line @", () => {
+      expect(shouldTriggerMentionSheet("@")).toBe(true);
+    });
+
+    it("triggers on whitespace followed by @", () => {
+      expect(shouldTriggerMentionSheet("Hello @")).toBe(true);
+      expect(shouldTriggerMentionSheet("Line 1\n@")).toBe(true);
+    });
+
+    it("does NOT trigger for email addresses or mid-word @", () => {
+      expect(shouldTriggerMentionSheet("john@")).toBe(false);
+      expect(shouldTriggerMentionSheet("contact@example.com")).toBe(false);
     });
   });
 });

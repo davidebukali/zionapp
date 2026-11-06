@@ -83,12 +83,14 @@ export interface CreateCommentRequest {
   content: string;
   media_ids?: string[];
   parent_comment_id?: string;
+  tagged_user_ids?: string[];
 }
 
 export interface CreateReplyRequest {
   commentId: string;
   postId: string;
   content: string;
+  tagged_user_ids?: string[];
 }
 
 

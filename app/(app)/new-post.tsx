@@ -18,6 +18,7 @@ import { PostVisibilityDropdown } from "../../components/Posts/Composer/PostVisi
 import { MediaCollage } from "../../components/Posts/Composer/MediaCollage";
 import { MediaReviewModal } from "../../components/Posts/Composer/MediaReviewModal";
 import { PostToolbar } from "../../components/Posts/Composer/PostToolbar";
+import { FollowedUsersBottomSheet } from "../../components/Users";
 
 export default function NewPostScreen() {
   const insets = useSafeAreaInsets();
@@ -25,7 +26,8 @@ export default function NewPostScreen() {
 
   const {
     content,
-    setContent,
+    handleContentChange,
+    handleSelectionChange,
     mediaItems,
     visibility,
     setVisibility,
@@ -40,6 +42,10 @@ export default function NewPostScreen() {
     isEmojiPickerOpen,
     setIsEmojiPickerOpen,
     handleEmojiSelected,
+    isMentionSheetVisible,
+    handleOpenMentions,
+    handleCloseMentions,
+    handleSelectTaggableUser,
     isPosting,
     postingStatus,
     handlePublish,
@@ -110,7 +116,8 @@ export default function NewPostScreen() {
             placeholder="What is happening?"
             placeholderTextColor={theme.colors.onSurfaceVariant}
             value={content}
-            onChangeText={setContent}
+            onChangeText={handleContentChange}
+            onSelectionChange={handleSelectionChange}
             maxLength={3000}
             editable={!isPosting}
             style={[
@@ -135,6 +142,7 @@ export default function NewPostScreen() {
         {/* Bottom Toolbar */}
         <PostToolbar
           onPickMedia={pickMedia}
+          onOpenMentions={handleOpenMentions}
           onOpenEmoji={handleOpenEmoji}
           remainingChars={remainingChars}
           disabled={isPosting}
@@ -149,6 +157,13 @@ export default function NewPostScreen() {
         onIndexChange={setReviewIndex}
         onClose={() => setIsReviewModalVisible(false)}
         onDeleteItem={deleteReviewItem}
+      />
+
+      {/* Taggable Users Bottom Sheet */}
+      <FollowedUsersBottomSheet
+        visible={isMentionSheetVisible}
+        onClose={handleCloseMentions}
+        onSelectUser={handleSelectTaggableUser}
       />
 
       {/* Emoji Keyboard Picker */}
