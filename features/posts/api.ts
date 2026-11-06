@@ -17,6 +17,8 @@ import {
   CheckNewerFeedResponse,
   ReportPostRequest,
   ReportPostResponse,
+  SearchPostsParams,
+  SearchPostsResult,
 } from './types';
 import {
   normalizePost,
@@ -402,6 +404,38 @@ export const postsApi = baseApi.injectEndpoints({
     }),
 
     /**
+     * Search posts matching query keywords.
+     */
+    searchPosts: builder.query<SearchPostsResult, SearchPostsParams>({
+      query: ({ q, page = 1, per_page = 15 }) => ({
+        url: '/search',
+        params: {
+          type: 'posts',
+          q: q.trim() || '*',
+          page,
+          per_page,
+        },
+      }),
+      transformResponse: (response: any): SearchPostsResult => {
+        const rawPosts = Array.isArray(response?.data) ? response.data : [];
+        const meta = response?.meta?.meta || response?.meta || {};
+        return {
+          posts: rawPosts.map((rawPost: any) => normalizePost(rawPost)),
+          total: meta?.total,
+          lastPage: meta?.last_page,
+          currentPage: meta?.current_page,
+        };
+      },
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.posts.map(({ id }) => ({ type: 'Post' as const, id })),
+              { type: 'Post', id: 'SEARCH_LIST' },
+            ]
+          : [{ type: 'Post', id: 'SEARCH_LIST' }],
+    }),
+
+    /**
      * Report an abusive or inappropriate post.
      */
     reportPost: builder.mutation<ReportPostResponse, ReportPostRequest>({
@@ -438,4 +472,6 @@ export const {
   useReportPostMutation,
   useCheckNewerFeedQuery,
   useLazyCheckNewerFeedQuery,
+  useSearchPostsQuery,
+  useLazySearchPostsQuery,
 } = postsApi;

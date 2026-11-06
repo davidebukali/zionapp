@@ -119,6 +119,28 @@ describe("Discover UI Components", () => {
       const json = JSON.stringify(tree.toJSON());
       expect(json).toContain("Search people, churches, ministries...");
     });
+
+    it("renders clear button and clears search when tapped", () => {
+      const onClear = jest.fn();
+      const tree = ReactTestRenderer.create(
+        <DiscoverSearchBar
+          value="Grace"
+          onChangeText={jest.fn()}
+          onClear={onClear}
+        />
+      );
+
+      const clearBtn = tree.root.findByProps({
+        accessibilityLabel: "Clear search text",
+      });
+      expect(clearBtn).toBeDefined();
+
+      act(() => {
+        clearBtn.props.onPress();
+      });
+
+      expect(onClear).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("DiscoverFilterBar", () => {

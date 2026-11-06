@@ -12,9 +12,12 @@ export interface DiscoverAccount {
   isFollowing: boolean;
 }
 
+export type DiscoverTabType = "accounts" | "posts";
+
 export interface DiscoverSearchBarProps {
   value?: string;
   onChangeText?: (text: string) => void;
+  onClear?: () => void;
   placeholder?: string;
 }
 

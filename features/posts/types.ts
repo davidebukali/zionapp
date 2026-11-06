@@ -249,3 +249,16 @@ export interface ReportPostResponse {
   meta: null;
 }
 
+export interface SearchPostsParams {
+  q: string;
+  page?: number;
+  per_page?: number;
+}
+
+export interface SearchPostsResult {
+  posts: Post[];
+  total?: number;
+  lastPage?: number;
+  currentPage?: number;
+}
+
