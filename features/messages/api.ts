@@ -184,7 +184,30 @@ export const messagesApi = baseApi.injectEndpoints({
 
     deleteConversation: builder.mutation<void, string>({
       query: (id) => ({ url: `/conversations/${id}`, method: "DELETE" }),
-      invalidatesTags: [{ type: "Conversation", id: "LIST" }],
+      invalidatesTags: (_result, _error, id) => [
+        { type: "Conversation", id: "LIST" },
+        { type: "Conversation", id },
+        { type: "Message", id: `LIST_${id}` },
+      ],
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        const undoPatch = dispatch(
+          messagesApi.util.updateQueryData(
+            "getMessages",
+            { conversationId: id },
+            (draft) => {
+              if (draft) {
+                draft.messages = [];
+                draft.nextCursor = null;
+              }
+            }
+          )
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          undoPatch.undo();
+        }
+      },
     }),
 
     reportConversation: builder.mutation<void, ReportRequest>({

@@ -231,7 +231,10 @@ export function useChatThread(targetId?: string) {
       cursor,
       currentUserId,
     },
-    { skip: !resolvedConversationId || !token }
+    {
+      skip: !resolvedConversationId || !token,
+      refetchOnMountOrArgChange: true,
+    }
   );
 
   const messages: ChatMessage[] = useMemo(
