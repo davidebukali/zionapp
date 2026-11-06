@@ -15,7 +15,7 @@ import { globalStyles } from "../../assets/styles/theme";
 import { useCreatePostComposer } from "../../hooks/useCreatePostComposer";
 import { PostHeader } from "../../components/Posts/Composer/PostHeader";
 import { PostVisibilityDropdown } from "../../components/Posts/Composer/PostVisibilityDropdown";
-import { MediaCollage } from "../../components/Posts/Composer/MediaCollage";
+import { MediaCollage } from "../../components/Common/MediaCollage";
 import { MediaReviewModal } from "../../components/Posts/Composer/MediaReviewModal";
 import { PostToolbar } from "../../components/Posts/Composer/PostToolbar";
 import { FollowedUsersBottomSheet } from "../../components/Users";

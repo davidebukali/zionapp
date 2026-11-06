@@ -16,7 +16,7 @@ import EmojiPicker from "rn-emoji-keyboard";
 import { globalStyles } from "../../../../assets/styles/theme";
 import { useEditPostComposer } from "../../../../hooks/useEditPostComposer";
 import { PostHeader } from "../../../../components/Posts/Composer/PostHeader";
-import { MediaCollage } from "../../../../components/Posts/Composer/MediaCollage";
+import { MediaCollage } from "../../../../components/Common/MediaCollage";
 import { MediaReviewModal } from "../../../../components/Posts/Composer/MediaReviewModal";
 import { PostToolbar } from "../../../../components/Posts/Composer/PostToolbar";
 

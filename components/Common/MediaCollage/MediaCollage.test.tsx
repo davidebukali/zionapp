@@ -17,7 +17,7 @@ jest.mock("react-native-paper", () => {
   };
 });
 
-describe("MediaCollage", () => {
+describe("components/Common/MediaCollage", () => {
   it("renders null when items is empty", () => {
     let renderer: ReactTestRenderer.ReactTestRenderer;
     act(() => {
@@ -101,7 +101,6 @@ describe("MediaCollage", () => {
     });
 
     const root = renderer!.root;
-    // 5 items with 3 visible slots -> overlay shows "+2"
     expect(root.findByProps({ children: "+2" })).toBeDefined();
   });
 
@@ -137,3 +136,4 @@ describe("MediaCollage", () => {
     expect(handleRemoveAll).toHaveBeenCalledTimes(1);
   });
 });
+

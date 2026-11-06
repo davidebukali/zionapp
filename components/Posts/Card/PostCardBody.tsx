@@ -4,7 +4,7 @@ import { Card, useTheme } from "react-native-paper";
 
 import { globalStyles, postTokens } from "../../../assets/styles/theme";
 import { LaravelMedia } from "../../../features/posts/types";
-import { MediaCollage } from "../Composer/MediaCollage";
+import { MediaCollage } from "../../Common/MediaCollage";
 
 interface PostCardBodyProps {
   body?: string;
