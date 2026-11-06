@@ -56,6 +56,7 @@ export interface Comment {
   id: string;
   postId: string;
   userId?: string | null;
+  parentCommentId?: string | null;
   author: string;
   username: string;
   body: string;
@@ -72,11 +73,22 @@ export interface CommentsResult {
   nextCursor?: string | null;
 }
 
+export interface CommentRepliesResult {
+  replies: Comment[];
+  nextCursor?: string | null;
+}
+
 export interface CreateCommentRequest {
   postId: string;
   content: string;
   media_ids?: string[];
   parent_comment_id?: string;
+}
+
+export interface CreateReplyRequest {
+  commentId: string;
+  postId: string;
+  content: string;
 }
 
 

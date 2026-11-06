@@ -2,16 +2,22 @@ import { baseApi } from '../../services/baseApi';
 import { postsApi } from '../posts/api';
 import {
   Comment,
+  CommentRepliesResult,
   CommentsResponse,
   CommentsResult,
   CreateCommentRequest,
+  CreateReplyRequest,
   SingleCommentResponse,
 } from './types';
 import {
   normalizeComment,
   mergeCommentsCache,
+  mergeCommentRepliesCache,
   updateCommentInCache,
+  updateReplyInCache,
   insertCommentInCache,
+  insertReplyInCache,
+  incrementCommentReplyCount,
   incrementPostCommentCount,
 } from './utils';
 
@@ -50,6 +56,39 @@ export const commentsApi = baseApi.injectEndpoints({
       ],
     }),
 
+    getCommentReplies: builder.query<
+      CommentRepliesResult,
+      { commentId: string; cursor?: string | null; perPage?: number }
+    >({
+      query: ({ commentId, cursor, perPage = 15 }) => {
+        const params: Record<string, string | number> = { per_page: perPage };
+        if (cursor) {
+          params.cursor = cursor;
+        }
+        return {
+          url: `/comments/${commentId}/replies`,
+          method: 'GET',
+          params,
+        };
+      },
+      transformResponse: (response: CommentsResponse): CommentRepliesResult => {
+        const rawComments = Array.isArray(response?.data) ? response.data : [];
+        return {
+          replies: rawComments.map(normalizeComment),
+          nextCursor: response?.meta?.meta?.next_cursor ?? null,
+        };
+      },
+      serializeQueryArgs: ({ queryArgs }) => queryArgs.commentId,
+      merge: (currentCache, newItems, { arg }) => {
+        mergeCommentRepliesCache(currentCache, newItems, arg?.cursor);
+      },
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.cursor !== previousArg?.cursor,
+      providesTags: (result, error, { commentId }) => [
+        { type: 'Comment', id: `REPLIES_${commentId}` },
+      ],
+    }),
+
     createComment: builder.mutation<Comment, CreateCommentRequest>({
       query: ({ postId, content, media_ids, parent_comment_id }) => ({
         url: `/posts/${postId}/comments`,
@@ -77,20 +116,52 @@ export const commentsApi = baseApi.injectEndpoints({
       ],
     }),
 
+    createReply: builder.mutation<Comment, CreateReplyRequest>({
+      query: ({ commentId, content }) => ({
+        url: `/comments/${commentId}/replies`,
+        method: 'POST',
+        body: {
+          content,
+        },
+      }),
+      transformResponse: (response: SingleCommentResponse): Comment =>
+        normalizeComment(response.data),
+      async onQueryStarted({ commentId, postId }, { dispatch, queryFulfilled }) {
+        const undoReplyCount = incrementCommentReplyCount(commentsApi, dispatch, postId, commentId);
+        const undoPostIncrement = incrementPostCommentCount(postsApi, dispatch, postId);
+
+        try {
+          const { data: newReply } = await queryFulfilled;
+          insertReplyInCache(commentsApi, dispatch, commentId, newReply);
+        } catch {
+          undoReplyCount();
+          undoPostIncrement();
+        }
+      },
+      invalidatesTags: (result, error, { commentId }) => [
+        { type: 'Comment', id: `REPLIES_${commentId}` },
+      ],
+    }),
+
     toggleLikeComment: builder.mutation<
       { success: boolean },
-      { commentId: string; postId: string; liked: boolean }
+      { commentId: string; postId: string; liked: boolean; parentCommentId?: string | null }
     >({
       query: ({ commentId, liked }) => ({
         url: `/comments/${commentId}/like`,
         method: liked ? 'DELETE' : 'POST',
       }),
-      async onQueryStarted({ commentId, postId, liked }, { dispatch, queryFulfilled }) {
+      async onQueryStarted({ commentId, postId, liked, parentCommentId }, { dispatch, queryFulfilled }) {
         const nextLiked = !liked;
-        const undo = updateCommentInCache(commentsApi, dispatch, postId, commentId, (comment) => {
-          comment.liked = nextLiked;
-          comment.likes = Math.max(0, comment.likes + (nextLiked ? 1 : -1));
-        });
+        const undo = parentCommentId
+          ? updateReplyInCache(commentsApi, dispatch, parentCommentId, commentId, (targetReply) => {
+              targetReply.liked = nextLiked;
+              targetReply.likes = Math.max(0, targetReply.likes + (nextLiked ? 1 : -1));
+            })
+          : updateCommentInCache(commentsApi, dispatch, postId, commentId, (targetComment) => {
+              targetComment.liked = nextLiked;
+              targetComment.likes = Math.max(0, targetComment.likes + (nextLiked ? 1 : -1));
+            });
 
         try {
           await queryFulfilled;
@@ -106,6 +177,9 @@ export const commentsApi = baseApi.injectEndpoints({
 export const {
   useGetCommentsQuery,
   useLazyGetCommentsQuery,
+  useGetCommentRepliesQuery,
+  useLazyGetCommentRepliesQuery,
   useCreateCommentMutation,
+  useCreateReplyMutation,
   useToggleLikeCommentMutation,
 } = commentsApi;

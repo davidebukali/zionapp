@@ -1,6 +1,7 @@
-import { Comment, CommentsResult, LaravelComment } from './types';
+import { Comment, CommentRepliesResult, CommentsResult, LaravelComment } from './types';
 import { updatePostInCaches } from '../posts/utils';
 import { Post } from '../posts/types';
+import { getUserAvatarUrl } from '../../utils/user';
 
 /**
  * Normalizes a raw Laravel comment into a strongly typed client Comment model.
@@ -17,12 +18,13 @@ export function normalizeComment(raw: LaravelComment): Comment {
       ? raw.user.name.toLowerCase().replace(/\s+/g, '')
       : 'member');
 
-  const avatarUrl = raw.user?.profile?.avatar?.url ?? undefined;
+  const avatarUrl = getUserAvatarUrl(raw.user);
 
   return {
     id: String(raw.id),
     postId: String(raw.post_id),
     userId: raw.user_id ? String(raw.user_id) : null,
+    parentCommentId: raw.parent_comment_id ? String(raw.parent_comment_id) : null,
     author: authorName,
     username,
     body: raw.content || '',
@@ -50,10 +52,58 @@ export function mergeCommentsCache(
     return;
   }
 
-  const existingIds = new Set(currentCache.comments.map((c) => c.id));
-  const uniqueIncoming = newItems.comments.filter((c) => !existingIds.has(c.id));
+  const existingIds = new Set(currentCache.comments.map((commentItem) => commentItem.id));
+  const uniqueIncoming = newItems.comments.filter((commentItem) => !existingIds.has(commentItem.id));
   currentCache.comments.push(...uniqueIncoming);
   currentCache.nextCursor = newItems.nextCursor;
+}
+
+/**
+ * Merges paginated replies into the active getCommentReplies cache draft.
+ * Replies are ordered chronological/oldest first, so additional pages append to the end.
+ */
+export function mergeCommentRepliesCache(
+  currentCache: CommentRepliesResult,
+  newItems: CommentRepliesResult,
+  cursor?: string | null
+): void {
+  if (!cursor) {
+    currentCache.replies = newItems.replies;
+    currentCache.nextCursor = newItems.nextCursor;
+    return;
+  }
+
+  const existingIds = new Set(currentCache.replies.map((replyItem) => replyItem.id));
+  const uniqueIncoming = newItems.replies.filter((replyItem) => !existingIds.has(replyItem.id));
+  currentCache.replies.push(...uniqueIncoming);
+  currentCache.nextCursor = newItems.nextCursor;
+}
+
+/**
+ * Optimistically updates a reply in the active getCommentReplies cache.
+ * Returns an undo function to rollback if the mutation fails.
+ */
+export function updateReplyInCache(
+  api: any,
+  dispatch: any,
+  parentCommentId: string,
+  replyId: string,
+  updater: (reply: Comment) => void
+): () => void {
+  const patchResult = dispatch(
+    api.util.updateQueryData(
+      'getCommentReplies',
+      { commentId: parentCommentId } as any,
+      (draft: any) => {
+        const targetReply = draft?.replies?.find((replyItem: Comment) => replyItem.id === replyId);
+        if (targetReply) updater(targetReply);
+      }
+    )
+  );
+
+  return () => {
+    patchResult.undo();
+  };
 }
 
 /**
@@ -72,8 +122,8 @@ export function updateCommentInCache(
       'getComments',
       { postId } as any,
       (draft: any) => {
-        const comment = draft?.comments?.find((c: Comment) => c.id === commentId);
-        if (comment) updater(comment);
+        const targetComment = draft?.comments?.find((commentItem: Comment) => commentItem.id === commentId);
+        if (targetComment) updater(targetComment);
       }
     )
   );
@@ -103,6 +153,42 @@ export function insertCommentInCache(
       }
     )
   );
+}
+
+/**
+ * Inserts a newly created reply at the end of the getCommentReplies cache (chronological order).
+ */
+export function insertReplyInCache(
+  api: any,
+  dispatch: any,
+  commentId: string,
+  newReply: Comment
+): void {
+  dispatch(
+    api.util.updateQueryData(
+      'getCommentReplies',
+      { commentId } as any,
+      (draft: any) => {
+        if (draft && draft.replies) {
+          draft.replies.push(newReply);
+        }
+      }
+    )
+  );
+}
+
+/**
+ * Optimistically increments reply count on the parent comment in the getComments cache.
+ */
+export function incrementCommentReplyCount(
+  api: any,
+  dispatch: any,
+  postId: string,
+  commentId: string
+): () => void {
+  return updateCommentInCache(api, dispatch, postId, commentId, (targetComment: Comment) => {
+    targetComment.replies = (targetComment.replies || 0) + 1;
+  });
 }
 
 /**

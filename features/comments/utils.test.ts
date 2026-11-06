@@ -1,11 +1,15 @@
 import {
   normalizeComment,
   mergeCommentsCache,
+  mergeCommentRepliesCache,
   updateCommentInCache,
+  updateReplyInCache,
   insertCommentInCache,
+  insertReplyInCache,
+  incrementCommentReplyCount,
   incrementPostCommentCount,
 } from './utils';
-import { CommentsResult, LaravelComment } from './types';
+import { Comment, CommentRepliesResult, CommentsResult, LaravelComment } from './types';
 
 describe('features/comments/utils', () => {
   describe('normalizeComment', () => {
@@ -14,6 +18,7 @@ describe('features/comments/utils', () => {
         id: 101,
         post_id: 202,
         user_id: 303,
+        parent_comment_id: null,
         content: 'This is a test comment',
         likes_count: 7,
         is_liked: true,
@@ -37,6 +42,7 @@ describe('features/comments/utils', () => {
         id: '101',
         postId: '202',
         userId: '303',
+        parentCommentId: null,
         author: 'Jane D.',
         username: 'janedoe',
         body: 'This is a test comment',
@@ -46,6 +52,45 @@ describe('features/comments/utils', () => {
         replies: 3,
         createdAt: '2026-10-30T12:00:00Z',
       });
+    });
+
+    it('normalizes a reply with parent_comment_id', () => {
+      const raw: LaravelComment = {
+        id: 105,
+        post_id: 202,
+        user_id: 305,
+        parent_comment_id: 101,
+        content: 'This is a reply',
+        created_at: '2026-10-30T12:30:00Z',
+        user: {
+          id: 305,
+          name: 'Reply Author',
+        },
+      };
+
+      const result = normalizeComment(raw);
+      expect(result.id).toBe('105');
+      expect(result.parentCommentId).toBe('101');
+    });
+
+    it('normalizes a comment with string avatar via getUserAvatarUrl', () => {
+      const raw: LaravelComment = {
+        id: 106,
+        post_id: 202,
+        user_id: 306,
+        content: 'Comment with string avatar',
+        created_at: '2026-10-30T12:00:00Z',
+        user: {
+          id: 306,
+          name: 'String Avatar User',
+          profile: {
+            avatar: 'https://example.com/direct-avatar.png' as any,
+          },
+        },
+      };
+
+      const result = normalizeComment(raw);
+      expect(result.avatarUrl).toBe('https://example.com/direct-avatar.png');
     });
 
     it('falls back gracefully when user profile is missing', () => {
@@ -323,6 +368,157 @@ describe('features/comments/utils', () => {
       expect(undoFeed).toHaveBeenCalledTimes(1);
       expect(undoPosts).toHaveBeenCalledTimes(1);
       expect(undoSingle).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('mergeCommentRepliesCache', () => {
+    it('replaces replies and nextCursor when cursor is not provided', () => {
+      const currentCache: CommentRepliesResult = {
+        replies: [{ id: 'old-1' } as Comment],
+        nextCursor: 'old-cur',
+      };
+      const newItems: CommentRepliesResult = {
+        replies: [{ id: 'reply-1' } as Comment, { id: 'reply-2' } as Comment],
+        nextCursor: 'cursor-2',
+      };
+
+      mergeCommentRepliesCache(currentCache, newItems, null);
+
+      expect(currentCache.replies).toHaveLength(2);
+      expect(currentCache.replies[0].id).toBe('reply-1');
+      expect(currentCache.nextCursor).toBe('cursor-2');
+    });
+
+    it('merges unique replies and updates nextCursor when cursor is provided (load more)', () => {
+      const currentCache: CommentRepliesResult = {
+        replies: [{ id: 'reply-1' } as Comment, { id: 'reply-2' } as Comment],
+        nextCursor: 'cursor-1',
+      };
+      const newItems: CommentRepliesResult = {
+        replies: [{ id: 'reply-2' } as Comment, { id: 'reply-3' } as Comment],
+        nextCursor: 'cursor-2',
+      };
+
+      mergeCommentRepliesCache(currentCache, newItems, 'cursor-1');
+
+      expect(currentCache.replies).toHaveLength(3);
+      expect(currentCache.replies.map((replyItem) => replyItem.id)).toEqual(['reply-1', 'reply-2', 'reply-3']);
+      expect(currentCache.nextCursor).toBe('cursor-2');
+    });
+  });
+
+  describe('updateReplyInCache', () => {
+    it('updates reply in getCommentReplies draft and rolls back on undo', () => {
+      let updateCallback: ((draft: any) => void) | undefined;
+      const undoMock = jest.fn();
+      const mockApi = {
+        util: {
+          updateQueryData: jest.fn((endpoint: string, args: any, callback: any) => {
+            updateCallback = callback;
+            return { undo: undoMock };
+          }),
+        },
+      };
+      const dispatch = jest.fn((action: any) => action);
+
+      const undo = updateReplyInCache(
+        mockApi,
+        dispatch,
+        'parent-123',
+        'reply-456',
+        (reply: Comment) => {
+          reply.liked = true;
+          reply.likes = 10;
+        }
+      );
+
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        'getCommentReplies',
+        { commentId: 'parent-123' },
+        expect.any(Function)
+      );
+
+      const draft = {
+        replies: [
+          { id: 'reply-456', liked: false, likes: 9 } as Comment,
+        ],
+      };
+      updateCallback?.(draft);
+
+      expect(draft.replies[0].liked).toBe(true);
+      expect(draft.replies[0].likes).toBe(10);
+
+      undo();
+      expect(undoMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('insertReplyInCache', () => {
+    it('appends newly created reply to the end of getCommentReplies draft', () => {
+      let updateCallback: ((draft: any) => void) | undefined;
+      const mockApi = {
+        util: {
+          updateQueryData: jest.fn((endpoint: string, args: any, callback: any) => {
+            updateCallback = callback;
+            return { undo: jest.fn() };
+          }),
+        },
+      };
+      const dispatch = jest.fn((action: any) => action);
+
+      const newReply = { id: 'reply-new', body: 'New reply content' } as Comment;
+      insertReplyInCache(mockApi, dispatch, 'parent-123', newReply);
+
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        'getCommentReplies',
+        { commentId: 'parent-123' },
+        expect.any(Function)
+      );
+
+      const draft = {
+        replies: [{ id: 'reply-old' } as Comment],
+      };
+      updateCallback?.(draft);
+
+      expect(draft.replies).toHaveLength(2);
+      expect(draft.replies[1].id).toBe('reply-new');
+    });
+  });
+
+  describe('incrementCommentReplyCount', () => {
+    it('increments replies count on the parent comment and provides rollback undo', () => {
+      let updateCallback: ((draft: any) => void) | undefined;
+      const undoMock = jest.fn();
+      const mockApi = {
+        util: {
+          updateQueryData: jest.fn((endpoint: string, args: any, callback: any) => {
+            updateCallback = callback;
+            return { undo: undoMock };
+          }),
+        },
+      };
+      const dispatch = jest.fn((action: any) => action);
+
+      const undo = incrementCommentReplyCount(mockApi, dispatch, 'post-456', 'comment-123');
+
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        'getComments',
+        { postId: 'post-456' },
+        expect.any(Function)
+      );
+
+      const draft = {
+        comments: [
+          { id: 'comment-123', replies: 2 } as Comment,
+          { id: 'comment-999', replies: 0 } as Comment,
+        ],
+      };
+      updateCallback?.(draft);
+
+      expect(draft.comments[0].replies).toBe(3);
+
+      undo();
+      expect(undoMock).toHaveBeenCalledTimes(1);
     });
   });
 });

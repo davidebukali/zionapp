@@ -30,6 +30,7 @@ export default function PostComments() {
     displayedCount,
     currentUser,
     draft,
+    replyingTo,
     setDraft,
     hasMore,
     isInitialLoading,
@@ -39,15 +40,21 @@ export default function PostComments() {
     error,
     refresh,
     loadMore,
+    selectReply,
+    cancelReply,
     submitComment,
     likeComment,
   } = usePostComments(postId ?? "");
 
   const renderComment = useCallback(
     ({ item }: { item: Comment }) => (
-      <CommentItem comment={item} onLike={likeComment} />
+      <CommentItem
+        comment={item}
+        onLike={likeComment}
+        onReply={selectReply}
+      />
     ),
-    [likeComment]
+    [likeComment, selectReply]
   );
 
   return (
@@ -99,6 +106,8 @@ export default function PostComments() {
         initials={currentUser.initials}
         avatarUrl={currentUser.avatarUrl}
         isSubmitting={isSubmitting}
+        replyingTo={replyingTo}
+        onCancelReply={cancelReply}
         onChangeText={setDraft}
         onSubmit={submitComment}
       />

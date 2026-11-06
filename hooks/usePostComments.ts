@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 
 import {
   useCreateCommentMutation,
+  useCreateReplyMutation,
   useGetCommentsQuery,
   useLazyGetCommentsQuery,
   useToggleLikeCommentMutation,
@@ -10,12 +11,21 @@ import {
 import { Comment } from "../features/comments/types";
 import { postsApi, useGetPostQuery } from "../features/posts/api";
 import { RootState } from "../store/store";
+import { getErrorMessage } from "../utils/network";
 import { getUserAvatarUrl, getUserInitials } from "../utils/user";
+
+export type ReplyingToTarget = {
+  targetCommentId: string;
+  topLevelParentId: string;
+  username: string;
+  authorName: string;
+};
 
 const selectCachedFeed = postsApi.endpoints.getFeed.select();
 
 export function usePostComments(postId: string) {
   const [draft, setDraft] = useState("");
+  const [replyingTo, setReplyingTo] = useState<ReplyingToTarget | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
@@ -56,9 +66,11 @@ export function usePostComments(postId: string) {
   } = useGetCommentsQuery({ postId }, { skip: !postId });
 
   const [lazyFetchComments] = useLazyGetCommentsQuery();
-  const [createComment, { isLoading: isSubmitting }] = useCreateCommentMutation();
+  const [createComment, { isLoading: isSubmittingComment }] = useCreateCommentMutation();
+  const [createReply, { isLoading: isSubmittingReply }] = useCreateReplyMutation();
   const [toggleLikeComment] = useToggleLikeCommentMutation();
 
+  const isSubmitting = isSubmittingComment || isSubmittingReply;
   const comments = commentsResult?.comments ?? [];
   const hasMore = Boolean(commentsResult?.nextCursor);
 
@@ -98,21 +110,61 @@ export function usePostComments(postId: string) {
     postId,
   ]);
 
-  // Submit comment
+  // Select reply target
+  const handleSelectReply = useCallback(
+    (targetComment: Comment, topLevelParent?: Comment) => {
+      const topLevelParentId =
+        topLevelParent?.id || targetComment.parentCommentId || targetComment.id;
+      const targetUsername = targetComment.username;
+
+      setReplyingTo({
+        targetCommentId: targetComment.id,
+        topLevelParentId,
+        username: targetUsername,
+        authorName: targetComment.author,
+      });
+
+      setDraft((previousDraft) => {
+        const mention = `@${targetUsername} `;
+        if (previousDraft.startsWith(mention)) {
+          return previousDraft;
+        }
+        return `${mention}${previousDraft.replace(/^@\w+\s*/, "")}`;
+      });
+    },
+    []
+  );
+
+  // Cancel reply target
+  const handleCancelReply = useCallback(() => {
+    setReplyingTo(null);
+    setDraft((previousDraft) => previousDraft.replace(/^@\w+\s*/, ""));
+  }, []);
+
+  // Submit comment or reply
   const handleSubmitComment = useCallback(async () => {
     const trimmed = draft.trim();
     if (!trimmed || isSubmitting || !postId) return;
 
     try {
-      await createComment({
-        postId,
-        content: trimmed,
-      }).unwrap();
+      if (replyingTo) {
+        await createReply({
+          commentId: replyingTo.topLevelParentId,
+          postId,
+          content: trimmed,
+        }).unwrap();
+        setReplyingTo(null);
+      } else {
+        await createComment({
+          postId,
+          content: trimmed,
+        }).unwrap();
+      }
       setDraft("");
     } catch {
       // Handled by mutation error state
     }
-  }, [createComment, draft, isSubmitting, postId]);
+  }, [createComment, createReply, draft, isSubmitting, postId, replyingTo]);
 
   // Like comment
   const handleLikeComment = useCallback(
@@ -136,15 +188,18 @@ export function usePostComments(postId: string) {
     displayedCount,
     currentUser,
     draft,
+    replyingTo,
     setDraft,
     hasMore,
     isInitialLoading,
     isLoadingMore,
     isRefreshing,
     isSubmitting,
-    error: initialError ? "Failed to load comments" : null,
+    error: initialError ? getErrorMessage(initialError) : null,
     refresh: handleRefresh,
     loadMore: handleLoadMore,
+    selectReply: handleSelectReply,
+    cancelReply: handleCancelReply,
     submitComment: handleSubmitComment,
     likeComment: handleLikeComment,
   };
