@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import * as Haptics from "expo-haptics";
 
-import { DEBOUNCE_DELAY_MS } from "../constants";
+import { useDebounce } from "./useDebounce";
 import {
   useGetTaggableUsersQuery,
   useLazyGetTaggableUsersQuery,
@@ -20,25 +20,13 @@ export function useFollowedUsersSheet({
   onClose,
 }: UseFollowedUsersSheetParams) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const debouncedQuery = useDebounce(searchQuery.trim());
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-  // Debounce search query changes
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery.trim());
-    }, DEBOUNCE_DELAY_MS);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchQuery]);
 
   // Reset search when sheet is dismissed
   useEffect(() => {
     if (!visible) {
       setSearchQuery("");
-      setDebouncedQuery("");
     }
   }, [visible]);
 

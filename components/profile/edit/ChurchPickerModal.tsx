@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
-import { DEBOUNCE_DELAY_MS } from "../../../constants";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { useGetChurchesQuery } from "../../../features/users/api";
 import { Church } from "../../../features/users/types";
 import { ChurchPickerModalProps } from "./types";
@@ -29,22 +29,12 @@ export function ChurchPickerModal({
   const insets = useSafeAreaInsets();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-
-  // Debounce search query to prevent frequent API calls
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, DEBOUNCE_DELAY_MS);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  const debouncedSearch = useDebounce(searchQuery);
 
   // Reset search when modal closes
   useEffect(() => {
     if (!visible) {
       setSearchQuery("");
-      setDebouncedSearch("");
     }
   }, [visible]);
 

@@ -1,27 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { DiscoverAccount } from "../components/Discover/types";
 import {
   useFollowUserMutation,
   useSearchUsersQuery,
   useUnfollowUserMutation,
 } from "../features/users/api";
-import { DEBOUNCE_DELAY_MS } from "../constants";
+import { useDebounce } from "./useDebounce";
 
 export function useDiscoverAccounts() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const debouncedQuery = useDebounce(searchQuery);
   const [selectedCategory, setSelectedCategory] = useState("All");
-
-  // Debounce search query changes by 300ms
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, DEBOUNCE_DELAY_MS);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchQuery]);
 
   const activeSearchTerm = debouncedQuery.trim() || "*";
 
