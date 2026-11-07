@@ -287,12 +287,23 @@ export function useChatThread(targetId?: string) {
     try {
       const echo = getEchoClient(token);
 
+      console.log(
+        `[WS:Chat] Subscribing to conversations.${resolvedConversationId} (partnerId: ${partnerId})`
+      );
+
       // 1. DATA LAYER (Private Channel)
       const privateChannel = echo.private(`conversations.${resolvedConversationId}`);
 
       // 1.1 New message arrives
       privateChannel.listen(".message.sent", (event: MessageSentEvent) => {
         const normalized = normalizeMessage(event, currentUserId);
+        console.log("[WS:Chat:Message] .message.sent received:", {
+          id: event.id,
+          senderId: event.sender_id,
+          isOutgoing: normalized.isOutgoing,
+          body: event.body,
+        });
+
         insertMessageInCache(
           messagesApi,
           dispatch,
@@ -312,6 +323,10 @@ export function useChatThread(targetId?: string) {
 
       // 1.2 Message edited
       privateChannel.listen(".message.updated", (event: MessageUpdatedEvent) => {
+        console.log("[WS:Chat:Message] .message.updated received:", {
+          id: event.id,
+          body: event.body,
+        });
         updateMessageInCache(
           messagesApi,
           dispatch,
@@ -326,6 +341,7 @@ export function useChatThread(targetId?: string) {
 
       // 1.3 Message deleted for everyone
       privateChannel.listen(".message.deleted", (event: MessageDeletedEvent) => {
+        console.log("[WS:Chat:Message] .message.deleted received:", event.id);
         updateMessageInCache(
           messagesApi,
           dispatch,
@@ -342,6 +358,11 @@ export function useChatThread(targetId?: string) {
 
       // 1.4 Reaction updated (support both broadcast naming formats)
       const handleReactionUpdated = (event: MessageReactionUpdatedEvent) => {
+        console.log("[WS:Chat:Reaction] reaction updated:", {
+          messageId: event.message_id,
+          userId: event.user_id,
+          emoji: event.emoji,
+        });
         updateMessageInCache(
           messagesApi,
           dispatch,
@@ -364,6 +385,12 @@ export function useChatThread(targetId?: string) {
 
       // 1.5 Message read by recipient
       privateChannel.listen(".message.read", (event: MessageReadEvent) => {
+        console.log("[WS:Chat:Read] .message.read received:", {
+          readerId: event.reader_id,
+          partnerId,
+          lastReadMessageId: event.last_read_message_id,
+        });
+
         if (partnerId && String(event.reader_id) !== String(partnerId)) {
           return;
         }
@@ -384,6 +411,8 @@ export function useChatThread(targetId?: string) {
       // 1.6 Typing started
       privateChannel.listen(".typing.started", (event: TypingStartedEvent) => {
         const typingUserId = event.user?.id ?? event.user_id;
+        console.log("[WS:Chat:Typing] .typing.started from:", typingUserId, "partnerId:", partnerId);
+
         if (!typingUserId || String(typingUserId) === String(currentUserId)) return;
         if (partnerId && String(typingUserId) !== String(partnerId)) return;
 
@@ -398,6 +427,10 @@ export function useChatThread(targetId?: string) {
       const presenceChannel = echo.join(`conversations.${resolvedConversationId}`);
 
       presenceChannel.here((users: PresenceMember[]) => {
+        console.log(
+          `[WS:Chat:Presence] Room members in conversations.${resolvedConversationId}:`,
+          Array.isArray(users) ? users.map((u) => u.id) : []
+        );
         if (Array.isArray(users) && partnerId) {
           setIsPartnerInChat(
             users.some((member) => String(member.id) === String(partnerId))
@@ -406,24 +439,27 @@ export function useChatThread(targetId?: string) {
       });
 
       presenceChannel.joining((member: PresenceMember) => {
+        console.log(`[WS:Chat:Presence] Member entered room:`, member?.id);
         if (partnerId && String(member?.id) === String(partnerId)) {
           setIsPartnerInChat(true);
         }
       });
 
       presenceChannel.leaving((member: PresenceMember) => {
+        console.log(`[WS:Chat:Presence] Member left room:`, member?.id);
         if (partnerId && String(member?.id) === String(partnerId)) {
           setIsPartnerInChat(false);
         }
       });
 
       return () => {
+        console.log(`[WS:Chat] Leaving conversations.${resolvedConversationId}`);
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         setIsPartnerInChat(false);
         echo.leave(`conversations.${resolvedConversationId}`);
       };
-    } catch {
-      // Gracefully ignore websocket connection failures
+    } catch (error) {
+      console.warn("[WS:Chat] Setup error:", error);
     }
   }, [
     resolvedConversationId,

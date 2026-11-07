@@ -8,8 +8,14 @@ import {
   REVERB_PORT,
 } from "../constants";
 
-// Polyfill Pusher on React Native global environment
-(globalThis as any).Pusher = Pusher;
+// Polyfill Pusher constructor on React Native / Hermes global environment
+// In pusher-js dist/react-native/pusher.js, the constructor is exported as { Pusher: class Ke }
+const PusherClient: any =
+  (Pusher as any)?.Pusher ?? (Pusher as any)?.default ?? Pusher;
+(globalThis as any).Pusher = PusherClient;
+if (typeof window !== "undefined") {
+  (window as any).Pusher = PusherClient;
+}
 
 let echoInstance: Echo<"reverb"> | null = null;
 let currentToken: string | null = null;
@@ -30,6 +36,7 @@ export function getEchoClient(authToken: string): Echo<"reverb"> {
   currentToken = authToken;
   echoInstance = new Echo({
     broadcaster: "reverb",
+    Pusher: PusherClient,
     key: REVERB_APP_KEY,
     wsHost: REVERB_HOST,
     wsPort: REVERB_PORT,
@@ -48,10 +55,16 @@ export function getEchoClient(authToken: string): Echo<"reverb"> {
   if (__DEV__ && (echoInstance.connector as any)?.pusher?.connection) {
     const connection = (echoInstance.connector as any).pusher.connection;
     connection.bind("state_change", (states: { previous: string; current: string }) => {
-      console.log(`[Reverb WebSocket] State: ${states.previous} -> ${states.current}`);
+      console.log(`[WS:Connection] State: ${states.previous} -> ${states.current}`);
+    });
+    connection.bind("connected", () => {
+      console.log(`[WS:Connection] Connected successfully! Socket ID: ${connection.socket_id}`);
+    });
+    connection.bind("disconnected", () => {
+      console.log("[WS:Connection] Disconnected");
     });
     connection.bind("error", (error: any) => {
-      console.warn("[Reverb WebSocket] Connection Error:", error);
+      console.warn("[WS:Connection] Connection Error:", error);
     });
   }
 
