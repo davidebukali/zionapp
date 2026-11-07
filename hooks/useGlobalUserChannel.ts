@@ -37,18 +37,10 @@ export function useGlobalUserChannel() {
     try {
       const echo = getEchoClient(token);
 
-      console.log(`[WS:Global] Subscribing to users.${currentUserId} and online`);
-
       // 1. User Private Channel
       const userChannel = echo.private(`users.${currentUserId}`);
 
       userChannel.listen(".message.sent", (event: MessageSentEvent) => {
-        console.log("[WS:Global:Message] .message.sent received:", {
-          id: event.id,
-          conversationId: event.conversation_id,
-          senderId: event.sender_id,
-          body: event.body,
-        });
         const normalized = normalizeMessage(event, currentUserId);
         insertMessageInCache(
           messagesApi,
@@ -59,7 +51,6 @@ export function useGlobalUserChannel() {
       });
 
       userChannel.listen(".feed.new_item", (event: NewFeedItemEvent) => {
-        console.log("[WS:Global:Feed] .feed.new_item received for post:", event.post_id);
         // Ignore real-time events for our own published posts
         if (String(event.actor_id) === currentUserId) {
           return;
@@ -71,32 +62,24 @@ export function useGlobalUserChannel() {
       const onlineChannel = echo.join("online");
 
       onlineChannel.here((users: PresenceMember[]) => {
-        console.log(
-          "[WS:Global:Online] .here received online members count:",
-          Array.isArray(users) ? users.length : 0,
-          Array.isArray(users) ? users.map((u) => u.id) : []
-        );
         if (Array.isArray(users)) {
           dispatch(setOnlineUsers(users.map((member) => String(member.id))));
         }
       });
 
       onlineChannel.joining((member: PresenceMember) => {
-        console.log("[WS:Global:Online] .joining user:", member?.id);
         if (member?.id) {
           dispatch(userJoinedOnline(String(member.id)));
         }
       });
 
       onlineChannel.leaving((member: PresenceMember) => {
-        console.log("[WS:Global:Online] .leaving user:", member?.id);
         if (member?.id) {
           dispatch(userLeftOnline(String(member.id)));
         }
       });
 
       return () => {
-        console.log(`[WS:Global] Unsubscribing from users.${currentUserId} and online`);
         echo.leave(`users.${currentUserId}`);
         echo.leave("online");
       };

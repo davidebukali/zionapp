@@ -54,9 +54,6 @@ export function getEchoClient(authToken: string): Echo<"reverb"> {
 
   if (__DEV__ && (echoInstance.connector as any)?.pusher?.connection) {
     const connection = (echoInstance.connector as any).pusher.connection;
-    connection.bind("state_change", (states: { previous: string; current: string }) => {
-      console.log(`[WS:Connection] State: ${states.previous} -> ${states.current}`);
-    });
     connection.bind("connected", () => {
       console.log(`[WS:Connection] Connected successfully! Socket ID: ${connection.socket_id}`);
     });
