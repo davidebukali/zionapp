@@ -22,7 +22,7 @@ export const DEBOUNCE_DELAY_MS = 300;
 export const REVERB_APP_KEY =
   process.env.EXPO_PUBLIC_REVERB_APP_KEY || "8e18i7j3rlxczsyjllta";
 export const REVERB_HOST = __DEV__ ? current_ip : "tsiyonapp.com";
-export const REVERB_PORT = __DEV__ ? 80 : 443;
+export const REVERB_PORT = __DEV__ ? 8080 : 443;
 export const REVERB_FORCE_TLS = !__DEV__;
 export const BROADCAST_AUTH_URL = `${BASE_URL}/api/broadcasting/auth`;
 

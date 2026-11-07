@@ -16,6 +16,9 @@ export function useMessages() {
   const currentUserId = useSelector((state: RootState) =>
     state.auth?.user?.id ? String(state.auth.user.id) : undefined
   );
+  const onlineUserIds = useSelector(
+    (state: RootState) => state.presence?.onlineUserIds ?? []
+  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const [cursor, setCursor] = useState<string | null>(null);
@@ -51,15 +54,28 @@ export function useMessages() {
     { skip: !token }
   );
 
-  const rawConversations: Conversation[] = useMemo(
-    () => conversationsData?.conversations ?? [],
-    [conversationsData?.conversations]
-  );
+  const rawConversations: Conversation[] = useMemo(() => {
+    const list = conversationsData?.conversations ?? [];
+    if (onlineUserIds.length === 0) return list;
+    const onlineSet = new Set(onlineUserIds);
+    return list.map((c) => ({
+      ...c,
+      participant: {
+        ...c.participant,
+        isOnline: onlineSet.has(String(c.participant.id)),
+      },
+    }));
+  }, [conversationsData?.conversations, onlineUserIds]);
 
-  const activeContacts: OnlineContact[] = useMemo(
-    () => recipientsData?.recipients ?? [],
-    [recipientsData?.recipients]
-  );
+  const activeContacts: OnlineContact[] = useMemo(() => {
+    const list = recipientsData?.recipients ?? [];
+    if (onlineUserIds.length === 0) return list;
+    const onlineSet = new Set(onlineUserIds);
+    return list.map((r) => ({
+      ...r,
+      isOnline: onlineSet.has(String(r.id)),
+    }));
+  }, [recipientsData?.recipients, onlineUserIds]);
 
   // 3. Perform instant inbox search on local cache
   const filteredConversations = useMemo(

@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from '../features/auth/authSlice';
 import newPostsReducer from '../features/posts/newPostsSlice';
+import presenceReducer from '../features/messages/presenceSlice';
 import { baseApi } from '../services/baseApi';
 
 export const store = configureStore({
@@ -8,6 +9,7 @@ export const store = configureStore({
     [baseApi.reducerPath]: baseApi.reducer,
     auth: authReducer,
     newPosts: newPostsReducer,
+    presence: presenceReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(baseApi.middleware),

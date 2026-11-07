@@ -331,9 +331,20 @@ export function applyReactionEventToMessage(
   event: MessageReactionUpdatedEvent,
   currentUserId?: string
 ): ChatMessage {
+  if (event.reactions && Array.isArray(event.reactions)) {
+    const rawReactions = event.reactions;
+    const reactions = rawReactions.map((r) => r.emoji);
+    return {
+      ...msg,
+      rawReactions,
+      reactions: reactions.length > 0 ? reactions : undefined,
+    };
+  }
+
   const existingRaw = msg.rawReactions || [];
+  const eventUserId = event.user_id ?? event.reaction?.user_id;
   const isMe =
-    Boolean(currentUserId) && String(event.user_id) === String(currentUserId);
+    Boolean(currentUserId) && String(eventUserId) === String(currentUserId);
 
   let updatedRaw = existingRaw.filter(
     (r) => !(isMe && r.user_reacted)
@@ -378,16 +389,33 @@ export function insertMessageInCache(
   conversationId: string,
   message: ChatMessage
 ): () => void {
+  let conversationFound = false;
+  let alreadyExists = false;
+
   const patchMessages = dispatch(
     api.util.updateQueryData(
       "getMessages",
       { conversationId },
       (draft: MessagesResult) => {
         if (!draft || !draft.messages) return;
-        const exists = draft.messages.some((m) => m.id === message.id);
-        if (!exists) {
-          draft.messages.unshift(message);
+        const existsIndex = draft.messages.findIndex((m) => m.id === message.id);
+        if (existsIndex !== -1) {
+          alreadyExists = true;
+          return;
         }
+
+        // If message is outgoing and not a temp id, check if there's a pending optimistic message to replace
+        if (message.isOutgoing && !message.id.startsWith("temp-")) {
+          const optimisticIndex = draft.messages.findIndex(
+            (m) => m.isOutgoing && m.id.startsWith("temp-")
+          );
+          if (optimisticIndex !== -1) {
+            draft.messages[optimisticIndex] = message;
+            return;
+          }
+        }
+
+        draft.messages.unshift(message);
       }
     )
   );
@@ -402,6 +430,7 @@ export function insertMessageInCache(
           (c) => c.id === conversationId
         );
         if (convIndex !== -1) {
+          conversationFound = true;
           const conv = draft.conversations[convIndex];
           const previewText = message.sharedPostId
             ? POST_SHARE_PREVIEW_TEXT
@@ -416,7 +445,7 @@ export function insertMessageInCache(
             type: message.isOutgoing ? "outgoing" : "text",
             timestamp: message.timestamp || "Just now",
           };
-          if (!message.isOutgoing) {
+          if (!message.isOutgoing && !alreadyExists) {
             conv.unreadCount += 1;
           }
           // Move conversation to top
@@ -426,6 +455,14 @@ export function insertMessageInCache(
       }
     )
   );
+
+  // If this is a brand new conversation not yet in the inbox list,
+  // invalidate to fetch the new conversation card with participant details
+  if (!conversationFound && typeof api?.util?.invalidateTags === "function") {
+    dispatch(
+      api.util.invalidateTags([{ type: "Conversation", id: "LIST" }])
+    );
+  }
 
   return () => {
     patchMessages.undo();

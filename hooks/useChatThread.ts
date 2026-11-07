@@ -15,6 +15,7 @@ import {
   MessageSentEvent,
   MessageUpdatedEvent,
   OnlineContact,
+  PresenceMember,
   ReportReason,
   TypingStartedEvent,
 } from "../features/messages/types";
@@ -89,6 +90,11 @@ export function useChatThread(targetId?: string) {
     );
   }, [targetId, cachedRecipients?.recipients]);
 
+  const onlineUserIds = useSelector(
+    (state: RootState) => state.presence?.onlineUserIds ?? []
+  );
+  const [isPartnerInChat, setIsPartnerInChat] = useState(false);
+
   // 2. Resolve conversation via cache or POST /conversations
   const [startConversationMutation] = useStartOrGetConversationMutation();
   const [resolvedConversationId, setResolvedConversationId] = useState<
@@ -100,6 +106,14 @@ export function useChatThread(targetId?: string) {
     useState<OnlineContact | null>(
       cachedConversation?.participant || cachedRecipient || null
     );
+
+  const partnerId = remoteParticipant?.id || targetId;
+
+  const isPartnerOnline = useMemo(() => {
+    if (isPartnerInChat) return true;
+    if (!partnerId) return false;
+    return onlineUserIds.includes(String(partnerId));
+  }, [isPartnerInChat, partnerId, onlineUserIds]);
 
   // Thread options & states
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
@@ -202,17 +216,22 @@ export function useChatThread(targetId?: string) {
 
   // 3. Participant with clean loading placeholder while POST /conversations is in flight
   const participant: OnlineContact = useMemo(() => {
-    if (remoteParticipant) return remoteParticipant;
+    if (remoteParticipant) {
+      return {
+        ...remoteParticipant,
+        isOnline: isPartnerOnline,
+      };
+    }
 
     return {
       id: targetId || "",
       name: "",
       username: "",
       initials: "",
-      isOnline: false,
+      isOnline: isPartnerOnline,
       avatarColor: getAvatarColor(targetId || ""),
     };
-  }, [remoteParticipant, targetId]);
+  }, [remoteParticipant, targetId, isPartnerOnline]);
 
   // 4. Paginated Messages from RTK Query
   const [cursor, setCursor] = useState<string | null>(null);
@@ -261,16 +280,18 @@ export function useChatThread(targetId?: string) {
     }
   }, [resolvedConversationId, token, dispatch, markAsReadMutation]);
 
-  // 5. Reverb WebSocket Channel Subscription
+  // 5. Reverb WebSocket Channel Subscription (Data Layer & Presence Layer)
   useEffect(() => {
     if (!resolvedConversationId || !token) return;
 
     try {
       const echo = getEchoClient(token);
-      const channel = echo.private(`conversations.${resolvedConversationId}`);
 
-      // 1. New message arrives
-      channel.listen(".message.sent", (event: MessageSentEvent) => {
+      // 1. DATA LAYER (Private Channel)
+      const privateChannel = echo.private(`conversations.${resolvedConversationId}`);
+
+      // 1.1 New message arrives
+      privateChannel.listen(".message.sent", (event: MessageSentEvent) => {
         const normalized = normalizeMessage(event, currentUserId);
         insertMessageInCache(
           messagesApi,
@@ -279,7 +300,7 @@ export function useChatThread(targetId?: string) {
           normalized
         );
 
-        if (!normalized.isOutgoing) {
+        if (String(event.sender_id) !== String(currentUserId)) {
           markConversationReadInCache(
             messagesApi,
             dispatch,
@@ -289,8 +310,8 @@ export function useChatThread(targetId?: string) {
         }
       });
 
-      // 2. Message edited
-      channel.listen(".message.updated", (event: MessageUpdatedEvent) => {
+      // 1.2 Message edited
+      privateChannel.listen(".message.updated", (event: MessageUpdatedEvent) => {
         updateMessageInCache(
           messagesApi,
           dispatch,
@@ -303,8 +324,8 @@ export function useChatThread(targetId?: string) {
         );
       });
 
-      // 3. Message deleted for everyone
-      channel.listen(".message.deleted", (event: MessageDeletedEvent) => {
+      // 1.3 Message deleted for everyone
+      privateChannel.listen(".message.deleted", (event: MessageDeletedEvent) => {
         updateMessageInCache(
           messagesApi,
           dispatch,
@@ -319,30 +340,34 @@ export function useChatThread(targetId?: string) {
         );
       });
 
-      // 4. Reaction updated
-      channel.listen(
-        ".message.reaction_updated",
-        (event: MessageReactionUpdatedEvent) => {
-          updateMessageInCache(
-            messagesApi,
-            dispatch,
-            resolvedConversationId,
-            event.message_id,
-            (msg) => {
-              const updated = applyReactionEventToMessage(
-                msg,
-                event,
-                currentUserId
-              );
-              msg.reactions = updated.reactions;
-              msg.rawReactions = updated.rawReactions;
-            }
-          );
-        }
-      );
+      // 1.4 Reaction updated (support both broadcast naming formats)
+      const handleReactionUpdated = (event: MessageReactionUpdatedEvent) => {
+        updateMessageInCache(
+          messagesApi,
+          dispatch,
+          resolvedConversationId,
+          event.message_id,
+          (msg) => {
+            const updated = applyReactionEventToMessage(
+              msg,
+              event,
+              currentUserId
+            );
+            msg.reactions = updated.reactions;
+            msg.rawReactions = updated.rawReactions;
+          }
+        );
+      };
 
-      // 5. Message read by recipient
-      channel.listen(".message.read", (event: MessageReadEvent) => {
+      privateChannel.listen(".message.reaction.updated", handleReactionUpdated);
+      privateChannel.listen(".message.reaction_updated", handleReactionUpdated);
+
+      // 1.5 Message read by recipient
+      privateChannel.listen(".message.read", (event: MessageReadEvent) => {
+        if (partnerId && String(event.reader_id) !== String(partnerId)) {
+          return;
+        }
+
         updateMessageInCache(
           messagesApi,
           dispatch,
@@ -356,9 +381,11 @@ export function useChatThread(targetId?: string) {
         );
       });
 
-      // 6. Typing started
-      channel.listen(".typing.started", (event: TypingStartedEvent) => {
-        if (event.user_id === currentUserId) return;
+      // 1.6 Typing started
+      privateChannel.listen(".typing.started", (event: TypingStartedEvent) => {
+        const typingUserId = event.user?.id ?? event.user_id;
+        if (!typingUserId || String(typingUserId) === String(currentUserId)) return;
+        if (partnerId && String(typingUserId) !== String(partnerId)) return;
 
         setIsTyping(true);
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -367,8 +394,32 @@ export function useChatThread(targetId?: string) {
         }, TYPING_EXPIRY_MS);
       });
 
+      // 2. PRESENCE LAYER (In-Room Presence Channel)
+      const presenceChannel = echo.join(`conversations.${resolvedConversationId}`);
+
+      presenceChannel.here((users: PresenceMember[]) => {
+        if (Array.isArray(users) && partnerId) {
+          setIsPartnerInChat(
+            users.some((member) => String(member.id) === String(partnerId))
+          );
+        }
+      });
+
+      presenceChannel.joining((member: PresenceMember) => {
+        if (partnerId && String(member?.id) === String(partnerId)) {
+          setIsPartnerInChat(true);
+        }
+      });
+
+      presenceChannel.leaving((member: PresenceMember) => {
+        if (partnerId && String(member?.id) === String(partnerId)) {
+          setIsPartnerInChat(false);
+        }
+      });
+
       return () => {
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        setIsPartnerInChat(false);
         echo.leave(`conversations.${resolvedConversationId}`);
       };
     } catch {
@@ -378,6 +429,7 @@ export function useChatThread(targetId?: string) {
     resolvedConversationId,
     token,
     currentUserId,
+    partnerId,
     dispatch,
     markAsReadMutation,
   ]);

@@ -3,14 +3,25 @@ import { useSelector, useDispatch } from "react-redux";
 import type { RootState, AppDispatch } from "../store/store";
 import { getEchoClient } from "../services/echo";
 import { messagesApi } from "../features/messages/api";
-import { MessageSentEvent } from "../features/messages/types";
-import { normalizeMessage } from "../features/messages/utils";
+import { MessageSentEvent, PresenceMember } from "../features/messages/types";
+import {
+  setOnlineUsers,
+  userJoinedOnline,
+  userLeftOnline,
+} from "../features/messages/presenceSlice";
+import {
+  insertMessageInCache,
+  normalizeMessage,
+} from "../features/messages/utils";
 import { newFeedItemReceived } from "../features/posts/newPostsSlice";
 import { NewFeedItemEvent } from "../features/posts/types";
 
 /**
- * Subscribes to the global user channel `private-users.{userId}`
- * to receive incoming messages, update unread counts, and track new feed items.
+ * Subscribes to:
+ * 1. Global user channel `private-users.{userId}` to receive incoming messages,
+ *    update unread counts, and track new feed items.
+ * 2. Global presence channel `presence-online` (via Echo.join('online'))
+ *    to track active online users across the entire application.
  */
 export function useGlobalUserChannel() {
   const dispatch = useDispatch<AppDispatch>();
@@ -25,16 +36,21 @@ export function useGlobalUserChannel() {
 
     try {
       const echo = getEchoClient(token);
-      const channel = echo.private(`users.${currentUserId}`);
 
-      channel.listen(".message.sent", (event: MessageSentEvent) => {
-        // Invalidate conversations list so inbox immediately refreshes with new message snippet & unread count
-        dispatch(
-          messagesApi.util.invalidateTags([{ type: "Conversation", id: "LIST" }])
+      // 1. User Private Channel
+      const userChannel = echo.private(`users.${currentUserId}`);
+
+      userChannel.listen(".message.sent", (event: MessageSentEvent) => {
+        const normalized = normalizeMessage(event, currentUserId);
+        insertMessageInCache(
+          messagesApi,
+          dispatch,
+          String(event.conversation_id),
+          normalized
         );
       });
 
-      channel.listen(".feed.new_item", (event: NewFeedItemEvent) => {
+      userChannel.listen(".feed.new_item", (event: NewFeedItemEvent) => {
         // Ignore real-time events for our own published posts
         if (String(event.actor_id) === currentUserId) {
           return;
@@ -42,8 +58,30 @@ export function useGlobalUserChannel() {
         dispatch(newFeedItemReceived(String(event.post_id)));
       });
 
+      // 2. Global App Presence Channel
+      const onlineChannel = echo.join("online");
+
+      onlineChannel.here((users: PresenceMember[]) => {
+        if (Array.isArray(users)) {
+          dispatch(setOnlineUsers(users.map((member) => String(member.id))));
+        }
+      });
+
+      onlineChannel.joining((member: PresenceMember) => {
+        if (member?.id) {
+          dispatch(userJoinedOnline(String(member.id)));
+        }
+      });
+
+      onlineChannel.leaving((member: PresenceMember) => {
+        if (member?.id) {
+          dispatch(userLeftOnline(String(member.id)));
+        }
+      });
+
       return () => {
         echo.leave(`users.${currentUserId}`);
+        echo.leave("online");
       };
     } catch {
       // Ignore websocket connection issues gracefully

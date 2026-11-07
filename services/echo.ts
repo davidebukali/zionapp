@@ -45,6 +45,16 @@ export function getEchoClient(authToken: string): Echo<"reverb"> {
     },
   });
 
+  if (__DEV__ && (echoInstance.connector as any)?.pusher?.connection) {
+    const connection = (echoInstance.connector as any).pusher.connection;
+    connection.bind("state_change", (states: { previous: string; current: string }) => {
+      console.log(`[Reverb WebSocket] State: ${states.previous} -> ${states.current}`);
+    });
+    connection.bind("error", (error: any) => {
+      console.warn("[Reverb WebSocket] Connection Error:", error);
+    });
+  }
+
   return echoInstance;
 }
 

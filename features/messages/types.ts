@@ -240,6 +240,12 @@ export interface ReportRequest {
 }
 
 // WebSocket Event Types (Laravel Reverb)
+export interface PresenceMember {
+  id: string;
+  name: string;
+  username: string;
+}
+
 export interface MessageSentEvent extends BackendMessage {}
 
 export interface MessageUpdatedEvent extends BackendMessage {
@@ -256,9 +262,16 @@ export interface MessageDeletedEvent {
 
 export interface MessageReactionUpdatedEvent {
   message_id: string;
-  conversation_id: string;
-  user_id: string;
+  conversation_id?: string;
+  user_id?: string;
   emoji: string | null;
+  reaction?: {
+    id: string;
+    message_id: string;
+    user_id: string;
+    emoji: string;
+  } | null;
+  reactions?: BackendMessageReaction[];
 }
 
 export interface MessageReadEvent {
@@ -270,8 +283,9 @@ export interface MessageReadEvent {
 
 export interface TypingStartedEvent {
   conversation_id: string;
-  user_id: string;
-  user_name: string;
+  user?: PresenceMember;
+  user_id?: string;
+  user_name?: string;
 }
 
 // UI Domain Models
@@ -320,4 +334,8 @@ export interface ChatMessage {
   isEdited?: boolean;
   isDeletedForEveryone?: boolean;
   createdAt?: string;
+}
+
+export interface PresenceState {
+  onlineUserIds: string[];
 }

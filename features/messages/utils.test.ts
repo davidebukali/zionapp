@@ -537,6 +537,32 @@ describe("features/messages/utils", () => {
       expect(updated.reactions).toBeUndefined();
       expect(updated.rawReactions).toEqual([]);
     });
+
+    it("applies authoritative reactions array when provided by event", () => {
+      const msg: ChatMessage = {
+        id: "m-1",
+        senderId: "u-1",
+        isOutgoing: false,
+        timestamp: "9:00",
+      };
+
+      const updated = applyReactionEventToMessage(
+        msg,
+        {
+          message_id: "m-1",
+          emoji: "🔥",
+          reactions: [
+            { emoji: "🔥", count: 3, user_reacted: true },
+            { emoji: "🙌", count: 1, user_reacted: false },
+          ],
+        },
+        "me"
+      );
+
+      expect(updated.reactions).toEqual(["🔥", "🙌"]);
+      expect(updated.rawReactions).toHaveLength(2);
+      expect(updated.rawReactions?.[0].count).toBe(3);
+    });
   });
 
   describe("Dependency-Injected Cache Updaters", () => {
@@ -559,11 +585,20 @@ describe("features/messages/utils", () => {
               expect(draft.messages[0].id).toBe("m-new");
               expect(draft.messages[1].id).toBe("m-existing");
             } else if (endpoint === "getConversations") {
-              const draft = { conversations: [] as any[] };
+              const draft = {
+                conversations: [
+                  {
+                    id: "c-1",
+                    unreadCount: 0,
+                    lastMessage: null,
+                  },
+                ] as any[],
+              };
               updater(draft);
             }
             return { type: "patch" };
           }),
+          invalidateTags: jest.fn(),
         },
       };
 
@@ -577,8 +612,130 @@ describe("features/messages/utils", () => {
 
       const undo = insertMessageInCache(api, dispatch, "c-1", newMsg);
       expect(dispatch).toHaveBeenCalledTimes(2);
+      expect(api.util.invalidateTags).not.toHaveBeenCalled();
       undo();
       expect(fakeUndo).toHaveBeenCalledTimes(2);
+    });
+
+    it("insertMessageInCache invalidates Conversation LIST tag when conversation is not in cache", () => {
+      const dispatch = jest.fn();
+      const invalidateTagsMock = jest.fn().mockReturnValue({ type: "invalidate" });
+      const api = {
+        util: {
+          updateQueryData: jest.fn().mockImplementation((endpoint, _arg, updater) => {
+            if (endpoint === "getConversations") {
+              const draft = { conversations: [] as any[] };
+              updater(draft);
+            }
+            return { type: "patch", undo: jest.fn() };
+          }),
+          invalidateTags: invalidateTagsMock,
+        },
+      };
+
+      const newMsg: ChatMessage = {
+        id: "m-new",
+        senderId: "u-2",
+        isOutgoing: false,
+        text: "hello from new contact",
+        timestamp: "9:30",
+      };
+
+      insertMessageInCache(api, dispatch, "c-unknown", newMsg);
+      expect(invalidateTagsMock).toHaveBeenCalledWith([{ type: "Conversation", id: "LIST" }]);
+      expect(dispatch).toHaveBeenCalledWith({ type: "invalidate" });
+    });
+
+    it("insertMessageInCache replaces optimistic temp message when confirmed outgoing message arrives", () => {
+      const dispatch = jest.fn().mockReturnValue({ undo: jest.fn() });
+      let messagesDraft: any;
+
+      const api = {
+        util: {
+          updateQueryData: jest.fn().mockImplementation((endpoint, arg, updater) => {
+            if (endpoint === "getMessages") {
+              messagesDraft = {
+                messages: [
+                  {
+                    id: "temp-123456",
+                    senderId: "me",
+                    isOutgoing: true,
+                    text: "optimistic text",
+                    timestamp: "Just now",
+                  },
+                ],
+              };
+              updater(messagesDraft);
+            } else if (endpoint === "getConversations") {
+              const draft = {
+                conversations: [{ id: "c-1", unreadCount: 0, lastMessage: null }],
+              };
+              updater(draft);
+            }
+            return { type: "patch" };
+          }),
+        },
+      };
+
+      const confirmedMsg: ChatMessage = {
+        id: "server-id-999",
+        senderId: "me",
+        isOutgoing: true,
+        text: "optimistic text",
+        timestamp: "9:45",
+      };
+
+      insertMessageInCache(api, dispatch, "c-1", confirmedMsg);
+
+      expect(messagesDraft.messages).toHaveLength(1);
+      expect(messagesDraft.messages[0].id).toBe("server-id-999");
+    });
+
+    it("insertMessageInCache does not duplicate message or double increment unread count if message already exists", () => {
+      const dispatch = jest.fn().mockReturnValue({ undo: jest.fn() });
+      let messagesDraft: any;
+      let conversationDraft: any;
+
+      const api = {
+        util: {
+          updateQueryData: jest.fn().mockImplementation((endpoint, arg, updater) => {
+            if (endpoint === "getMessages") {
+              messagesDraft = {
+                messages: [
+                  {
+                    id: "m-existing",
+                    senderId: "u-partner",
+                    isOutgoing: false,
+                    text: "already arrived",
+                    timestamp: "9:00",
+                  },
+                ],
+              };
+              updater(messagesDraft);
+            } else if (endpoint === "getConversations") {
+              conversationDraft = {
+                conversations: [{ id: "c-1", unreadCount: 1, lastMessage: null }],
+              };
+              updater(conversationDraft);
+            }
+            return { type: "patch" };
+          }),
+        },
+      };
+
+      const duplicateMsg: ChatMessage = {
+        id: "m-existing",
+        senderId: "u-partner",
+        isOutgoing: false,
+        text: "already arrived",
+        timestamp: "9:00",
+      };
+
+      insertMessageInCache(api, dispatch, "c-1", duplicateMsg);
+
+      expect(messagesDraft.messages).toHaveLength(1);
+      // Unread count should remain 1, not increment to 2
+      expect(conversationDraft.conversations[0].unreadCount).toBe(1);
     });
 
     it("insertMessageInCache updates conversation lastMessage to 'shared a post' when message has sharedPostId", () => {

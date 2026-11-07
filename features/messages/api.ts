@@ -149,7 +149,6 @@ export const messagesApi = baseApi.injectEndpoints({
         method: "POST",
         body: {},
       }),
-      invalidatesTags: (result, error, id) => [{ type: "Conversation", id }],
     }),
 
     // 1.6 Send Typing Indicator
@@ -329,10 +328,6 @@ export const messagesApi = baseApi.injectEndpoints({
           undoOptimistic();
         }
       },
-      invalidatesTags: (result, error, { conversationId }) => [
-        { type: "Conversation", id: conversationId },
-        { type: "Conversation", id: "LIST" },
-      ],
     }),
 
     // 2.3 Edit Message
