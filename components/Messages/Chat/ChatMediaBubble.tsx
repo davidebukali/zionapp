@@ -1,5 +1,5 @@
 import React from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useTheme } from "react-native-paper";
 
 import { ChatMediaBubbleProps } from "./types";
@@ -7,6 +7,7 @@ import { ChatMediaBubbleProps } from "./types";
 export const ChatMediaBubble = React.memo(function ChatMediaBubble({
   mediaUrl,
   mediaUrls,
+  onPressMedia,
 }: ChatMediaBubbleProps) {
   const theme = useTheme();
   const urls =
@@ -21,7 +22,12 @@ export const ChatMediaBubble = React.memo(function ChatMediaBubble({
   // Single Image
   if (urls.length === 1) {
     return (
-      <View
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => onPressMedia?.(urls, 0)}
+        disabled={!onPressMedia}
+        accessibilityRole="button"
+        accessibilityLabel="View photo"
         style={[
           styles.singleContainer,
           {
@@ -35,7 +41,7 @@ export const ChatMediaBubble = React.memo(function ChatMediaBubble({
           style={styles.fullImage}
           resizeMode="cover"
         />
-      </View>
+      </TouchableOpacity>
     );
   }
 
@@ -51,8 +57,13 @@ export const ChatMediaBubble = React.memo(function ChatMediaBubble({
       ]}
     >
       {urls.slice(0, 4).map((url, index) => (
-        <View
+        <TouchableOpacity
           key={`${url}-${index}`}
+          activeOpacity={0.9}
+          onPress={() => onPressMedia?.(urls, index)}
+          disabled={!onPressMedia}
+          accessibilityRole="button"
+          accessibilityLabel={`View photo ${index + 1}`}
           style={[
             styles.gridTile,
             urls.length === 3 && index === 0 ? styles.gridTileWide : null,
@@ -63,7 +74,7 @@ export const ChatMediaBubble = React.memo(function ChatMediaBubble({
             style={styles.fullImage}
             resizeMode="cover"
           />
-        </View>
+        </TouchableOpacity>
       ))}
     </View>
   );

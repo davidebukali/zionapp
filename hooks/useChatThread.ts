@@ -726,6 +726,19 @@ export function useChatThread(targetId?: string) {
     }
   }, [messagesData?.nextCursor, isFetchingMessages]);
 
+  // 12. Fullscreen Media Preview State
+  const [previewMediaUrls, setPreviewMediaUrls] = useState<string[]>([]);
+  const [previewMediaIndex, setPreviewMediaIndex] = useState<number | null>(null);
+
+  const handleOpenMediaPreview = useCallback((urls: string[], index = 0) => {
+    setPreviewMediaUrls(urls);
+    setPreviewMediaIndex(index);
+  }, []);
+
+  const handleCloseMediaPreview = useCallback(() => {
+    setPreviewMediaIndex(null);
+  }, []);
+
   return {
     participant,
     messages,
@@ -760,5 +773,9 @@ export function useChatThread(targetId?: string) {
     handleRemoveMedia,
     isUploadingMedia,
     uploadStatusText,
+    previewMediaUrls,
+    previewMediaIndex,
+    handleOpenMediaPreview,
+    handleCloseMediaPreview,
   };
 }

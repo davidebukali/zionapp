@@ -2,12 +2,7 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { useTheme } from "react-native-paper";
 
-export interface ImagePreviewPaginationProps {
-  currentIndex: number;
-  totalCount: number;
-  bottomInset: number;
-  activeColor?: string;
-}
+import { ImagePreviewPaginationProps } from "./types";
 
 export const ImagePreviewPagination = React.memo(
   function ImagePreviewPagination({

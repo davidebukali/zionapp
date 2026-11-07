@@ -7,6 +7,7 @@ import EmojiPicker from "rn-emoji-keyboard";
 
 import { globalStyles } from "../../../assets/styles/theme";
 import { useChatThread } from "../../../hooks/useChatThread";
+import { ImagePreviewModal } from "../../../components/Common";
 import {
   ChatHeader,
   ChatMessageList,
@@ -51,6 +52,10 @@ export default function ChatScreen() {
     handleRemoveMedia,
     isUploadingMedia,
     uploadStatusText,
+    previewMediaUrls,
+    previewMediaIndex,
+    handleOpenMediaPreview,
+    handleCloseMediaPreview,
   } = useChatThread(id);
 
   return (
@@ -85,6 +90,7 @@ export default function ChatScreen() {
           onLoadMore={onLoadMore}
           isLoadingMore={isLoadingMore}
           hasMore={hasMore}
+          onPressMedia={handleOpenMediaPreview}
         />
 
         {/* Message Input Bar */}
@@ -140,6 +146,14 @@ export default function ChatScreen() {
             icon: theme.colors.onSurfaceVariant,
           },
         }}
+      />
+      {/* Fullscreen Image Preview & Save Modal */}
+      <ImagePreviewModal
+        images={previewMediaUrls}
+        initialIndex={previewMediaIndex ?? 0}
+        visible={previewMediaIndex !== null}
+        onClose={handleCloseMediaPreview}
+        enableDownload
       />
     </View>
   );

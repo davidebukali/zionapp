@@ -10,6 +10,7 @@ import { ChatReadReceipt } from "./ChatReadReceipt";
 
 export const ChatMessageBubble = React.memo(function ChatMessageBubble({
   message,
+  onPressMedia,
 }: ChatMessageBubbleProps) {
   const {
     isOutgoing,
@@ -52,7 +53,11 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
             <ChatPostCard postId={sharedPostId} isOutgoing={isOutgoing} />
           </View>
         ) : !isDeletedForEveryone && (mediaUrl || (mediaUrls && mediaUrls.length > 0)) ? (
-          <ChatMediaBubble mediaUrl={mediaUrl} mediaUrls={mediaUrls} />
+          <ChatMediaBubble
+            mediaUrl={mediaUrl}
+            mediaUrls={mediaUrls}
+            onPressMedia={onPressMedia}
+          />
         ) : (
           text && (
             <ChatTextBubble

@@ -39,6 +39,8 @@ export const ChatComposer = React.memo(function ChatComposer({
       style={[
         globalStyles.commentComposerContainer,
         {
+          flexDirection: "column",
+          alignItems: "stretch",
           backgroundColor: theme.colors.background,
           borderTopColor: theme.colors.outlineVariant,
         },
@@ -201,12 +203,15 @@ export const ChatComposer = React.memo(function ChatComposer({
 
 const styles = StyleSheet.create({
   thumbnailContainer: {
+    paddingTop: 8,
     paddingBottom: 8,
   },
   thumbnailScroll: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
+    paddingTop: 6,
+    paddingRight: 8,
   },
   thumbnailWrapper: {
     position: "relative",
@@ -225,6 +230,8 @@ const styles = StyleSheet.create({
     right: -6,
     backgroundColor: "#FFFFFF",
     borderRadius: 10,
+    zIndex: 2,
+    elevation: 2,
   },
   uploadStatusPill: {
     flexDirection: "row",

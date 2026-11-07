@@ -287,6 +287,52 @@ describe("components/Messages/Chat", () => {
       expect(json).toContain("https://example.com/img2.jpg");
       expect(json).toContain("https://example.com/img3.jpg");
     });
+
+    it("calls onPressMedia with urls and index 0 when single image is tapped", () => {
+      const handlePressMedia = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMediaBubble
+            mediaUrl="https://example.com/banner.jpg"
+            onPressMedia={handlePressMedia}
+          />
+        );
+      });
+
+      const button = renderer!.root.findByProps({ accessibilityLabel: "View photo" });
+      act(() => {
+        button.props.onPress();
+      });
+
+      expect(handlePressMedia).toHaveBeenCalledWith(
+        ["https://example.com/banner.jpg"],
+        0
+      );
+    });
+
+    it("calls onPressMedia with all urls and target index when a grid tile is tapped", () => {
+      const handlePressMedia = jest.fn();
+      const urls = [
+        "https://example.com/img1.jpg",
+        "https://example.com/img2.jpg",
+      ];
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMediaBubble mediaUrls={urls} onPressMedia={handlePressMedia} />
+        );
+      });
+
+      const button = renderer!.root.findByProps({
+        accessibilityLabel: "View photo 2",
+      });
+      act(() => {
+        button.props.onPress();
+      });
+
+      expect(handlePressMedia).toHaveBeenCalledWith(urls, 1);
+    });
   });
 
   describe("ChatMessageBubble", () => {
@@ -310,6 +356,34 @@ describe("components/Messages/Chat", () => {
       expect(json).toContain("hello world");
       expect(json).toContain("❤️");
       expect(json).toContain("Read 9:14");
+    });
+
+    it("forwards onPressMedia to ChatMediaBubble for media messages", () => {
+      const handlePressMedia = jest.fn();
+      const msg: ChatMessage = {
+        id: "msg-media",
+        senderId: "other-user",
+        isOutgoing: false,
+        mediaUrl: "https://example.com/received.jpg",
+        timestamp: "9:15",
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMessageBubble message={msg} onPressMedia={handlePressMedia} />
+        );
+      });
+
+      const button = renderer!.root.findByProps({ accessibilityLabel: "View photo" });
+      act(() => {
+        button.props.onPress();
+      });
+
+      expect(handlePressMedia).toHaveBeenCalledWith(
+        ["https://example.com/received.jpg"],
+        0
+      );
     });
   });
 

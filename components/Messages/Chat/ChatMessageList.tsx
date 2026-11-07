@@ -15,6 +15,7 @@ export const ChatMessageList = React.memo(function ChatMessageList({
   onLoadMore,
   isLoadingMore = false,
   hasMore = false,
+  onPressMedia,
 }: ChatMessageListProps) {
   const listRef = useRef<FlatList<ChatMessage>>(null);
 
@@ -24,7 +25,9 @@ export const ChatMessageList = React.memo(function ChatMessageList({
       data={messages}
       inverted
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <ChatMessageBubble message={item} />}
+      renderItem={({ item }) => (
+        <ChatMessageBubble message={item} onPressMedia={onPressMedia} />
+      )}
       ListHeaderComponent={
         <ChatTypingIndicator participant={participant} visible={isTyping} />
       }

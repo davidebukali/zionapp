@@ -1,11 +1,9 @@
 import React from "react";
 import { Dimensions, Image, StyleSheet, View } from "react-native";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+import { ImagePreviewSlideProps } from "./types";
 
-export interface ImagePreviewSlideProps {
-  uri: string;
-}
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export const ImagePreviewSlide = React.memo(function ImagePreviewSlide({
   uri,

@@ -30,10 +30,12 @@ export interface ChatTextBubbleProps {
 export interface ChatMediaBubbleProps {
   mediaUrl?: string;
   mediaUrls?: string[];
+  onPressMedia?: (urls: string[], initialIndex: number) => void;
 }
 
 export interface ChatMessageBubbleProps {
   message: ChatMessage;
+  onPressMedia?: (urls: string[], initialIndex: number) => void;
 }
 
 export interface ChatTypingIndicatorProps {
@@ -63,6 +65,7 @@ export interface ChatMessageListProps {
   onLoadMore?: () => void;
   isLoadingMore?: boolean;
   hasMore?: boolean;
+  onPressMedia?: (urls: string[], initialIndex: number) => void;
 }
 
 export interface ChatThreadOptionsSheetProps {

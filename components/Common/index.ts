@@ -4,5 +4,6 @@ export * from "./ExpandableText";
 export * from "./ErrorStateView";
 export * from "./GlobalOfflineBanner";
 export * from "./AccountClassification";
+export * from "./ImagePreviewModal";
 
 
