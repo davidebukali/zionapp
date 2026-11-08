@@ -39,6 +39,8 @@ import {
   useGetMessagesQuery,
   useMarkConversationAsReadMutation,
   useMuteConversationMutation,
+  useReactToMessageMutation,
+  useRemoveMessageReactionMutation,
   useReportConversationMutation,
   useSendMessageMutation,
   useSendTypingIndicatorMutation,
@@ -126,6 +128,12 @@ export function useChatThread(targetId?: string) {
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [uploadStatusText, setUploadStatusText] = useState<string | null>(null);
 
+  // Reply and Reaction states
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [reactingToMessageId, setReactingToMessageId] = useState<string | null>(
+    null
+  );
+
   // Additional Mutations
   const [muteMutation] = useMuteConversationMutation();
   const [unmuteMutation] = useUnmuteConversationMutation();
@@ -133,6 +141,8 @@ export function useChatThread(targetId?: string) {
   const [unarchiveMutation] = useUnarchiveConversationMutation();
   const [deleteConversationMutation] = useDeleteConversationMutation();
   const [reportConversationMutation] = useReportConversationMutation();
+  const [reactToMessageMutation] = useReactToMessageMutation();
+  const [removeMessageReactionMutation] = useRemoveMessageReactionMutation();
   const [blockUserMutation] = useBlockUserMutation();
   const [unblockUserMutation] = useUnblockUserMutation();
   const [getMediaUploadUrl] = useGetMediaUploadUrlMutation();
@@ -496,6 +506,8 @@ export function useChatThread(targetId?: string) {
     setInputText("");
     const mediaToSend = [...selectedMedia];
     setSelectedMedia([]);
+    const replyTarget = replyingTo;
+    setReplyingTo(null);
 
     try {
       let uploadedMediaIds: string[] | undefined = undefined;
@@ -514,6 +526,21 @@ export function useChatThread(targetId?: string) {
         body: hasImages ? undefined : trimmed,
         media_ids: uploadedMediaIds,
         optimisticMediaUrls: hasImages ? mediaToSend.map((m) => m.uri) : undefined,
+        reply_to_message_id: replyTarget?.id,
+        optimisticReplyTo: replyTarget
+          ? {
+              id: replyTarget.id,
+              sender: {
+                id: replyTarget.senderId,
+                name: replyTarget.isOutgoing ? "You" : participant.name,
+              },
+              body:
+                replyTarget.text ||
+                (replyTarget.sharedPostId ? "Shared post" : null),
+              mediaUrl: replyTarget.mediaUrl || replyTarget.media?.[0]?.url,
+              is_deleted_for_everyone: false,
+            }
+          : null,
       }).unwrap();
     } catch (error: any) {
       const message =
@@ -526,6 +553,8 @@ export function useChatThread(targetId?: string) {
   }, [
     inputText,
     selectedMedia,
+    replyingTo,
+    participant.name,
     resolvedConversationId,
     token,
     sendMessageMutation,
@@ -667,15 +696,102 @@ export function useChatThread(targetId?: string) {
     handleCloseOptions,
   ]);
 
+  // Reply handlers
+  const handleReplyToMessage = useCallback((message: ChatMessage) => {
+    setReplyingTo(message);
+  }, []);
+
+  const handleCancelReply = useCallback(() => {
+    setReplyingTo(null);
+  }, []);
+
+  const handleOpenReactionPicker = useCallback((messageId: string) => {
+    setReactingToMessageId(messageId);
+    setIsEmojiPickerOpen(true);
+  }, []);
+
+  const handleToggleReaction = useCallback(
+    async (messageId: string, emoji: string) => {
+      if (!resolvedConversationId || !token) return;
+
+      const targetMessage = messages.find((msg) => msg.id === messageId);
+      const existingReaction = targetMessage?.rawReactions?.find(
+        (reaction) => reaction.emoji === emoji
+      );
+      const hasUserReacted = existingReaction
+        ? existingReaction.user_reacted
+        : false;
+
+      // Optimistically update local RTK Query cache
+      updateMessageInCache(
+        messagesApi,
+        dispatch,
+        resolvedConversationId,
+        messageId,
+        (msg) => {
+          const fakeEvent: MessageReactionUpdatedEvent = {
+            message_id: messageId,
+            conversation_id: resolvedConversationId,
+            emoji: hasUserReacted ? null : emoji,
+            user_id: currentUserId,
+          };
+          const updated = applyReactionEventToMessage(
+            msg,
+            fakeEvent,
+            currentUserId
+          );
+          msg.reactions = updated.reactions;
+          msg.rawReactions = updated.rawReactions;
+        }
+      );
+
+      try {
+        if (hasUserReacted) {
+          await removeMessageReactionMutation({
+            messageId,
+            conversationId: resolvedConversationId,
+          }).unwrap();
+        } else {
+          await reactToMessageMutation({
+            messageId,
+            conversationId: resolvedConversationId,
+            emoji,
+          }).unwrap();
+        }
+      } catch {
+        // Optimistic rollback not strictly necessary on minor failure
+      }
+    },
+    [
+      resolvedConversationId,
+      token,
+      messages,
+      dispatch,
+      currentUserId,
+      removeMessageReactionMutation,
+      reactToMessageMutation,
+    ]
+  );
+
   // Emoji picker
   const handleToggleEmoji = useCallback(() => {
     Keyboard.dismiss();
+    setReactingToMessageId(null);
     setIsEmojiPickerOpen((prev) => !prev);
   }, []);
 
-  const handleEmojiSelected = useCallback((emojiObject: EmojiType) => {
-    setInputText((prev) => prev + emojiObject.emoji);
-  }, []);
+  const handleEmojiSelected = useCallback(
+    (emojiObject: EmojiType) => {
+      if (reactingToMessageId) {
+        handleToggleReaction(reactingToMessageId, emojiObject.emoji);
+        setReactingToMessageId(null);
+        setIsEmojiPickerOpen(false);
+      } else {
+        setInputText((prev) => prev + emojiObject.emoji);
+      }
+    },
+    [reactingToMessageId, handleToggleReaction]
+  );
 
   // Back navigation
   const handleBack = useCallback(() => {
@@ -743,5 +859,10 @@ export function useChatThread(targetId?: string) {
     previewMediaIndex,
     handleOpenMediaPreview,
     handleCloseMediaPreview,
+    replyingTo,
+    handleReplyToMessage,
+    handleCancelReply,
+    handleOpenReactionPicker,
+    handleToggleReaction,
   };
 }

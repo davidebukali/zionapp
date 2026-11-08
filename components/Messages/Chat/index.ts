@@ -1,6 +1,7 @@
 export * from "./ChatHeader";
 export * from "./ChatDateSeparator";
 export * from "./ChatReactionBadge";
+export * from "./ChatReplySnippet";
 export * from "./ChatReadReceipt";
 export * from "./ChatTextBubble";
 export * from "./ChatMediaBubble";

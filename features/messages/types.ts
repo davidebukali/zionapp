@@ -60,6 +60,7 @@ export interface BackendMessageReply {
     name: string;
   };
   body: string | null;
+  mediaUrl?: string;
   is_deleted_for_everyone: boolean;
 }
 
@@ -166,6 +167,7 @@ export interface SendMessageRequest {
   media_ids?: string[];
   reply_to_message_id?: string | null;
   optimisticMediaUrls?: string[];
+  optimisticReplyTo?: BackendMessageReply | null;
 }
 
 export interface SendMessageResponse {

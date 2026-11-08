@@ -1,8 +1,11 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Dimensions, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "react-native-paper";
 
 import { ChatTextBubbleProps } from "./types";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+export const CHAT_BUBBLE_MAX_WIDTH = Math.round(SCREEN_WIDTH * 0.76);
 
 export const ChatTextBubble = React.memo(function ChatTextBubble({
   text,
@@ -50,7 +53,7 @@ export const ChatTextBubble = React.memo(function ChatTextBubble({
 
 const styles = StyleSheet.create({
   bubble: {
-    maxWidth: "76%",
+    maxWidth: CHAT_BUBBLE_MAX_WIDTH,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 18,

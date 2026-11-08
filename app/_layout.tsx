@@ -2,11 +2,12 @@ import React, { useEffect, useMemo } from "react";
 import { Slot } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as SystemUI from "expo-system-ui";
-import { useColorScheme } from "react-native";
+import { StyleSheet, useColorScheme } from "react-native";
 import { PaperProvider } from "react-native-paper";
 import { StatusBar } from "expo-status-bar";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Provider, useDispatch, useSelector } from "react-redux";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { darkTheme, lightTheme } from "../assets/styles/theme";
 import { store, RootState, AppDispatch } from "../store/store";
@@ -67,17 +68,25 @@ export default function RootLayout() {
   }, [theme.colors.background]);
 
   return (
-    <Provider store={store}>
-      <PaperProvider theme={theme}>
-        <ThemeProvider value={navigationTheme}>
-          <StatusBar
-            style={colorScheme === "dark" ? "light" : "dark"}
-            backgroundColor={theme.colors.background}
-          />
-          <GlobalOfflineBanner />
-          <RootNavigation />
-        </ThemeProvider>
-      </PaperProvider>
-    </Provider>
+    <GestureHandlerRootView style={styles.rootContainer}>
+      <Provider store={store}>
+        <PaperProvider theme={theme}>
+          <ThemeProvider value={navigationTheme}>
+            <StatusBar
+              style={colorScheme === "dark" ? "light" : "dark"}
+              backgroundColor={theme.colors.background}
+            />
+            <GlobalOfflineBanner />
+            <RootNavigation />
+          </ThemeProvider>
+        </PaperProvider>
+      </Provider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+  },
+});

@@ -1,6 +1,7 @@
 import React from "react";
 import { FlatList, TouchableOpacity } from "react-native";
 import ReactTestRenderer, { act } from "react-test-renderer";
+import { Swipeable } from "react-native-gesture-handler";
 
 jest.mock("@expo/vector-icons/Ionicons", () => "Ionicons");
 jest.mock("expo-router", () => ({
@@ -132,6 +133,7 @@ import {
   ChatComposer,
   ChatMessageList,
   ChatThreadOptionsSheet,
+  ChatReplySnippet,
   ChatPostCard,
   ChatPostCardAuthorRow,
   ChatPostCardImage,
@@ -797,6 +799,306 @@ describe("components/Messages/Chat", () => {
       // Companion text is rendered above the post card
       const json = JSON.stringify(renderer!.toJSON());
       expect(json).toContain("Check this out!");
+    });
+  });
+
+  describe("ChatReplySnippet", () => {
+    it("renders composer banner with sender name, text, and handles onCancel", () => {
+      const onCancelMock = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatReplySnippet
+            senderName="Maya Chen"
+            text="Hello world"
+            onCancel={onCancelMock}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const cancelButton = root.findByProps({
+        accessibilityLabel: "Cancel reply",
+      });
+      expect(cancelButton).toBeDefined();
+
+      act(() => {
+        cancelButton.props.onPress();
+      });
+      expect(onCancelMock).toHaveBeenCalledTimes(1);
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Maya Chen");
+      expect(json).toContain("Hello world");
+    });
+
+    it("renders thumbnail image when mediaUrl is provided", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatReplySnippet
+            senderName="You"
+            text=""
+            mediaUrl="https://example.com/reply-thumb.jpg"
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("https://example.com/reply-thumb.jpg");
+      expect(json).toContain("📷 Photo");
+    });
+
+    it("formats raw [zion:post:...] tag as 'Shared post' in quote snippet", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatReplySnippet
+            senderName="dave"
+            text="[zion:post:post-999]"
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("dave");
+      expect(json).toContain("Shared post");
+      expect(json).not.toContain("[zion:post:post-999]");
+    });
+
+    it("extracts companion caption when [zion:post:...] contains text", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatReplySnippet
+            senderName="dave"
+            text="[zion:post:post-999] Sunday service recap"
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Sunday service recap");
+      expect(json).not.toContain("[zion:post:post-999]");
+    });
+  });
+
+  describe("ChatReactionBadge enhancements", () => {
+    it("displays count only when multiple reactions exist", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatReactionBadge
+            rawReactions={[
+              { emoji: "❤️", count: 1, user_reacted: false },
+              { emoji: "👍", count: 3, user_reacted: true },
+            ]}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const singleBadge = root.findByProps({
+        accessibilityLabel: "Reaction ❤️",
+      });
+      const multiBadge = root.findByProps({
+        accessibilityLabel: "Reaction 👍, count 3",
+      });
+      expect(singleBadge).toBeDefined();
+      expect(multiBadge).toBeDefined();
+    });
+
+    it("triggers onPressReaction callback when a reaction pill is tapped", () => {
+      const onPressReactionMock = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatReactionBadge
+            rawReactions={[{ emoji: "😂", count: 2, user_reacted: true }]}
+            onPressReaction={onPressReactionMock}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const badge = root.findByProps({
+        accessibilityLabel: "Reaction 😂, count 2",
+      });
+      act(() => {
+        badge.props.onPress();
+      });
+      expect(onPressReactionMock).toHaveBeenCalledWith("😂");
+    });
+  });
+
+  describe("ChatMessageBubble with reply & reactions", () => {
+    it("renders replied message snippet above the current text", () => {
+      const message: ChatMessage = {
+        id: "msg-reply-1",
+        senderId: "user-current",
+        isOutgoing: true,
+        text: "I completely agree with this!",
+        timestamp: "9:15",
+        replyTo: {
+          id: "msg-orig-1",
+          sender: { id: "user-maya", name: "Maya Chen" },
+          body: "Let us meet at 5 PM",
+          is_deleted_for_everyone: false,
+        },
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMessageBubble message={message} />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Maya Chen");
+      expect(json).toContain("Let us meet at 5 PM");
+      expect(json).toContain("I completely agree with this!");
+    });
+
+    it("opens quick reactions modal on long press and fires onReact callback", () => {
+      const onReactMock = jest.fn();
+      const message: ChatMessage = {
+        id: "msg-longpress-1",
+        senderId: "user-maya",
+        isOutgoing: false,
+        text: "Praise the Lord!",
+        timestamp: "9:20",
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMessageBubble message={message} onReact={onReactMock} />
+        );
+      });
+
+      const root = renderer!.root;
+      const touchable = root.findByProps({ delayLongPress: 250 });
+      act(() => {
+        touchable.props.onLongPress();
+      });
+
+      // Quick reaction buttons should now be available in the modal
+      const heartButton = root.findByProps({
+        accessibilityLabel: "React with ❤️",
+      });
+      expect(heartButton).toBeDefined();
+
+      act(() => {
+        heartButton.props.onPress();
+      });
+      expect(onReactMock).toHaveBeenCalledWith("msg-longpress-1", "❤️");
+    });
+
+    it("opens reaction picker when + is tapped in quick reaction modal", () => {
+      const onOpenReactionPickerMock = jest.fn();
+      const message: ChatMessage = {
+        id: "msg-picker-1",
+        senderId: "user-maya",
+        isOutgoing: false,
+        text: "Hallelujah!",
+        timestamp: "9:25",
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMessageBubble
+            message={message}
+            onOpenReactionPicker={onOpenReactionPickerMock}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const touchable = root.findByProps({ delayLongPress: 250 });
+      act(() => {
+        touchable.props.onLongPress();
+      });
+
+      const moreButton = root.findByProps({
+        accessibilityLabel: "More reactions",
+      });
+      expect(moreButton).toBeDefined();
+
+      act(() => {
+        moreButton.props.onPress();
+      });
+      expect(onOpenReactionPickerMock).toHaveBeenCalledWith("msg-picker-1");
+    });
+
+    it("calls onReply when swiped to the right", () => {
+      const onReplyMock = jest.fn();
+      const message: ChatMessage = {
+        id: "msg-swipe-1",
+        senderId: "user-maya",
+        isOutgoing: false,
+        text: "Swipe to reply test",
+        timestamp: "9:30",
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMessageBubble message={message} onReply={onReplyMock} />
+        );
+      });
+
+      const root = renderer!.root;
+      const swipeable = root.findByType(Swipeable);
+      act(() => {
+        swipeable.props.onSwipeableOpen("left");
+      });
+
+      expect(onReplyMock).toHaveBeenCalledWith(message);
+    });
+  });
+
+  describe("ChatComposer with replyingTo", () => {
+    it("renders floating reply preview banner and handles cancel", () => {
+      const onCancelReplyMock = jest.fn();
+      const replyingMessage: ChatMessage = {
+        id: "msg-replying-1",
+        senderId: "user-maya",
+        isOutgoing: false,
+        text: "Are you attending Sunday service?",
+        timestamp: "9:00",
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatComposer
+            text=""
+            onChangeText={jest.fn()}
+            onSend={jest.fn()}
+            onToggleEmoji={jest.fn()}
+            replyingTo={replyingMessage}
+            participantName="Maya Chen"
+            onCancelReply={onCancelReplyMock}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const cancelButton = root.findByProps({
+        accessibilityLabel: "Cancel reply",
+      });
+      expect(cancelButton).toBeDefined();
+
+      act(() => {
+        cancelButton.props.onPress();
+      });
+      expect(onCancelReplyMock).toHaveBeenCalledTimes(1);
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Maya Chen");
+      expect(json).toContain("Are you attending Sunday service?");
     });
   });
 });

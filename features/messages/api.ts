@@ -263,7 +263,7 @@ export const messagesApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: SendMessageResponse) => response.data,
       async onQueryStarted(
-        { conversationId, body, media_ids, reply_to_message_id, optimisticMediaUrls },
+        { conversationId, body, media_ids, reply_to_message_id, optimisticMediaUrls, optimisticReplyTo },
         { dispatch, getState, queryFulfilled }
       ) {
         const currentUserId = (getState() as RootState).auth?.user?.id;
@@ -291,7 +291,7 @@ export const messagesApi = baseApi.injectEndpoints({
             },
             body: body || null,
             media: optimisticMedia,
-            reply_to: null,
+            reply_to: optimisticReplyTo || null,
             reactions: [],
             is_edited: false,
             is_deleted_for_everyone: false,

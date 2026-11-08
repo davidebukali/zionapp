@@ -15,6 +15,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { globalStyles } from "../../../assets/styles/theme";
 import { MAX_CHAT_MEDIA, MAX_MESSAGE_LENGTH } from "../../../constants";
 import { ChatComposerProps } from "./types";
+import { ChatReplySnippet } from "./ChatReplySnippet";
 
 export const ChatComposer = React.memo(function ChatComposer({
   text,
@@ -28,6 +29,9 @@ export const ChatComposer = React.memo(function ChatComposer({
   onRemoveMedia,
   isUploadingMedia = false,
   uploadStatusText = null,
+  replyingTo,
+  participantName,
+  onCancelReply,
 }: ChatComposerProps) {
   const theme = useTheme();
   const hasImages = selectedMedia.length > 0;
@@ -46,6 +50,23 @@ export const ChatComposer = React.memo(function ChatComposer({
         },
       ]}
     >
+      {/* Reply Preview Banner (Floating snippet above composer with cancel button) */}
+      {replyingTo && (
+        <View style={styles.replyBannerContainer}>
+          <ChatReplySnippet
+            senderName={
+              replyingTo.isOutgoing ? "You" : participantName || "User"
+            }
+            text={
+              replyingTo.text ||
+              (replyingTo.sharedPostId ? "Shared post" : null)
+            }
+            mediaUrl={replyingTo.mediaUrl || replyingTo.media?.[0]?.url}
+            onCancel={onCancelReply}
+          />
+        </View>
+      )}
+
       {/* Thumbnail Strip (Rendered above input pill when images are selected) */}
       {hasImages && (
         <View style={styles.thumbnailContainer}>
@@ -202,6 +223,11 @@ export const ChatComposer = React.memo(function ChatComposer({
 });
 
 const styles = StyleSheet.create({
+  replyBannerContainer: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
   thumbnailContainer: {
     paddingTop: 8,
     paddingBottom: 8,

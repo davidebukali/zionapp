@@ -1,4 +1,9 @@
-import { ChatMessage, OnlineContact, ReportReason } from "../../../features/messages/types";
+import {
+  BackendMessageReaction,
+  ChatMessage,
+  OnlineContact,
+  ReportReason,
+} from "../../../features/messages/types";
 import { MediaItem } from "../../../utils/mediaUploader";
 
 export interface ChatHeaderProps {
@@ -13,7 +18,9 @@ export interface ChatDateSeparatorProps {
 }
 
 export interface ChatReactionBadgeProps {
-  reactions: string[];
+  reactions?: string[];
+  rawReactions?: BackendMessageReaction[];
+  onPressReaction?: (emoji: string) => void;
 }
 
 export interface ChatReadReceiptProps {
@@ -35,7 +42,11 @@ export interface ChatMediaBubbleProps {
 
 export interface ChatMessageBubbleProps {
   message: ChatMessage;
+  participantName?: string;
   onPressMedia?: (urls: string[], initialIndex: number) => void;
+  onReply?: (message: ChatMessage) => void;
+  onReact?: (messageId: string, emoji: string) => void;
+  onOpenReactionPicker?: (messageId: string) => void;
 }
 
 export interface ChatTypingIndicatorProps {
@@ -55,6 +66,9 @@ export interface ChatComposerProps {
   onRemoveMedia?: (index: number) => void;
   isUploadingMedia?: boolean;
   uploadStatusText?: string | null;
+  replyingTo?: ChatMessage | null;
+  participantName?: string;
+  onCancelReply?: () => void;
 }
 
 export interface ChatMessageListProps {
@@ -66,6 +80,9 @@ export interface ChatMessageListProps {
   isLoadingMore?: boolean;
   hasMore?: boolean;
   onPressMedia?: (urls: string[], initialIndex: number) => void;
+  onReply?: (message: ChatMessage) => void;
+  onReact?: (messageId: string, emoji: string) => void;
+  onOpenReactionPicker?: (messageId: string) => void;
 }
 
 export interface ChatThreadOptionsSheetProps {
