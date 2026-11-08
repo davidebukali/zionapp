@@ -1,8 +1,8 @@
 import React from "react";
 import { View } from "react-native";
-import { Card } from "react-native-paper";
+import { Card, useTheme } from "react-native-paper";
 
-import { globalStyles, postTokens } from "../../../assets/styles/theme";
+import { globalStyles } from "../../../assets/styles/theme";
 import { PostAction } from "../PostAction";
 
 interface PostCardFooterProps {
@@ -30,6 +30,7 @@ export function PostCardFooter({
   onPressRepost,
   onPressBookmark,
 }: PostCardFooterProps) {
+  const theme = useTheme();
   const likesCount = parseInt(likes, 10) || 0;
   const commentsCount = parseInt(comments, 10) || 0;
 
@@ -37,9 +38,12 @@ export function PostCardFooter({
   const commentsLabel = commentsCount > 0 ? comments : undefined;
   const repostsLabel = repostsCount > 0 ? String(repostsCount) : undefined;
 
-  const likeColor = liked ? postTokens.activeActionColor : postTokens.actionColor;
-  const repostColor = isReposted ? postTokens.activeActionColor : postTokens.actionColor;
-  const bookmarkColor = bookmarked ? postTokens.activeActionColor : postTokens.actionColor;
+  const defaultActionColor = theme.colors.onSurfaceVariant;
+  const activeActionColor = theme.colors.primary;
+
+  const likeColor = liked ? activeActionColor : defaultActionColor;
+  const repostColor = isReposted ? activeActionColor : defaultActionColor;
+  const bookmarkColor = bookmarked ? activeActionColor : defaultActionColor;
 
   return (
     <Card.Actions style={globalStyles.postFooter}>
@@ -54,7 +58,7 @@ export function PostCardFooter({
         <PostAction
           icon="chatbox-outline"
           label={commentsLabel}
-          color={postTokens.actionColor}
+          color={defaultActionColor}
           accessibilityLabel={`${comments || "0"} comments`}
           onPress={onPressComment}
         />

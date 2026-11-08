@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Avatar, Card, useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
-import { globalStyles, postTokens } from "../../../assets/styles/theme";
+import { globalStyles } from "../../../assets/styles/theme";
 import { formatRelativeTime } from "../../../utils/date";
 import { getUserInitials } from "../../../utils/user";
 import { AnchorPosition, PostCardMenu } from "./PostCardMenu";
@@ -148,7 +148,7 @@ export function PostCardHeader({
             <Ionicons
               name="ellipsis-vertical"
               size={26}
-              color={postTokens.actionColor}
+              color={theme.colors.onSurfaceVariant}
             />
           </TouchableOpacity>
         )}
