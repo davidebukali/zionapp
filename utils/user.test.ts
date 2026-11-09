@@ -1,4 +1,9 @@
-import { getUserInitials, getUserAvatarUrl, getUserCoverUrl } from './user';
+import {
+  getUserInitials,
+  getUserAvatarUrl,
+  getUserCoverUrl,
+  getAvatarColor,
+} from './user';
 
 describe('utils/user', () => {
   describe('getUserInitials', () => {
@@ -104,6 +109,27 @@ describe('utils/user', () => {
       expect(getUserCoverUrl({})).toBeUndefined();
       expect(getUserCoverUrl({ profile: {} })).toBeUndefined();
       expect(getUserCoverUrl({ profile: { cover: null } })).toBeUndefined();
+    });
+  });
+
+  describe('getAvatarColor', () => {
+    it('returns first palette color when identifier is missing or empty', () => {
+      const color = getAvatarColor();
+      expect(color).toBe('#4E9B47');
+      expect(getAvatarColor('')).toBe('#4E9B47');
+      expect(getAvatarColor(null)).toBe('#4E9B47');
+    });
+
+    it('returns consistent deterministic color for same identifier', () => {
+      const firstCall = getAvatarColor('user_123');
+      const secondCall = getAvatarColor('user_123');
+      expect(firstCall).toBe(secondCall);
+    });
+
+    it('supports custom palette', () => {
+      const customPalette = ['#111111', '#222222', '#333333'];
+      const color = getAvatarColor('jane', customPalette);
+      expect(customPalette).toContain(color);
     });
   });
 });

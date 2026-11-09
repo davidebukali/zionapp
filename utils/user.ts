@@ -76,4 +76,38 @@ export function getUserCoverUrl(userOrProfile?: any): string | undefined {
   return undefined;
 }
 
+const DEFAULT_AVATAR_PALETTE = [
+  '#4E9B47', // Forest green
+  '#7A9A32', // Olive
+  '#8BA838', // Lime olive
+  '#CF6B4E', // Terracotta
+  '#D97742', // Amber brown
+  '#3F72AF', // Slate blue
+  '#8E44AD', // Purple
+  '#2C3E50', // Charcoal
+];
+
+/**
+ * Computes a deterministic background color for an avatar based on a seed identifier.
+ */
+export function getAvatarColor(
+  identifier?: string | null,
+  palette: string[] = DEFAULT_AVATAR_PALETTE
+): string {
+  if (!identifier || !identifier.trim()) {
+    return palette[0];
+  }
+
+  let hashValue = 0;
+  const cleanIdentifier = identifier.trim();
+  for (let index = 0; index < cleanIdentifier.length; index += 1) {
+    hashValue =
+      cleanIdentifier.charCodeAt(index) + ((hashValue << 5) - hashValue);
+    hashValue |= 0;
+  }
+
+  const paletteIndex = Math.abs(hashValue) % palette.length;
+  return palette[paletteIndex];
+}
+
 
