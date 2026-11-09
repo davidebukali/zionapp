@@ -3,9 +3,11 @@ import { Redirect, Stack } from "expo-router";
 import { useSelector } from "react-redux";
 import { RootState } from "../../store/store";
 import { useGlobalUserChannel } from "../../hooks/useGlobalUserChannel";
+import { usePushNotifications } from "../../hooks/usePushNotifications";
 
 export default function AppGroupLayout() {
   useGlobalUserChannel();
+  usePushNotifications();
 
   const { isAuthenticated, isInitializing } = useSelector(
     (state: RootState) => state.auth

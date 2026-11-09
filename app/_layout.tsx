@@ -14,6 +14,10 @@ import { store, RootState, AppDispatch } from "../store/store";
 import { restoreSession } from "../features/auth/authSlice";
 import { GlobalOfflineBanner } from "../components/Common/GlobalOfflineBanner";
 import { useRestoreAppearance } from "../hooks/useAppearance";
+import { configureForegroundNotificationHandler } from "../services/pushNotifications";
+
+// Initialize foreground push notification presentation
+configureForegroundNotificationHandler();
 
 // Prevent splash screen from auto-hiding while restoring session
 SplashScreen.preventAutoHideAsync().catch(() => {});

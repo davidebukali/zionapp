@@ -123,3 +123,23 @@ export type NotificationBadgeVariant =
   | 'repost'
   | 'follow';
 
+export interface RegisterPushTokenRequest {
+  token: string;
+  platform: 'ios' | 'android' | 'web';
+  device_name?: string;
+}
+
+export interface RemovePushTokenRequest {
+  token: string;
+}
+
+export interface PushNotificationPayloadData {
+  postId?: string;
+  post_id?: string;
+  userId?: string;
+  user_id?: string;
+  url?: string;
+  type?: NotificationType;
+  [key: string]: unknown;
+}
+

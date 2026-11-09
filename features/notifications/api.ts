@@ -2,6 +2,8 @@ import { baseApi } from '../../services/baseApi';
 import {
   GetNotificationsParams,
   NotificationsResponse,
+  RegisterPushTokenRequest,
+  RemovePushTokenRequest,
 } from './types';
 import {
   markAllNotificationsReadInCaches,
@@ -90,6 +92,22 @@ export const notificationsApi = baseApi.injectEndpoints({
       },
       invalidatesTags: [{ type: 'Notification', id: 'LIST' }],
     }),
+
+    registerPushToken: builder.mutation<void, RegisterPushTokenRequest>({
+      query: (body) => ({
+        url: '/devices/token',
+        method: 'POST',
+        body,
+      }),
+    }),
+
+    removePushToken: builder.mutation<void, RemovePushTokenRequest>({
+      query: (body) => ({
+        url: '/devices/token',
+        method: 'DELETE',
+        body,
+      }),
+    }),
   }),
 });
 
@@ -97,5 +115,7 @@ export const {
   useGetNotificationsQuery,
   useMarkNotificationAsReadMutation,
   useMarkAllNotificationsAsReadMutation,
+  useRegisterPushTokenMutation,
+  useRemovePushTokenMutation,
 } = notificationsApi;
 
