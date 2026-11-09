@@ -67,6 +67,24 @@ describe('services/pushNotifications', () => {
       expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled();
     });
 
+    it('allows Android emulator in __DEV__ environment to proceed with registration', async () => {
+      mockIsDevice = false;
+      const originalPlatform = Platform.OS;
+      Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
+
+      (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+      });
+      (Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValue({
+        data: 'ExponentPushToken[mock-android-emulator-token]',
+      });
+
+      const token = await registerForPushNotificationsAsync();
+      expect(token).toBe('ExponentPushToken[mock-android-emulator-token]');
+
+      Object.defineProperty(Platform, 'OS', { value: originalPlatform, configurable: true });
+    });
+
     it('requests permission if not initially granted and returns token', async () => {
       (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
         status: 'undetermined',

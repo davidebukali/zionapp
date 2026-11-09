@@ -25,7 +25,8 @@ export function configureForegroundNotificationHandler(): void {
 export async function registerForPushNotificationsAsync(options?: {
   projectId?: string;
 }): Promise<string | null> {
-  if (!Device.isDevice) {
+  // Enforce physical devices in production; allow Android emulators during development
+  if (!Device.isDevice && (!__DEV__ || Platform.OS !== 'android')) {
     console.warn('[PushNotifications] Push notifications require a physical device.');
     return null;
   }

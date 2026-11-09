@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "zion",
-    "slug": "zion",
+    "slug": "tsiyon",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -17,6 +17,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "googleServicesFile": "./google-services.json",
       "package": "com.debukali.zion"
     },
     "web": {
@@ -41,7 +42,9 @@
         {
           "icon": "./assets/images/icon.png",
           "color": "#DE3A3A",
-          "sounds": ["default"]
+          "sounds": [
+            "default"
+          ]
         }
       ]
     ],
@@ -55,6 +58,7 @@
       "eas": {
         "projectId": "bb61501e-a4f0-49e7-8a2b-038e34e5c545"
       }
-    }
+    },
+    "owner": "devserenes-team"
   }
 }
