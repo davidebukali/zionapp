@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Snackbar, useTheme } from "react-native-paper";
 import { router } from "expo-router";
@@ -15,6 +15,10 @@ import {
 import { deleteUserData, setUser } from "../../../features/auth/authSlice";
 import { useGetMeQuery } from "../../../features/auth/api";
 import { useUpdateProfileMutation } from "../../../features/users/api";
+import {
+  loadNotificationPreferences,
+  saveNotificationPreferences,
+} from "../../../features/notifications/utils";
 import { AppDispatch, RootState } from "../../../store/store";
 import { getUserAvatarUrl } from "../../../utils/user";
 import { useAppearance } from "../../../hooks/useAppearance";
@@ -48,6 +52,153 @@ export default function Settings() {
   const [mentionsNotif, setMentionsNotif] = useState(true);
   const [repostsNotif, setRepostsNotif] = useState(true);
   const [followersNotif, setFollowersNotif] = useState(true);
+
+  // Cached subordinate preferences for restoring when push notifications is re-enabled
+  const cachedSubordinatesRef = useRef({
+    likes: true,
+    comments: true,
+    mentions: true,
+    reposts: true,
+    followers: true,
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    async function initNotificationPreferences() {
+      const preferences = await loadNotificationPreferences();
+      if (!isMounted) return;
+
+      setPushNotifications(preferences.pushNotifications);
+      setLikesNotif(preferences.likes);
+      setCommentsNotif(preferences.comments);
+      setMentionsNotif(preferences.mentions);
+      setRepostsNotif(preferences.reposts);
+      setFollowersNotif(preferences.followers);
+
+      // Keep cache initialized with the preferences
+      cachedSubordinatesRef.current = {
+        likes: preferences.likes,
+        comments: preferences.comments,
+        mentions: preferences.mentions,
+        reposts: preferences.reposts,
+        followers: preferences.followers,
+      };
+    }
+
+    initNotificationPreferences();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleTogglePushNotifications = (enabled: boolean) => {
+    setPushNotifications(enabled);
+
+    if (!enabled) {
+      // Remember current subordinate values before switching off
+      cachedSubordinatesRef.current = {
+        likes: likesNotif,
+        comments: commentsNotif,
+        mentions: mentionsNotif,
+        reposts: repostsNotif,
+        followers: followersNotif,
+      };
+
+      setLikesNotif(false);
+      setCommentsNotif(false);
+      setMentionsNotif(false);
+      setRepostsNotif(false);
+      setFollowersNotif(false);
+
+      saveNotificationPreferences({
+        pushNotifications: false,
+        likes: false,
+        comments: false,
+        mentions: false,
+        reposts: false,
+        followers: false,
+      });
+    } else {
+      // Restore previously saved subordinate values
+      const restored = cachedSubordinatesRef.current;
+      setLikesNotif(restored.likes);
+      setCommentsNotif(restored.comments);
+      setMentionsNotif(restored.mentions);
+      setRepostsNotif(restored.reposts);
+      setFollowersNotif(restored.followers);
+
+      saveNotificationPreferences({
+        pushNotifications: true,
+        ...restored,
+      });
+    }
+  };
+
+  const handleToggleLikes = (enabled: boolean) => {
+    setLikesNotif(enabled);
+    cachedSubordinatesRef.current.likes = enabled;
+    saveNotificationPreferences({
+      pushNotifications,
+      likes: enabled,
+      comments: commentsNotif,
+      mentions: mentionsNotif,
+      reposts: repostsNotif,
+      followers: followersNotif,
+    });
+  };
+
+  const handleToggleComments = (enabled: boolean) => {
+    setCommentsNotif(enabled);
+    cachedSubordinatesRef.current.comments = enabled;
+    saveNotificationPreferences({
+      pushNotifications,
+      likes: likesNotif,
+      comments: enabled,
+      mentions: mentionsNotif,
+      reposts: repostsNotif,
+      followers: followersNotif,
+    });
+  };
+
+  const handleToggleMentions = (enabled: boolean) => {
+    setMentionsNotif(enabled);
+    cachedSubordinatesRef.current.mentions = enabled;
+    saveNotificationPreferences({
+      pushNotifications,
+      likes: likesNotif,
+      comments: commentsNotif,
+      mentions: enabled,
+      reposts: repostsNotif,
+      followers: followersNotif,
+    });
+  };
+
+  const handleToggleReposts = (enabled: boolean) => {
+    setRepostsNotif(enabled);
+    cachedSubordinatesRef.current.reposts = enabled;
+    saveNotificationPreferences({
+      pushNotifications,
+      likes: likesNotif,
+      comments: commentsNotif,
+      mentions: mentionsNotif,
+      reposts: enabled,
+      followers: followersNotif,
+    });
+  };
+
+  const handleToggleFollowers = (enabled: boolean) => {
+    setFollowersNotif(enabled);
+    cachedSubordinatesRef.current.followers = enabled;
+    saveNotificationPreferences({
+      pushNotifications,
+      likes: likesNotif,
+      comments: commentsNotif,
+      mentions: mentionsNotif,
+      reposts: repostsNotif,
+      followers: enabled,
+    });
+  };
 
   // Toast state
   const [snackbarVisible, setSnackbarVisible] = useState(false);
@@ -161,42 +312,47 @@ export default function Settings() {
             icon="notifications-outline"
             title="Push notifications"
             value={pushNotifications}
-            onValueChange={setPushNotifications}
+            onValueChange={handleTogglePushNotifications}
             showDivider
           />
           <SettingsToggleItem
             icon="heart-outline"
             title="Likes"
             value={likesNotif}
-            onValueChange={setLikesNotif}
+            onValueChange={handleToggleLikes}
+            disabled={!pushNotifications}
             showDivider
           />
           <SettingsToggleItem
             icon="chatbubble-outline"
             title="Comments"
             value={commentsNotif}
-            onValueChange={setCommentsNotif}
+            onValueChange={handleToggleComments}
+            disabled={!pushNotifications}
             showDivider
           />
           <SettingsToggleItem
             icon="at-outline"
             title="Mentions"
             value={mentionsNotif}
-            onValueChange={setMentionsNotif}
+            onValueChange={handleToggleMentions}
+            disabled={!pushNotifications}
             showDivider
           />
           <SettingsToggleItem
             icon="repeat-outline"
             title="Reposts"
             value={repostsNotif}
-            onValueChange={setRepostsNotif}
+            onValueChange={handleToggleReposts}
+            disabled={!pushNotifications}
             showDivider
           />
           <SettingsToggleItem
             icon="person-add-outline"
             title="New followers"
             value={followersNotif}
-            onValueChange={setFollowersNotif}
+            onValueChange={handleToggleFollowers}
+            disabled={!pushNotifications}
           />
         </SettingsSection>
 

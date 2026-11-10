@@ -143,3 +143,12 @@ export interface PushNotificationPayloadData {
   [key: string]: unknown;
 }
 
+export interface DeviceNotificationPreferences {
+  pushNotifications: boolean;
+  likes: boolean;
+  comments: boolean;
+  mentions: boolean;
+  reposts: boolean;
+  followers: boolean;
+}
+

@@ -2,19 +2,42 @@ import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
+import {
+  loadNotificationPreferences,
+  shouldDeliverForegroundPush,
+} from '../features/notifications/utils';
+import { PushNotificationPayloadData } from '../features/notifications/types';
 
 /**
  * Configures the foreground notification presentation behavior.
- * When a notification arrives while the app is active, it will show an alert,
- * play sound, and update the badge count.
+ * When a notification arrives while the app is active, it will check the device's
+ * local notification preferences before alerting, playing sound, or setting badge.
  */
 export function configureForegroundNotificationHandler(): void {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
+    handleNotification: async (notification) => {
+      try {
+        const preferences = await loadNotificationPreferences();
+        const payloadData = notification?.request?.content?.data as
+          | PushNotificationPayloadData
+          | undefined;
+        const shouldShow = shouldDeliverForegroundPush(
+          preferences,
+          payloadData?.type
+        );
+        return {
+          shouldShowAlert: shouldShow,
+          shouldPlaySound: shouldShow,
+          shouldSetBadge: shouldShow,
+        };
+      } catch {
+        return {
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        };
+      }
+    },
   });
 }
 

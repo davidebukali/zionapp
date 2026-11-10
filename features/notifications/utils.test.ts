@@ -1,18 +1,33 @@
+import * as SecureStore from 'expo-secure-store';
 import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  NOTIFICATION_PREFERENCES_KEY,
   filterNotificationsByTab,
   formatNotificationCopy,
   getActorDisplayName,
   getNotificationBadgeVariant,
   getPostLikedMessage,
   groupNotificationsByDate,
+  loadNotificationPreferences,
   markAllNotificationsReadInCaches,
   markNotificationReadInCaches,
   mergeNotificationsCache,
   mergeUniqueNotifications,
   resolveNotificationTarget,
+  saveNotificationPreferences,
+  shouldDeliverForegroundPush,
   updateNotificationActorFollowInCaches,
 } from './utils';
-import { NotificationItem, NotificationsResponse } from './types';
+import {
+  DeviceNotificationPreferences,
+  NotificationItem,
+  NotificationsResponse,
+} from './types';
+
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn(),
+}));
 
 function createMockNotification(
   overrides?: Partial<NotificationItem>
@@ -473,6 +488,102 @@ describe('features/notifications/utils', () => {
 
       rollback();
       expect(cachedData.data[0].actor?.is_following).toBe(false);
+    });
+  });
+
+  describe('device notification preferences', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('returns default preferences when nothing is stored', async () => {
+      (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce(null);
+
+      const result = await loadNotificationPreferences();
+      expect(result).toEqual(DEFAULT_NOTIFICATION_PREFERENCES);
+      expect(SecureStore.getItemAsync).toHaveBeenCalledWith(
+        NOTIFICATION_PREFERENCES_KEY
+      );
+    });
+
+    it('returns parsed stored preferences correctly', async () => {
+      const stored: DeviceNotificationPreferences = {
+        pushNotifications: false,
+        likes: false,
+        comments: true,
+        mentions: true,
+        reposts: false,
+        followers: false,
+      };
+      (SecureStore.getItemAsync as jest.Mock).mockResolvedValueOnce(
+        JSON.stringify(stored)
+      );
+
+      const result = await loadNotificationPreferences();
+      expect(result).toEqual(stored);
+    });
+
+    it('falls back to default preferences on read error', async () => {
+      (SecureStore.getItemAsync as jest.Mock).mockRejectedValueOnce(
+        new Error('Storage failure')
+      );
+
+      const result = await loadNotificationPreferences();
+      expect(result).toEqual(DEFAULT_NOTIFICATION_PREFERENCES);
+    });
+
+    it('saves notification preferences to secure store', async () => {
+      const prefs: DeviceNotificationPreferences = {
+        pushNotifications: false,
+        likes: false,
+        comments: false,
+        mentions: false,
+        reposts: false,
+        followers: false,
+      };
+
+      await saveNotificationPreferences(prefs);
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
+        NOTIFICATION_PREFERENCES_KEY,
+        JSON.stringify(prefs)
+      );
+    });
+
+    describe('shouldDeliverForegroundPush', () => {
+      it('returns false when pushNotifications master toggle is false', () => {
+        const prefs: DeviceNotificationPreferences = {
+          pushNotifications: false,
+          likes: true,
+          comments: true,
+          mentions: true,
+          reposts: true,
+          followers: true,
+        };
+
+        expect(shouldDeliverForegroundPush(prefs, 'post_liked')).toBe(false);
+        expect(shouldDeliverForegroundPush(prefs, 'post_commented')).toBe(false);
+        expect(shouldDeliverForegroundPush(prefs, 'user_tagged')).toBe(false);
+        expect(shouldDeliverForegroundPush(prefs, 'user_followed')).toBe(false);
+        expect(shouldDeliverForegroundPush(prefs, undefined)).toBe(false);
+      });
+
+      it('respects individual preference toggles when pushNotifications is true', () => {
+        const prefs: DeviceNotificationPreferences = {
+          pushNotifications: true,
+          likes: true,
+          comments: false,
+          mentions: true,
+          reposts: false,
+          followers: false,
+        };
+
+        expect(shouldDeliverForegroundPush(prefs, 'post_liked')).toBe(true);
+        expect(shouldDeliverForegroundPush(prefs, 'comment_liked')).toBe(true);
+        expect(shouldDeliverForegroundPush(prefs, 'post_commented')).toBe(false);
+        expect(shouldDeliverForegroundPush(prefs, 'user_tagged')).toBe(true);
+        expect(shouldDeliverForegroundPush(prefs, 'post_reposted')).toBe(false);
+        expect(shouldDeliverForegroundPush(prefs, 'user_followed')).toBe(false);
+      });
     });
   });
 });

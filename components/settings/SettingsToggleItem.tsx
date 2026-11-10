@@ -19,7 +19,7 @@ export function SettingsToggleItem({
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.container}>
+      <View style={[styles.container, disabled && { opacity: 0.45 }]}>
         <View style={styles.leftGroup}>
           <View
             style={[

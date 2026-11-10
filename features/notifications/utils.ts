@@ -1,5 +1,7 @@
 import { isToday, isYesterday, isValid, parseISO } from 'date-fns';
+import * as SecureStore from 'expo-secure-store';
 import {
+  DeviceNotificationPreferences,
   FormattedNotificationCopy,
   GenericNotificationData,
   GroupedPostLikedData,
@@ -395,4 +397,91 @@ export function updateNotificationActorFollowInCaches(
       }
     }
   });
+}
+
+export const NOTIFICATION_PREFERENCES_KEY = 'zion_notification_preferences';
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: DeviceNotificationPreferences = {
+  pushNotifications: true,
+  likes: true,
+  comments: true,
+  mentions: true,
+  reposts: true,
+  followers: true,
+};
+
+/**
+ * Loads device-level push notification preferences from local secure store.
+ */
+export async function loadNotificationPreferences(): Promise<DeviceNotificationPreferences> {
+  try {
+    const raw = await SecureStore.getItemAsync(NOTIFICATION_PREFERENCES_KEY);
+    if (!raw) {
+      return DEFAULT_NOTIFICATION_PREFERENCES;
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      pushNotifications:
+        typeof parsed.pushNotifications === 'boolean'
+          ? parsed.pushNotifications
+          : true,
+      likes: typeof parsed.likes === 'boolean' ? parsed.likes : true,
+      comments: typeof parsed.comments === 'boolean' ? parsed.comments : true,
+      mentions: typeof parsed.mentions === 'boolean' ? parsed.mentions : true,
+      reposts: typeof parsed.reposts === 'boolean' ? parsed.reposts : true,
+      followers: typeof parsed.followers === 'boolean' ? parsed.followers : true,
+    };
+  } catch {
+    return DEFAULT_NOTIFICATION_PREFERENCES;
+  }
+}
+
+/**
+ * Saves device-level push notification preferences to local secure store.
+ */
+export async function saveNotificationPreferences(
+  preferences: DeviceNotificationPreferences
+): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(
+      NOTIFICATION_PREFERENCES_KEY,
+      JSON.stringify(preferences)
+    );
+  } catch {
+    // Gracefully ignore storage failures
+  }
+}
+
+/**
+ * Determines whether a given incoming push notification should be delivered
+ * locally on this device based on user's device notification preferences.
+ */
+export function shouldDeliverForegroundPush(
+  preferences: DeviceNotificationPreferences,
+  notificationType?: NotificationType
+): boolean {
+  if (!preferences.pushNotifications) {
+    return false;
+  }
+  if (!notificationType) {
+    return true;
+  }
+  switch (notificationType) {
+    case 'post_liked':
+    case 'comment_liked':
+      return preferences.likes;
+    case 'post_commented':
+      return preferences.comments;
+    case 'user_tagged':
+      return preferences.mentions;
+    case 'post_reposted':
+    case 'post_shared':
+      return preferences.reposts;
+    case 'user_followed':
+    case 'follow_requested':
+    case 'follow_request_accepted':
+      return preferences.followers;
+    default:
+      return true;
+  }
 }
