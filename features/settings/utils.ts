@@ -1,3 +1,4 @@
+import { Alert, Linking } from "react-native";
 import { User, UserProfile } from "../auth/types";
 import { BackendProfile } from "../users/types";
 import { DeviceNotificationPreferences } from "../notifications/types";
@@ -82,4 +83,32 @@ export function updateUserProfileState(
       ...updatedProfileFields,
     },
   };
+}
+
+export const SUPPORT_EMAIL_ADDRESS = "support@tsiyonapp.com";
+
+/**
+ * Opens the native email composer addressed to support.
+ * Displays an alert if no mail app is available on the device.
+ */
+export async function openSupportEmailComposer(
+  recipientEmailAddress: string = SUPPORT_EMAIL_ADDRESS
+): Promise<void> {
+  const mailtoUrl = `mailto:${recipientEmailAddress}`;
+  try {
+    const canOpenUrl = await Linking.canOpenURL(mailtoUrl);
+    if (canOpenUrl) {
+      await Linking.openURL(mailtoUrl);
+    } else {
+      Alert.alert(
+        "Unable to Open Email",
+        `No email application was found on this device. Please reach out to us at ${recipientEmailAddress}.`
+      );
+    }
+  } catch {
+    Alert.alert(
+      "Unable to Open Email",
+      `Please contact support directly at ${recipientEmailAddress}.`
+    );
+  }
 }

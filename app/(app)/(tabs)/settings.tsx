@@ -24,6 +24,7 @@ import {
   resolveNotificationTogglesOnMasterSwitch,
   createDeviceNotificationPreferences,
   updateUserProfileState,
+  openSupportEmailComposer,
 } from "../../../features/settings/utils";
 import { AppDispatch, RootState } from "../../../store/store";
 import { useAppearance } from "../../../hooks/useAppearance";
@@ -340,7 +341,7 @@ export default function Settings() {
             icon="chatbubble-ellipses-outline"
             title="Contact developers"
             showDivider
-            onPress={() => {}}
+            onPress={() => openSupportEmailComposer()}
           />
         </SettingsSection>
 

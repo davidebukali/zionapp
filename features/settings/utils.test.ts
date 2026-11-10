@@ -1,8 +1,11 @@
+import { Alert, Linking } from "react-native";
 import {
   formatSettingsUserProfile,
   resolveNotificationTogglesOnMasterSwitch,
   createDeviceNotificationPreferences,
   updateUserProfileState,
+  openSupportEmailComposer,
+  SUPPORT_EMAIL_ADDRESS,
 } from "./utils";
 import { User, UserProfile } from "../auth/types";
 import { IndividualNotificationPreferences } from "./types";
@@ -132,6 +135,59 @@ describe("features/settings/utils", () => {
       expect(updatedUser.profile?.is_private).toBe(true);
       expect(updatedUser.profile?.username).toBe("alice_w");
       expect(currentUser.profile?.is_private).toBe(false);
+    });
+  });
+
+  describe("openSupportEmailComposer", () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("opens email app when mailto URL can be handled", async () => {
+      jest.spyOn(Linking, "canOpenURL").mockResolvedValueOnce(true);
+      jest.spyOn(Linking, "openURL").mockResolvedValueOnce(undefined as any);
+
+      await openSupportEmailComposer();
+
+      expect(Linking.canOpenURL).toHaveBeenCalledWith(
+        `mailto:${SUPPORT_EMAIL_ADDRESS}`
+      );
+      expect(Linking.openURL).toHaveBeenCalledWith(
+        `mailto:${SUPPORT_EMAIL_ADDRESS}`
+      );
+      expect(Alert.alert).not.toHaveBeenCalled();
+    });
+
+    it("displays an alert when device cannot handle mailto URL", async () => {
+      jest.spyOn(Linking, "canOpenURL").mockResolvedValueOnce(false);
+      jest.spyOn(Linking, "openURL").mockResolvedValueOnce(undefined as any);
+
+      await openSupportEmailComposer();
+
+      expect(Linking.canOpenURL).toHaveBeenCalledWith(
+        `mailto:${SUPPORT_EMAIL_ADDRESS}`
+      );
+      expect(Linking.openURL).not.toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Unable to Open Email",
+        expect.stringContaining(SUPPORT_EMAIL_ADDRESS)
+      );
+    });
+
+    it("displays an alert when an error is thrown", async () => {
+      jest.spyOn(Linking, "canOpenURL").mockRejectedValueOnce(new Error("Fail"));
+
+      await openSupportEmailComposer();
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Unable to Open Email",
+        expect.stringContaining(SUPPORT_EMAIL_ADDRESS)
+      );
     });
   });
 });
