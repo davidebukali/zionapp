@@ -25,6 +25,9 @@ import {
   createDeviceNotificationPreferences,
   updateUserProfileState,
   openSupportEmailComposer,
+  openWebBrowserUrl,
+  TERMS_OF_SERVICE_URL,
+  PRIVACY_POLICY_URL,
 } from "../../../features/settings/utils";
 import { AppDispatch, RootState } from "../../../store/store";
 import { useAppearance } from "../../../hooks/useAppearance";
@@ -329,13 +332,13 @@ export default function Settings() {
             icon="document-text-outline"
             title="Terms of service"
             showDivider
-            onPress={() => {}}
+            onPress={() => openWebBrowserUrl(TERMS_OF_SERVICE_URL)}
           />
           <SettingsNavItem
             icon="document-lock-outline"
             title="Privacy policy"
             showDivider
-            onPress={() => {}}
+            onPress={() => openWebBrowserUrl(PRIVACY_POLICY_URL)}
           />
           <SettingsNavItem
             icon="chatbubble-ellipses-outline"

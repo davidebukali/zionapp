@@ -1,14 +1,22 @@
 import { Alert, Linking } from "react-native";
+import * as WebBrowser from "expo-web-browser";
 import {
   formatSettingsUserProfile,
   resolveNotificationTogglesOnMasterSwitch,
   createDeviceNotificationPreferences,
   updateUserProfileState,
   openSupportEmailComposer,
+  openWebBrowserUrl,
   SUPPORT_EMAIL_ADDRESS,
+  TERMS_OF_SERVICE_URL,
+  PRIVACY_POLICY_URL,
 } from "./utils";
 import { User, UserProfile } from "../auth/types";
 import { IndividualNotificationPreferences } from "./types";
+
+jest.mock("expo-web-browser", () => ({
+  openBrowserAsync: jest.fn(),
+}));
 
 describe("features/settings/utils", () => {
   describe("formatSettingsUserProfile", () => {
@@ -187,6 +195,58 @@ describe("features/settings/utils", () => {
       expect(Alert.alert).toHaveBeenCalledWith(
         "Unable to Open Email",
         expect.stringContaining(SUPPORT_EMAIL_ADDRESS)
+      );
+    });
+  });
+
+  describe("openWebBrowserUrl", () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("opens in-app browser with the provided URL", async () => {
+      (WebBrowser.openBrowserAsync as jest.Mock).mockResolvedValueOnce({
+        type: "dismiss",
+      });
+
+      await openWebBrowserUrl(TERMS_OF_SERVICE_URL);
+
+      expect(WebBrowser.openBrowserAsync).toHaveBeenCalledWith(
+        TERMS_OF_SERVICE_URL
+      );
+      expect(Linking.openURL).not.toHaveBeenCalled();
+    });
+
+    it("falls back to Linking.openURL when WebBrowser throws", async () => {
+      (WebBrowser.openBrowserAsync as jest.Mock).mockRejectedValueOnce(
+        new Error("WebBrowser unavailable")
+      );
+      jest.spyOn(Linking, "canOpenURL").mockResolvedValueOnce(true);
+      jest.spyOn(Linking, "openURL").mockResolvedValueOnce(undefined as any);
+
+      await openWebBrowserUrl(PRIVACY_POLICY_URL);
+
+      expect(Linking.canOpenURL).toHaveBeenCalledWith(PRIVACY_POLICY_URL);
+      expect(Linking.openURL).toHaveBeenCalledWith(PRIVACY_POLICY_URL);
+      expect(Alert.alert).not.toHaveBeenCalled();
+    });
+
+    it("displays alert when both WebBrowser and Linking fail", async () => {
+      (WebBrowser.openBrowserAsync as jest.Mock).mockRejectedValueOnce(
+        new Error("WebBrowser unavailable")
+      );
+      jest.spyOn(Linking, "canOpenURL").mockResolvedValueOnce(false);
+
+      await openWebBrowserUrl(TERMS_OF_SERVICE_URL);
+
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Unable to Open Link",
+        expect.stringContaining(TERMS_OF_SERVICE_URL)
       );
     });
   });

@@ -1,4 +1,5 @@
 import { Alert, Linking } from "react-native";
+import * as WebBrowser from "expo-web-browser";
 import { User, UserProfile } from "../auth/types";
 import { BackendProfile } from "../users/types";
 import { DeviceNotificationPreferences } from "../notifications/types";
@@ -86,6 +87,36 @@ export function updateUserProfileState(
 }
 
 export const SUPPORT_EMAIL_ADDRESS = "support@tsiyonapp.com";
+
+export const TERMS_OF_SERVICE_URL = "https://tsiyonapp.com/terms";
+export const PRIVACY_POLICY_URL = "https://tsiyonapp.com/privacy";
+
+/**
+ * Opens a web URL using the in-app browser (SFSafariViewController / Chrome Custom Tabs),
+ * falling back to the system browser via Linking if necessary.
+ */
+export async function openWebBrowserUrl(targetUrl: string): Promise<void> {
+  try {
+    await WebBrowser.openBrowserAsync(targetUrl);
+  } catch {
+    try {
+      const canOpen = await Linking.canOpenURL(targetUrl);
+      if (canOpen) {
+        await Linking.openURL(targetUrl);
+      } else {
+        Alert.alert(
+          "Unable to Open Link",
+          `Could not open the link on this device: ${targetUrl}`
+        );
+      }
+    } catch {
+      Alert.alert(
+        "Unable to Open Link",
+        `Could not open the link: ${targetUrl}`
+      );
+    }
+  }
+}
 
 /**
  * Opens the native email composer addressed to support.
