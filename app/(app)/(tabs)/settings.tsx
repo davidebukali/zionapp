@@ -19,8 +19,13 @@ import {
   loadNotificationPreferences,
   saveNotificationPreferences,
 } from "../../../features/notifications/utils";
+import {
+  formatSettingsUserProfile,
+  resolveNotificationTogglesOnMasterSwitch,
+  createDeviceNotificationPreferences,
+  updateUserProfileState,
+} from "../../../features/settings/utils";
 import { AppDispatch, RootState } from "../../../store/store";
-import { getUserAvatarUrl } from "../../../utils/user";
 import { useAppearance } from "../../../hooks/useAppearance";
 
 export default function Settings() {
@@ -96,7 +101,6 @@ export default function Settings() {
     setPushNotifications(enabled);
 
     if (!enabled) {
-      // Remember current subordinate values before switching off
       cachedSubordinatesRef.current = {
         likes: likesNotif,
         comments: commentsNotif,
@@ -104,100 +108,67 @@ export default function Settings() {
         reposts: repostsNotif,
         followers: followersNotif,
       };
-
-      setLikesNotif(false);
-      setCommentsNotif(false);
-      setMentionsNotif(false);
-      setRepostsNotif(false);
-      setFollowersNotif(false);
-
-      saveNotificationPreferences({
-        pushNotifications: false,
-        likes: false,
-        comments: false,
-        mentions: false,
-        reposts: false,
-        followers: false,
-      });
-    } else {
-      // Restore previously saved subordinate values
-      const restored = cachedSubordinatesRef.current;
-      setLikesNotif(restored.likes);
-      setCommentsNotif(restored.comments);
-      setMentionsNotif(restored.mentions);
-      setRepostsNotif(restored.reposts);
-      setFollowersNotif(restored.followers);
-
-      saveNotificationPreferences({
-        pushNotifications: true,
-        ...restored,
-      });
     }
+
+    const nextToggles = resolveNotificationTogglesOnMasterSwitch(
+      enabled,
+      cachedSubordinatesRef.current
+    );
+
+    setLikesNotif(nextToggles.likes);
+    setCommentsNotif(nextToggles.comments);
+    setMentionsNotif(nextToggles.mentions);
+    setRepostsNotif(nextToggles.reposts);
+    setFollowersNotif(nextToggles.followers);
+
+    saveNotificationPreferences(
+      createDeviceNotificationPreferences(enabled, nextToggles)
+    );
+  };
+
+  const updateSubordinateNotificationPreference = (
+    categoryKey: keyof typeof cachedSubordinatesRef.current,
+    enabled: boolean
+  ) => {
+    cachedSubordinatesRef.current[categoryKey] = enabled;
+    const currentCategoryPreferences = {
+      likes: categoryKey === "likes" ? enabled : likesNotif,
+      comments: categoryKey === "comments" ? enabled : commentsNotif,
+      mentions: categoryKey === "mentions" ? enabled : mentionsNotif,
+      reposts: categoryKey === "reposts" ? enabled : repostsNotif,
+      followers: categoryKey === "followers" ? enabled : followersNotif,
+    };
+    saveNotificationPreferences(
+      createDeviceNotificationPreferences(
+        pushNotifications,
+        currentCategoryPreferences
+      )
+    );
   };
 
   const handleToggleLikes = (enabled: boolean) => {
     setLikesNotif(enabled);
-    cachedSubordinatesRef.current.likes = enabled;
-    saveNotificationPreferences({
-      pushNotifications,
-      likes: enabled,
-      comments: commentsNotif,
-      mentions: mentionsNotif,
-      reposts: repostsNotif,
-      followers: followersNotif,
-    });
+    updateSubordinateNotificationPreference("likes", enabled);
   };
 
   const handleToggleComments = (enabled: boolean) => {
     setCommentsNotif(enabled);
-    cachedSubordinatesRef.current.comments = enabled;
-    saveNotificationPreferences({
-      pushNotifications,
-      likes: likesNotif,
-      comments: enabled,
-      mentions: mentionsNotif,
-      reposts: repostsNotif,
-      followers: followersNotif,
-    });
+    updateSubordinateNotificationPreference("comments", enabled);
   };
 
   const handleToggleMentions = (enabled: boolean) => {
     setMentionsNotif(enabled);
-    cachedSubordinatesRef.current.mentions = enabled;
-    saveNotificationPreferences({
-      pushNotifications,
-      likes: likesNotif,
-      comments: commentsNotif,
-      mentions: enabled,
-      reposts: repostsNotif,
-      followers: followersNotif,
-    });
+    updateSubordinateNotificationPreference("mentions", enabled);
   };
 
   const handleToggleReposts = (enabled: boolean) => {
     setRepostsNotif(enabled);
-    cachedSubordinatesRef.current.reposts = enabled;
-    saveNotificationPreferences({
-      pushNotifications,
-      likes: likesNotif,
-      comments: commentsNotif,
-      mentions: mentionsNotif,
-      reposts: enabled,
-      followers: followersNotif,
-    });
+    updateSubordinateNotificationPreference("reposts", enabled);
   };
 
   const handleToggleFollowers = (enabled: boolean) => {
     setFollowersNotif(enabled);
-    cachedSubordinatesRef.current.followers = enabled;
-    saveNotificationPreferences({
-      pushNotifications,
-      likes: likesNotif,
-      comments: commentsNotif,
-      mentions: mentionsNotif,
-      reposts: repostsNotif,
-      followers: enabled,
-    });
+    updateSubordinateNotificationPreference("followers", enabled);
   };
 
   // Toast state
@@ -220,14 +191,12 @@ export default function Settings() {
       const updatedProfile = await updateProfile({ is_private: newValue }).unwrap();
       if (activeUser) {
         dispatch(
-          setUser({
-            ...activeUser,
-            profile: {
-              ...activeProfile,
+          setUser(
+            updateUserProfileState(activeUser, activeProfile, {
               ...updatedProfile,
               is_private: newValue,
-            },
-          })
+            })
+          )
         );
       }
     } catch {
@@ -237,14 +206,7 @@ export default function Settings() {
     }
   };
 
-  const formattedUser = activeUser
-    ? {
-        name: activeUser.name,
-        username: activeProfile?.username || activeUser.email.split("@")[0],
-        email: activeUser.email,
-        avatarUrl: getUserAvatarUrl(activeUser),
-      }
-    : null;
+  const formattedUser = formatSettingsUserProfile(activeUser, activeProfile);
 
   return (
     <View
@@ -358,9 +320,8 @@ export default function Settings() {
 
         <SettingsSection title="SUPPORT">
           <SettingsNavItem
-            icon="chatbubble-ellipses-outline"
-            title="Contact developers"
-            showDivider
+            icon="people-outline"
+            title="Community guidelines"
             onPress={() => {}}
           />
           <SettingsNavItem
@@ -376,8 +337,9 @@ export default function Settings() {
             onPress={() => {}}
           />
           <SettingsNavItem
-            icon="people-outline"
-            title="Community guidelines"
+            icon="chatbubble-ellipses-outline"
+            title="Contact developers"
+            showDivider
             onPress={() => {}}
           />
         </SettingsSection>
