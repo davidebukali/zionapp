@@ -56,6 +56,7 @@ const mockProfile: UserProfileData = {
   isFollowing: false,
   followersCount: 342,
   followingCount: 128,
+  isPrivate: false,
 };
 
 describe("components/profile", () => {

@@ -162,6 +162,17 @@ describe("features/users/utils", () => {
       expect(normalized.isFollowing).toBe(true);
       expect(normalized.followersCount).toBe(342);
       expect(normalized.followingCount).toBe(128);
+      expect(normalized.isPrivate).toBe(false);
+    });
+
+    it("normalizes isPrivate correctly when true", () => {
+      const profile: BackendProfile = {
+        id: "prof-11",
+        is_private: true,
+      };
+
+      const normalized = normalizeUserProfile(profile, null);
+      expect(normalized.isPrivate).toBe(true);
     });
 
     it("falls back to user object when profile is null", () => {

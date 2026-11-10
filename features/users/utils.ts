@@ -44,6 +44,7 @@ export function normalizeUserProfile(
   const church = rawProfile?.church || null;
   const followersCount = counts?.followers ?? 0;
   const followingCount = counts?.following ?? 0;
+  const isPrivate = Boolean(rawProfile?.is_private ?? false);
 
   return {
     id,
@@ -62,6 +63,7 @@ export function normalizeUserProfile(
     isFollowing,
     followersCount,
     followingCount,
+    isPrivate,
   };
 }
 

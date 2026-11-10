@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Snackbar, useTheme } from "react-native-paper";
 import { router } from "expo-router";
@@ -12,7 +12,9 @@ import {
   SettingsToggleItem,
   SettingsUserCard,
 } from "../../../components/settings";
-import { deleteUserData } from "../../../features/auth/authSlice";
+import { deleteUserData, setUser } from "../../../features/auth/authSlice";
+import { useGetMeQuery } from "../../../features/auth/api";
+import { useUpdateProfileMutation } from "../../../features/users/api";
 import { AppDispatch, RootState } from "../../../store/store";
 import { getUserAvatarUrl } from "../../../utils/user";
 import { useAppearance } from "../../../hooks/useAppearance";
@@ -22,10 +24,24 @@ export default function Settings() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const user = useSelector((state: RootState) => state.auth.user);
+  const { data: meData } = useGetMeQuery();
+  const [updateProfile] = useUpdateProfileMutation();
   const { isDark, appearanceLabel, setDarkMode } = useAppearance();
 
+  const activeUser = meData?.resource || meData?.data || user;
+  const activeProfile = activeUser?.profile;
+
   // Switch states
-  const [isPrivateAccount, setIsPrivateAccount] = useState(false);
+  const [isPrivateAccount, setIsPrivateAccount] = useState(
+    Boolean(activeProfile?.is_private)
+  );
+
+  useEffect(() => {
+    if (activeProfile?.is_private !== undefined) {
+      setIsPrivateAccount(Boolean(activeProfile.is_private));
+    }
+  }, [activeProfile?.is_private]);
+
   const [pushNotifications, setPushNotifications] = useState(true);
   const [likesNotif, setLikesNotif] = useState(true);
   const [commentsNotif, setCommentsNotif] = useState(true);
@@ -46,12 +62,36 @@ export default function Settings() {
     setSnackbarVisible(true);
   };
 
-  const formattedUser = user
+  const handleTogglePrivacy = async (newValue: boolean) => {
+    const previousValue = isPrivateAccount;
+    setIsPrivateAccount(newValue);
+    try {
+      const updatedProfile = await updateProfile({ is_private: newValue }).unwrap();
+      if (activeUser) {
+        dispatch(
+          setUser({
+            ...activeUser,
+            profile: {
+              ...activeProfile,
+              ...updatedProfile,
+              is_private: newValue,
+            },
+          })
+        );
+      }
+    } catch {
+      setIsPrivateAccount(previousValue);
+      setSnackbarMessage("Failed to update account privacy. Please try again.");
+      setSnackbarVisible(true);
+    }
+  };
+
+  const formattedUser = activeUser
     ? {
-        name: user.name,
-        username: user.profile?.username || user.email.split("@")[0],
-        email: user.email,
-        avatarUrl: getUserAvatarUrl(user),
+        name: activeUser.name,
+        username: activeProfile?.username || activeUser.email.split("@")[0],
+        email: activeUser.email,
+        avatarUrl: getUserAvatarUrl(activeUser),
       }
     : null;
 
@@ -91,14 +131,14 @@ export default function Settings() {
             icon="person-outline"
             title="Edit profile"
             showDivider
-            onPress={() => router.push("/profile")}
+            onPress={() => router.push("/edit-profile")}
           />
           <SettingsToggleItem
             icon="lock-closed-outline"
-            title="Private account"
+            title="Account Privacy"
             subtitle={isPrivateAccount ? "Private" : "Public"}
             value={isPrivateAccount}
-            onValueChange={setIsPrivateAccount}
+            onValueChange={handleTogglePrivacy}
             showDivider
           />
           <SettingsNavItem

@@ -62,6 +62,7 @@ export interface BackendProfile {
   cover?: BackendMedia | null;
   website?: string | null;
   location?: string | null;
+  is_private?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -93,6 +94,7 @@ export interface UserProfileData {
   isFollowing: boolean;
   followersCount: number;
   followingCount: number;
+  isPrivate: boolean;
 }
 
 export interface UpdateProfilePayload {
@@ -108,6 +110,7 @@ export interface UpdateProfilePayload {
   church_id?: string | null;
   church_name?: string | null;
   church_location?: string | null;
+  is_private?: boolean;
 }
 
 export interface UpdateProfileResponse {

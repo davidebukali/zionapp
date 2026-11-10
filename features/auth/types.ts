@@ -15,6 +15,7 @@ export interface UserProfile {
   category?: string | null;
   church_id?: string | null;
   church?: Church | null;
+  is_private?: boolean;
   created_at?: string;
   updated_at?: string;
 }
