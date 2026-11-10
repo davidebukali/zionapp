@@ -63,6 +63,7 @@ export interface BackendProfile {
   website?: string | null;
   location?: string | null;
   is_private?: boolean;
+  is_blocked?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -95,6 +96,7 @@ export interface UserProfileData {
   followersCount: number;
   followingCount: number;
   isPrivate: boolean;
+  isBlocked?: boolean;
 }
 
 export interface UpdateProfilePayload {
@@ -282,6 +284,48 @@ export interface TaggableUsersResponse {
 export interface TaggableUsersResult {
   users: TaggableUser[];
   nextCursor: string | null;
+}
+
+export type ReportReasonId =
+  | 'impersonation'
+  | 'harassment'
+  | 'hate_speech'
+  | 'explicit_content'
+  | 'violence_or_harm'
+  | 'scam_or_fraud'
+  | 'spam'
+  | 'inappropriate_profile'
+  | 'disruptive_content'
+  | 'other';
+
+export interface ReportReason {
+  id: ReportReasonId;
+  label: string;
+  desc: string;
+}
+
+export interface ReportUserPayload {
+  reason: ReportReasonId;
+  description?: string | null;
+}
+
+export interface UserReportResponse {
+  id: string;
+  reporter_id: string;
+  reported_user_id: string;
+  reason: ReportReasonId;
+  reason_label: string;
+  description: string | null;
+  status: 'pending' | 'reviewing' | 'resolved' | 'dismissed';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReportReasonsResponse {
+  success: boolean;
+  message: string;
+  data: ReportReason[];
+  meta: null;
 }
 
 

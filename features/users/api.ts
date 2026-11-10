@@ -14,6 +14,9 @@ import {
   FollowResponse,
   GetChurchesParams,
   GetTaggableUsersParams,
+  ReportReason,
+  ReportReasonsResponse,
+  ReportUserPayload,
   SearchUsersParams,
   SearchUsersResponse,
   TaggableUsersResponse,
@@ -22,6 +25,7 @@ import {
   UnfollowResponse,
   UpdateProfilePayload,
   UserBlockRecord,
+  UserReportResponse,
 } from "./types";
 import {
   mergeTaggableUsersCache,
@@ -343,6 +347,29 @@ export const usersApi = baseApi.injectEndpoints({
       ): AccountTypeCategoryGroup[] => response?.data || [],
       providesTags: [{ type: "User", id: "ACCOUNT_TYPES" }],
     }),
+    getUserReportReasons: builder.query<ReportReason[], void>({
+      query: () => "/users/report-reasons",
+      transformResponse: (
+        response: ReportReasonsResponse | { data: ReportReason[] }
+      ): ReportReason[] => {
+        return Array.isArray(response?.data) ? response.data : [];
+      },
+    }),
+    reportUser: builder.mutation<
+      UserReportResponse,
+      { userId: string; payload: ReportUserPayload }
+    >({
+      query: ({ userId, payload }) => ({
+        url: `/users/${userId}/report`,
+        method: "POST",
+        body: payload,
+      }),
+      transformResponse: (
+        response: { data: UserReportResponse } | any
+      ): UserReportResponse => {
+        return response?.data || response;
+      },
+    }),
   }),
   overrideExisting: true,
 });
@@ -369,5 +396,8 @@ export const {
   useLazyGetTaggableUsersQuery,
   useGetAccountTypesQuery,
   useLazyGetAccountTypesQuery,
+  useGetUserReportReasonsQuery,
+  useLazyGetUserReportReasonsQuery,
+  useReportUserMutation,
 } = usersApi;
 

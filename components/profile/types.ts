@@ -12,6 +12,7 @@ export interface ProfileHeaderProps {
   onPressEditProfile?: () => void;
   onPressMessage?: () => void;
   onPressToggleFollow?: () => void;
+  onPressMoreMenu?: (anchorPosition?: { x: number; y: number; width: number; height: number }) => void;
 }
 
 export interface ProfileInfoProps {

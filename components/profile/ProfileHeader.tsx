@@ -22,9 +22,26 @@ export function ProfileHeader({
   onPressEditProfile,
   onPressMessage,
   onPressToggleFollow,
+  onPressMoreMenu,
 }: ProfileHeaderProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const moreButtonRef = React.useRef<View>(null);
+
+  const handleOpenMoreMenu = () => {
+    if (moreButtonRef.current) {
+      moreButtonRef.current.measure((_x, _y, width, height, pageX, pageY) => {
+        onPressMoreMenu?.({
+          x: pageX,
+          y: pageY,
+          width,
+          height,
+        });
+      });
+    } else {
+      onPressMoreMenu?.();
+    }
+  };
 
   const initials = getUserInitials(profile.displayName, profile.username);
 
@@ -86,6 +103,27 @@ export function ProfileHeader({
             >
               <Text style={styles.editProfileText}>Edit Profile</Text>
             </TouchableOpacity>
+          )}
+
+          {!isOwnProfile && onPressMoreMenu && (
+            <View ref={moreButtonRef} collapsable={false}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="More options"
+                style={[
+                  styles.roundButton,
+                  { backgroundColor: "rgba(0, 0, 0, 0.45)" },
+                ]}
+                onPress={handleOpenMoreMenu}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="ellipsis-horizontal"
+                  size={20}
+                  color="#FFFFFF"
+                />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 

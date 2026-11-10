@@ -5,11 +5,14 @@ import { useTheme } from "react-native-paper";
 
 import { globalStyles } from "../../assets/styles/theme";
 import {
+  BlockedProfileNotice,
   ProfileFeed,
   ProfileHeader,
   ProfileInfo,
+  ProfileMoreMenu,
   ProfileSkeleton,
   ProfileTabs,
+  ReportUserSheet,
 } from "../../components/profile";
 import { useUserProfile } from "../../hooks/useUserProfile";
 
@@ -26,11 +29,24 @@ export default function ProfileScreen() {
     posts,
     isPostsLoading,
     currentUserId,
+    isBlocked,
+    isUnblocking,
+    isSubmittingReport,
+    isMoreMenuVisible,
+    anchorPosition,
+    isReportSheetVisible,
     handleToggleFollow,
     handleRefresh,
     handlePressBack,
     handlePressEditProfile,
     handlePressMessage,
+    handleOpenMoreMenu,
+    handleCloseMoreMenu,
+    handleBlockPress,
+    handleUnblockPress,
+    handleOpenReport,
+    handleCloseReport,
+    handleSubmitReport,
     handleLikePost,
     handleRepostPost,
     handleBookmarkPost,
@@ -38,37 +54,19 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <View
-        style={[
-          globalStyles.screen,
-          { backgroundColor: theme.colors.background },
-        ]}
-      >
-        <StatusBar
-          translucent
-          backgroundColor="transparent"
-          style={theme.dark ? "light" : "dark"}
-        />
+      <View style={[globalStyles.screen, { backgroundColor: theme.colors.background }]}>
+        <StatusBar translucent backgroundColor="transparent" style={theme.dark ? "light" : "dark"} />
         <ProfileSkeleton />
       </View>
     );
   }
 
   return (
-    <View
-      style={[
-        globalStyles.screen,
-        { backgroundColor: theme.colors.background },
-      ]}
-    >
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        style="light"
-      />
+    <View style={[globalStyles.screen, { backgroundColor: theme.colors.background }]}>
+      <StatusBar translucent backgroundColor="transparent" style="light" />
 
       <FlatList
-        data={activeTab === "posts" ? posts : []}
+        data={!isBlocked && activeTab === "posts" ? posts : []}
         keyExtractor={(item) => String(item.id)}
         renderItem={null}
         ListHeaderComponent={
@@ -82,18 +80,30 @@ export default function ProfileScreen() {
               onPressEditProfile={handlePressEditProfile}
               onPressMessage={handlePressMessage}
               onPressToggleFollow={handleToggleFollow}
+              onPressMoreMenu={handleOpenMoreMenu}
             />
             <ProfileInfo profile={profile} />
-            <ProfileTabs activeTab={activeTab} onSelectTab={setActiveTab} />
-            <ProfileFeed
-              activeTab={activeTab}
-              posts={posts}
-              isPostsLoading={isPostsLoading}
-              currentUserId={currentUserId}
-              onLikePost={handleLikePost}
-              onRepostPost={handleRepostPost}
-              onBookmarkPost={handleBookmarkPost}
-            />
+
+            {isBlocked ? (
+              <BlockedProfileNotice
+                username={profile.username}
+                isUnblocking={isUnblocking}
+                onPressUnblock={handleUnblockPress}
+              />
+            ) : (
+              <>
+                <ProfileTabs activeTab={activeTab} onSelectTab={setActiveTab} />
+                <ProfileFeed
+                  activeTab={activeTab}
+                  posts={posts}
+                  isPostsLoading={isPostsLoading}
+                  currentUserId={currentUserId}
+                  onLikePost={handleLikePost}
+                  onRepostPost={handleRepostPost}
+                  onBookmarkPost={handleBookmarkPost}
+                />
+              </>
+            )}
           </>
         }
         refreshControl={
@@ -105,6 +115,24 @@ export default function ProfileScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
+      />
+
+      <ProfileMoreMenu
+        visible={isMoreMenuVisible}
+        anchorPosition={anchorPosition}
+        username={profile.username}
+        isBlocked={isBlocked}
+        onClose={handleCloseMoreMenu}
+        onPressBlockToggle={handleBlockPress}
+        onPressReport={handleOpenReport}
+      />
+
+      <ReportUserSheet
+        visible={isReportSheetVisible}
+        username={profile.username}
+        isSubmitting={isSubmittingReport}
+        onClose={handleCloseReport}
+        onSubmit={handleSubmitReport}
       />
     </View>
   );

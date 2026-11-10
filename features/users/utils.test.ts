@@ -1,4 +1,5 @@
 import {
+  STATIC_USER_REPORT_REASONS,
   mergeTaggableUsersCache,
   normalizeDiscoverAccount,
   normalizeTaggableUser,
@@ -163,16 +164,26 @@ describe("features/users/utils", () => {
       expect(normalized.followersCount).toBe(342);
       expect(normalized.followingCount).toBe(128);
       expect(normalized.isPrivate).toBe(false);
+      expect(normalized.isBlocked).toBe(false);
     });
 
-    it("normalizes isPrivate correctly when true", () => {
+    it("normalizes isPrivate and isBlocked correctly when true", () => {
       const profile: BackendProfile = {
         id: "prof-11",
         is_private: true,
+        is_blocked: true,
       };
 
       const normalized = normalizeUserProfile(profile, null);
       expect(normalized.isPrivate).toBe(true);
+      expect(normalized.isBlocked).toBe(true);
+    });
+
+    it("provides the 10 standard report reasons with labels and descriptions", () => {
+      expect(STATIC_USER_REPORT_REASONS).toHaveLength(10);
+      expect(STATIC_USER_REPORT_REASONS[0].id).toBe("impersonation");
+      expect(STATIC_USER_REPORT_REASONS[1].id).toBe("harassment");
+      expect(STATIC_USER_REPORT_REASONS[9].id).toBe("other");
     });
 
     it("falls back to user object when profile is null", () => {

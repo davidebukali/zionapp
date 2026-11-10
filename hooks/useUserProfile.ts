@@ -6,14 +6,18 @@ import { router, useLocalSearchParams } from "expo-router";
 import type { RootState } from "../store/store";
 import { useGetMeQuery } from "../features/auth/api";
 import {
+  useBlockUserMutation,
   useFollowUserMutation,
   useGetUserFollowersCountQuery,
   useGetUserFollowingCountQuery,
   useGetUserPostsQuery,
   useGetUserProfileQuery,
+  useReportUserMutation,
+  useUnblockUserMutation,
   useUnfollowUserMutation,
 } from "../features/users/api";
 import { normalizeUserProfile } from "../features/users/utils";
+import type { ReportReasonId } from "../features/users/types";
 import {
   useToggleBookmarkPostMutation,
   useToggleLikePostMutation,
@@ -27,6 +31,17 @@ export function useUserProfile() {
 
   const [activeTab, setActiveTab] = useState<ProfileTabType>("posts");
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // More menu, reporting, and blocking state
+  const [isMoreMenuVisible, setIsMoreMenuVisible] = useState(false);
+  const [anchorPosition, setAnchorPosition] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [isReportSheetVisible, setIsReportSheetVisible] = useState(false);
+  const [localBlockedState, setLocalBlockedState] = useState<boolean | null>(null);
 
   const isOwnProfile = useMemo(() => {
     if (!userId) return true;
@@ -88,6 +103,13 @@ export function useUserProfile() {
   const [followUser, { isLoading: isFollowLoading }] = useFollowUserMutation();
   const [unfollowUser, { isLoading: isUnfollowLoading }] = useUnfollowUserMutation();
 
+  // Block / Unblock mutations
+  const [blockUser, { isLoading: isBlocking }] = useBlockUserMutation();
+  const [unblockUser, { isLoading: isUnblocking }] = useUnblockUserMutation();
+
+  // Report user mutation
+  const [reportUser, { isLoading: isSubmittingReport }] = useReportUserMutation();
+
   // Post action mutations
   const [toggleLikePost] = useToggleLikePostMutation();
   const [toggleRepostPost] = useToggleRepostPostMutation();
@@ -128,6 +150,11 @@ export function useUserProfile() {
     followersData?.total,
     followingData?.total,
   ]);
+
+  const isBlocked =
+    localBlockedState !== null
+      ? localBlockedState
+      : Boolean(profile.isBlocked);
 
   const isLoading = isOwnProfile
     ? isMeLoading && !currentUser
@@ -195,6 +222,108 @@ export function useUserProfile() {
     );
   }, [profile.username]);
 
+  const handleOpenMoreMenu = useCallback(
+    (position?: { x: number; y: number; width: number; height: number }) => {
+      setAnchorPosition(position || null);
+      setIsMoreMenuVisible(true);
+    },
+    []
+  );
+
+  const handleCloseMoreMenu = useCallback(() => {
+    setIsMoreMenuVisible(false);
+  }, []);
+
+  const handleOpenReport = useCallback(() => {
+    setIsMoreMenuVisible(false);
+    setIsReportSheetVisible(true);
+  }, []);
+
+  const handleCloseReport = useCallback(() => {
+    setIsReportSheetVisible(false);
+  }, []);
+
+  const handleConfirmBlock = useCallback(async () => {
+    if (!targetUserId) return;
+    try {
+      await blockUser(targetUserId).unwrap();
+      setLocalBlockedState(true);
+      Alert.alert("Blocked", `@${profile.username} has been blocked.`);
+    } catch (error: any) {
+      const errorMessage =
+        error?.data?.message || "Failed to block user. Please try again.";
+      Alert.alert("Error", errorMessage);
+    }
+  }, [targetUserId, profile.username, blockUser]);
+
+  const handleUnblockPress = useCallback(async () => {
+    if (!targetUserId) return;
+    try {
+      await unblockUser(targetUserId).unwrap();
+      setLocalBlockedState(false);
+      Alert.alert("Unblocked", `@${profile.username} has been unblocked.`);
+    } catch (error: any) {
+      const errorMessage =
+        error?.data?.message || "Failed to unblock user. Please try again.";
+      Alert.alert("Error", errorMessage);
+    }
+  }, [targetUserId, profile.username, unblockUser]);
+
+  const handleBlockPress = useCallback(() => {
+    setIsMoreMenuVisible(false);
+    if (isBlocked) {
+      handleUnblockPress();
+      return;
+    }
+    Alert.alert(
+      `Block @${profile.username}?`,
+      "They won't be able to view your profile, see your posts, or message you.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: handleConfirmBlock,
+        },
+      ]
+    );
+  }, [isBlocked, profile.username, handleConfirmBlock, handleUnblockPress]);
+
+  const handleSubmitReport = useCallback(
+    async (reason: ReportReasonId, description: string) => {
+      if (!targetUserId) return;
+      try {
+        await reportUser({
+          userId: targetUserId,
+          payload: {
+            reason,
+            description: description.trim() ? description.trim() : null,
+          },
+        }).unwrap();
+        setIsReportSheetVisible(false);
+
+        // Follow-up alert offering quick block
+        Alert.alert(
+          "Thank You",
+          `We received your report and our team will review it.\n\nWould you also like to block @${profile.username}?`,
+          [
+            { text: "No", style: "cancel" },
+            {
+              text: "Block User",
+              style: "destructive",
+              onPress: handleConfirmBlock,
+            },
+          ]
+        );
+      } catch (error: any) {
+        const errorMessage =
+          error?.data?.message || "Failed to submit report. Please try again.";
+        Alert.alert("Error", errorMessage);
+      }
+    },
+    [targetUserId, reportUser, profile.username, handleConfirmBlock]
+  );
+
   const handleLikePost = useCallback(
     (postId: string, liked: boolean) => {
       toggleLikePost({ postId, liked });
@@ -204,7 +333,9 @@ export function useUserProfile() {
 
   const handleRepostPost = useCallback(
     (postId: string) => {
-      const targetPost = postsData?.posts.find((p) => p.id === postId);
+      const targetPost = postsData?.posts.find(
+        (postItem) => postItem.id === postId
+      );
       toggleRepostPost({
         postId,
         reposted: Boolean(targetPost?.isReposted ?? targetPost?.reposted),
@@ -215,7 +346,9 @@ export function useUserProfile() {
 
   const handleBookmarkPost = useCallback(
     (postId: string) => {
-      const targetPost = postsData?.posts.find((p) => p.id === postId);
+      const targetPost = postsData?.posts.find(
+        (postItem) => postItem.id === postId
+      );
       toggleBookmarkPost({
         postId,
         bookmarked: Boolean(targetPost?.isBookmarked ?? targetPost?.bookmarked),
@@ -235,11 +368,25 @@ export function useUserProfile() {
     posts: postsData?.posts || [],
     isPostsLoading,
     currentUserId: currentUser?.id,
+    isBlocked,
+    isBlocking,
+    isUnblocking,
+    isSubmittingReport,
+    isMoreMenuVisible,
+    anchorPosition,
+    isReportSheetVisible,
     handleToggleFollow,
     handleRefresh,
     handlePressBack,
     handlePressEditProfile,
     handlePressMessage,
+    handleOpenMoreMenu,
+    handleCloseMoreMenu,
+    handleBlockPress,
+    handleUnblockPress,
+    handleOpenReport,
+    handleCloseReport,
+    handleSubmitReport,
     handleLikePost,
     handleRepostPost,
     handleBookmarkPost,

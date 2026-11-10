@@ -7,6 +7,13 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 40, bottom: 20, left: 0, right: 0 }),
 }));
 
+jest.mock("../../features/users/api", () => ({
+  useGetUserReportReasonsQuery: () => ({
+    data: undefined,
+    isLoading: false,
+  }),
+}));
+
 jest.mock("react-native-paper", () => {
   const actual = jest.requireActual("react-native-paper");
   return {
@@ -33,6 +40,9 @@ jest.mock("react-native-paper", () => {
 import { ProfileHeader } from "./ProfileHeader";
 import { ProfileInfo } from "./ProfileInfo";
 import { ProfileTabs } from "./ProfileTabs";
+import { BlockedProfileNotice } from "./BlockedProfileNotice";
+import { ProfileMoreMenu } from "./ProfileMoreMenu";
+import { ReportUserSheet } from "./ReportUserSheet";
 import { EditProfileBanner } from "./edit/EditProfileBanner";
 import { ProfileInputField } from "./edit/ProfileInputField";
 import {
@@ -60,6 +70,16 @@ const mockProfile: UserProfileData = {
 };
 
 describe("components/profile", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+    jest.useRealTimers();
+  });
   describe("ProfileHeader", () => {
     it("renders Edit Profile button on own profile", () => {
       const onEdit = jest.fn();
@@ -402,6 +422,142 @@ describe("components/profile", () => {
         textInput.props.onChangeText("Entebbe");
       });
       expect(onChangeText).toHaveBeenCalledWith("Entebbe");
+    });
+  });
+
+  describe("ProfileMoreMenu", () => {
+    it("renders Block and Report options when visible", () => {
+      const handleClose = jest.fn();
+      const handleBlockToggle = jest.fn();
+      const handleReport = jest.fn();
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ProfileMoreMenu
+            visible={true}
+            anchorPosition={{ x: 300, y: 50, width: 36, height: 36 }}
+            username="peterokwi"
+            isBlocked={false}
+            onClose={handleClose}
+            onPressBlockToggle={handleBlockToggle}
+            onPressReport={handleReport}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const blockOption = root.findByProps({
+        accessibilityLabel: "Block @peterokwi",
+      });
+      const reportOption = root.findByProps({
+        accessibilityLabel: "Report @peterokwi",
+      });
+
+      expect(blockOption).toBeDefined();
+      expect(reportOption).toBeDefined();
+
+      act(() => {
+        blockOption.props.onPress();
+      });
+      expect(handleClose).toHaveBeenCalled();
+      expect(handleBlockToggle).toHaveBeenCalled();
+    });
+
+    it("renders Unblock label when user is already blocked", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ProfileMoreMenu
+            visible={true}
+            anchorPosition={null}
+            username="peterokwi"
+            isBlocked={true}
+            onClose={jest.fn()}
+            onPressBlockToggle={jest.fn()}
+            onPressReport={jest.fn()}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const unblockOption = root.findByProps({
+        accessibilityLabel: "Unblock @peterokwi",
+      });
+      expect(unblockOption).toBeDefined();
+    });
+  });
+
+  describe("BlockedProfileNotice", () => {
+    it("renders blocked title, subtitle, and triggers unblock", () => {
+      const handleUnblock = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <BlockedProfileNotice
+            username="peterokwi"
+            isUnblocking={false}
+            onPressUnblock={handleUnblock}
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("You have blocked @");
+      expect(json).toContain("peterokwi");
+      expect(json).toContain("Unblock");
+
+      const root = renderer!.root;
+      const unblockButton = root.findByProps({
+        accessibilityLabel: "Unblock @peterokwi",
+      });
+      act(() => {
+        unblockButton.props.onPress();
+      });
+      expect(handleUnblock).toHaveBeenCalled();
+    });
+  });
+
+  describe("ReportUserSheet", () => {
+    it("renders report title and triggers submission with selected reason", () => {
+      const handleClose = jest.fn();
+      const handleSubmit = jest.fn();
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ReportUserSheet
+            visible={true}
+            username="peterokwi"
+            isSubmitting={false}
+            onClose={handleClose}
+            onSubmit={handleSubmit}
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Report @");
+      expect(json).toContain("peterokwi");
+      expect(json).toContain("Impersonation");
+      expect(json).toContain("Harassment or Bullying");
+
+      const root = renderer!.root;
+      const harassmentOption = root.findByProps({
+        accessibilityLabel: "Select reason: Harassment or Bullying",
+      });
+      act(() => {
+        harassmentOption.props.onPress();
+      });
+
+      const submitButton = root.findByProps({
+        accessibilityLabel: "Submit report",
+      });
+      act(() => {
+        submitButton.props.onPress();
+      });
+
+      expect(handleSubmit).toHaveBeenCalledWith("harassment", "");
     });
   });
 });

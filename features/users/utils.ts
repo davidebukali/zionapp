@@ -4,10 +4,64 @@ import {
   BackendProfile,
   BackendTaggableUser,
   BackendUser,
+  ReportReason,
   TaggableUser,
   TaggableUsersResult,
   UserProfileData,
 } from "./types";
+
+export const STATIC_USER_REPORT_REASONS: ReportReason[] = [
+  {
+    id: "impersonation",
+    label: "Impersonation",
+    desc: "Pretending to be someone else, a leader, or an organization",
+  },
+  {
+    id: "harassment",
+    label: "Harassment or Bullying",
+    desc: "Targeted hostility, stalking, or abusive personal attacks",
+  },
+  {
+    id: "hate_speech",
+    label: "Hate Speech",
+    desc: "Attacks, demeaning slurs, or promoting harm against groups or individuals",
+  },
+  {
+    id: "explicit_content",
+    label: "Explicit or Inappropriate Content",
+    desc: "Nudity, sexual material, vulgarity, or graphic imagery",
+  },
+  {
+    id: "violence_or_harm",
+    label: "Violence or Self-Harm",
+    desc: "Threats of physical harm, self-harm, or glorification of violence",
+  },
+  {
+    id: "scam_or_fraud",
+    label: "Scam, Fraud, or Deception",
+    desc: "Financial exploitation, fake fundraisers, or phishing",
+  },
+  {
+    id: "spam",
+    label: "Spam or Bot Activity",
+    desc: "Unsolicited ads, repeated link drops, or automated accounts",
+  },
+  {
+    id: "inappropriate_profile",
+    label: "Inappropriate Profile",
+    desc: "Offensive username, avatar, banner, or bio",
+  },
+  {
+    id: "disruptive_content",
+    label: "Disruptive or Bad-Faith Conduct",
+    desc: "Content that violates our Christ-centered and family-friendly sanctuary",
+  },
+  {
+    id: "other",
+    label: "Other",
+    desc: "Issue not listed above (please specify)",
+  },
+];
 
 /**
  * Normalizes a raw BackendProfile or BackendUser into a strongly typed UserProfileData model.
@@ -45,6 +99,7 @@ export function normalizeUserProfile(
   const followersCount = counts?.followers ?? 0;
   const followingCount = counts?.following ?? 0;
   const isPrivate = Boolean(rawProfile?.is_private ?? false);
+  const isBlocked = Boolean(rawProfile?.is_blocked ?? false);
 
   return {
     id,
@@ -64,6 +119,7 @@ export function normalizeUserProfile(
     followersCount,
     followingCount,
     isPrivate,
+    isBlocked,
   };
 }
 
