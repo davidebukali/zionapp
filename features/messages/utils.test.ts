@@ -13,6 +13,7 @@ import {
   mergeRecipientsCache,
   normalizeConversation,
   normalizeMessage,
+  normalizeReactions,
   normalizeRecipient,
   POST_SHARE_PREVIEW_TEXT,
   updateMessageInCache,
@@ -562,6 +563,68 @@ describe("features/messages/utils", () => {
       expect(updated.reactions).toEqual(["🔥", "🙌"]);
       expect(updated.rawReactions).toHaveLength(2);
       expect(updated.rawReactions?.[0].count).toBe(3);
+    });
+
+    it("handles Laravel broadcast reaction payload with nested reaction object", () => {
+      const msg: ChatMessage = {
+        id: "m-1",
+        senderId: "u-1",
+        isOutgoing: false,
+        timestamp: "9:00",
+        rawReactions: [{ emoji: "❤️", count: 1, user_reacted: true }],
+        reactions: ["❤️"],
+      };
+
+      const updated = applyReactionEventToMessage(
+        msg,
+        {
+          message_id: "m-1",
+          reaction: {
+            id: "rx-999",
+            message_id: "m-1",
+            user_id: "user-partner",
+            emoji: "👍",
+          },
+          emoji: null,
+        },
+        "me"
+      );
+
+      expect(updated.reactions).toEqual(["❤️", "👍"]);
+      expect(updated.rawReactions).toHaveLength(2);
+      expect(updated.rawReactions?.find((reaction) => reaction.emoji === "👍")?.count).toBe(1);
+    });
+  });
+
+  describe("normalizeReactions", () => {
+    it("returns empty array when input is undefined or empty", () => {
+      expect(normalizeReactions(undefined)).toEqual([]);
+      expect(normalizeReactions([])).toEqual([]);
+    });
+
+    it("preserves pre-aggregated backend reaction objects", () => {
+      const aggregated = [{ emoji: "❤️", count: 2, user_reacted: true }];
+      const result = normalizeReactions(aggregated, "user-me");
+      expect(result).toEqual(aggregated);
+    });
+
+    it("aggregates raw individual reaction models into count and user_reacted", () => {
+      const rawRecords = [
+        { id: "1", user_id: "u-1", emoji: "❤️" },
+        { id: "2", user_id: "u-2", emoji: "❤️" },
+        { id: "3", user_id: "u-1", emoji: "👍" },
+      ];
+
+      const result = normalizeReactions(rawRecords, "u-1");
+      expect(result).toHaveLength(2);
+
+      const heart = result.find((item) => item.emoji === "❤️");
+      expect(heart?.count).toBe(2);
+      expect(heart?.user_reacted).toBe(true);
+
+      const thumbsUp = result.find((item) => item.emoji === "👍");
+      expect(thumbsUp?.count).toBe(1);
+      expect(thumbsUp?.user_reacted).toBe(true);
     });
   });
 

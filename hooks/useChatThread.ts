@@ -832,8 +832,11 @@ export function useChatThread(targetId?: string) {
             emoji,
           }).unwrap();
         }
-      } catch {
-        // Optimistic rollback not strictly necessary on minor failure
+      } catch (mutationError) {
+        console.warn(
+          "[ChatThread] Failed to toggle message reaction:",
+          mutationError
+        );
       }
     },
     [

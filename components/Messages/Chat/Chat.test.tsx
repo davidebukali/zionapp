@@ -994,6 +994,31 @@ describe("components/Messages/Chat", () => {
       expect(json).toContain("I completely agree with this!");
     });
 
+    it("renders ChatReactionBadge attached to the bubble when reactions are present", () => {
+      const message: ChatMessage = {
+        id: "msg-rx-1",
+        senderId: "user-current",
+        isOutgoing: true,
+        text: "Amen!",
+        timestamp: "9:18",
+        reactions: ["❤️"],
+        rawReactions: [{ emoji: "❤️", count: 1, user_reacted: true }],
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMessageBubble message={message} />
+        );
+      });
+
+      const root = renderer!.root;
+      const reactionBadge = root.findByProps({
+        accessibilityLabel: "Reaction ❤️",
+      });
+      expect(reactionBadge).toBeDefined();
+    });
+
     it("opens quick reactions modal on long press and fires onReact callback", () => {
       const onReactMock = jest.fn();
       const message: ChatMessage = {

@@ -151,6 +151,12 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
     }
   }
 
+  const hasReactions = Boolean(
+    !isDeletedForEveryone &&
+      ((reactions && reactions.length > 0) ||
+        (rawReactions && rawReactions.length > 0))
+  );
+
   return (
     <View
       style={[
@@ -160,15 +166,27 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
     >
       <Swipeable
         ref={swipeableRef}
-        containerStyle={styles.swipeableContainer}
-        childrenContainerStyle={styles.swipeableChildren}
+        containerStyle={[
+          styles.swipeableContainer,
+          { alignSelf: isOutgoing ? "flex-end" : "flex-start" },
+        ]}
+        childrenContainerStyle={[
+          styles.swipeableChildren,
+          { alignSelf: isOutgoing ? "flex-end" : "flex-start" },
+        ]}
         renderLeftActions={renderLeftActions}
         onSwipeableOpen={handleSwipeOpen}
         friction={2}
         overshootLeft={false}
         enabled={!isDeletedForEveryone && Boolean(onReply)}
       >
-        <View style={styles.bubbleWrapper}>
+        <View
+          style={[
+            styles.bubbleWrapper,
+            { alignSelf: isOutgoing ? "flex-end" : "flex-start" },
+            hasReactions && styles.bubbleWrapperWithReactions,
+          ]}
+        >
           <TouchableOpacity
             activeOpacity={0.9}
             delayLongPress={250}
@@ -293,44 +311,42 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
           onPress={() => setShowQuickReactions(false)}
           accessibilityRole="button"
           accessibilityLabel="Dismiss reactions"
+        />
+        <View
+          style={[
+            styles.quickReactionsCapsule,
+            {
+              top: capsuleTop,
+              left: capsuleLeft,
+              backgroundColor: theme.colors.surfaceVariant,
+              borderColor: theme.colors.outlineVariant,
+            },
+          ]}
         >
-          <View
-            style={[
-              styles.quickReactionsCapsule,
-              {
-                top: capsuleTop,
-                left: capsuleLeft,
-                backgroundColor: theme.colors.surfaceVariant,
-                borderColor: theme.colors.outlineVariant,
-              },
-            ]}
-            onStartShouldSetResponder={() => true}
-          >
-            {QUICK_REACTION_EMOJIS.map((emoji) => (
-              <TouchableOpacity
-                key={emoji}
-                accessibilityRole="button"
-                accessibilityLabel={`React with ${emoji}`}
-                onPress={() => handleSelectQuickEmoji(emoji)}
-                style={styles.quickEmojiButton}
-              >
-                <Text style={styles.quickEmojiText}>{emoji}</Text>
-              </TouchableOpacity>
-            ))}
+          {QUICK_REACTION_EMOJIS.map((emoji) => (
             <TouchableOpacity
+              key={emoji}
               accessibilityRole="button"
-              accessibilityLabel="More reactions"
-              onPress={handlePressMoreReactions}
+              accessibilityLabel={`React with ${emoji}`}
+              onPress={() => handleSelectQuickEmoji(emoji)}
               style={styles.quickEmojiButton}
             >
-              <Ionicons
-                name="add"
-                size={20}
-                color={theme.colors.onSurfaceVariant}
-              />
+              <Text style={styles.quickEmojiText}>{emoji}</Text>
             </TouchableOpacity>
-          </View>
-        </Pressable>
+          ))}
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="More reactions"
+            onPress={handlePressMoreReactions}
+            style={styles.quickEmojiButton}
+          >
+            <Ionicons
+              name="add"
+              size={20}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </TouchableOpacity>
+        </View>
       </Modal>
     </View>
   );
@@ -356,6 +372,9 @@ const styles = StyleSheet.create({
   },
   bubbleWrapper: {
     position: "relative",
+  },
+  bubbleWrapperWithReactions: {
+    paddingBottom: 12,
   },
   sharedPostWrapper: {
     gap: 4,
@@ -398,7 +417,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   modalBackdrop: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 0, 0, 0.25)",
   },
   quickReactionsCapsule: {

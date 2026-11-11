@@ -1,6 +1,7 @@
 import {
   BackendConversation,
   BackendMessage,
+  BackendMessageReaction,
   BackendRecipient,
   ChatMessage,
   Conversation,
@@ -154,6 +155,57 @@ export function formatConversationPreviewText(body: string): string {
 }
 
 /**
+ * Normalizes raw reaction items into an aggregated BackendMessageReaction list.
+ * Supports both pre-aggregated backend reaction objects ({ emoji, count, user_reacted })
+ * and individual reaction models ({ id, user_id, emoji }).
+ */
+export function normalizeReactions(
+  rawReactions?: Array<any> | null,
+  currentUserId?: string
+): BackendMessageReaction[] {
+  if (!rawReactions || !Array.isArray(rawReactions) || rawReactions.length === 0) {
+    return [];
+  }
+
+  // Pre-aggregated backend reaction objects with count
+  if (typeof rawReactions[0].count === "number") {
+    return rawReactions.map((reactionItem) => ({
+      emoji: String(reactionItem.emoji),
+      count: Number(reactionItem.count),
+      user_reacted: Boolean(reactionItem.user_reacted),
+    }));
+  }
+
+  // Array of individual reaction records from backend
+  const reactionsMap = new Map<string, { count: number; userReacted: boolean }>();
+
+  rawReactions.forEach((reactionItem) => {
+    if (!reactionItem?.emoji) return;
+    const existingEntry = reactionsMap.get(reactionItem.emoji) || {
+      count: 0,
+      userReacted: false,
+    };
+    const isCurrentUserReaction =
+      Boolean(currentUserId) &&
+      String(reactionItem.user_id) === String(currentUserId);
+
+    reactionsMap.set(reactionItem.emoji, {
+      count: existingEntry.count + 1,
+      userReacted:
+        existingEntry.userReacted ||
+        isCurrentUserReaction ||
+        Boolean(reactionItem.user_reacted),
+    });
+  });
+
+  return Array.from(reactionsMap.entries()).map(([emoji, reactionData]) => ({
+    emoji,
+    count: reactionData.count,
+    user_reacted: reactionData.userReacted,
+  }));
+}
+
+/**
  * Normalizes a backend message record into the UI ChatMessage model.
  */
 export function normalizeMessage(
@@ -187,9 +239,10 @@ export function normalizeMessage(
       ? raw.media[0].url
       : undefined;
 
+  const normalizedRawReactions = normalizeReactions(raw.reactions, currentUserId);
   const reactions =
-    raw.reactions && raw.reactions.length > 0
-      ? raw.reactions.map((r) => r.emoji)
+    normalizedRawReactions.length > 0
+      ? normalizedRawReactions.map((reactionItem) => reactionItem.emoji)
       : undefined;
 
   return {
@@ -204,7 +257,7 @@ export function normalizeMessage(
     replyTo: raw.reply_to || null,
     timestamp: formatMessageTimestamp(raw.created_at),
     reactions,
-    rawReactions: raw.reactions,
+    rawReactions: normalizedRawReactions,
     isEdited: Boolean(raw.is_edited),
     isDeletedForEveryone: isDeleted,
     createdAt: raw.created_at,
@@ -332,8 +385,8 @@ export function applyReactionEventToMessage(
   currentUserId?: string
 ): ChatMessage {
   if (event.reactions && Array.isArray(event.reactions)) {
-    const rawReactions = event.reactions;
-    const reactions = rawReactions.map((r) => r.emoji);
+    const rawReactions = normalizeReactions(event.reactions, currentUserId);
+    const reactions = rawReactions.map((reactionItem) => reactionItem.emoji);
     return {
       ...msg,
       rawReactions,
@@ -347,11 +400,15 @@ export function applyReactionEventToMessage(
     Boolean(currentUserId) && String(eventUserId) === String(currentUserId);
 
   let updatedRaw = existingRaw.filter(
-    (r) => !(isMe && r.user_reacted)
+    (reactionItem) => !(isMe && reactionItem.user_reacted)
   );
 
-  if (event.emoji) {
-    const existingIndex = updatedRaw.findIndex((r) => r.emoji === event.emoji);
+  const eventEmoji = event.reaction?.emoji ?? event.emoji ?? null;
+
+  if (eventEmoji) {
+    const existingIndex = updatedRaw.findIndex(
+      (reactionItem) => reactionItem.emoji === eventEmoji
+    );
     if (existingIndex !== -1) {
       updatedRaw[existingIndex] = {
         ...updatedRaw[existingIndex],
@@ -360,14 +417,14 @@ export function applyReactionEventToMessage(
       };
     } else {
       updatedRaw.push({
-        emoji: event.emoji,
+        emoji: eventEmoji,
         count: 1,
         user_reacted: isMe,
       });
     }
   }
 
-  const reactions = updatedRaw.map((r) => r.emoji);
+  const reactions = updatedRaw.map((reactionItem) => reactionItem.emoji);
   return {
     ...msg,
     rawReactions: updatedRaw,

@@ -78,12 +78,12 @@ export const ChatReactionBadge = React.memo(function ChatReactionBadge({
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: -10,
+    bottom: 0,
     right: 4,
     flexDirection: "row",
     gap: 4,
-    zIndex: 3,
-    elevation: 3,
+    zIndex: 5,
+    elevation: 5,
   },
   badge: {
     paddingHorizontal: 6,
