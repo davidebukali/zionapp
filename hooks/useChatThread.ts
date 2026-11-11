@@ -50,8 +50,11 @@ import {
 } from "../features/messages/api";
 import {
   useBlockUserMutation,
+  useGetUserProfileQuery,
+  useReportUserMutation,
   useUnblockUserMutation,
 } from "../features/users/api";
+import { ReportReasonId } from "../features/users/types";
 import {
   useConfirmMediaUploadMutation,
   useGetMediaUploadUrlMutation,
@@ -59,6 +62,29 @@ import {
 } from "../features/posts/api";
 import { MediaItem, uploadAndProcessMedia } from "../utils/mediaUploader";
 import { pickImageFromLibrary } from "../utils/mediaPicker";
+import {
+  getAvatarColor as getGlobalAvatarColor,
+  getUserAvatarUrl,
+  getUserInitials,
+} from "../utils/user";
+
+function mapToUserReportReason(reason: ReportReason): ReportReasonId {
+  switch (reason) {
+    case "spam":
+      return "spam";
+    case "harassment":
+      return "harassment";
+    case "hate_speech":
+      return "hate_speech";
+    case "inappropriate_content":
+      return "explicit_content";
+    case "violence":
+      return "violence_or_harm";
+    case "other":
+    default:
+      return "other";
+  }
+}
 
 export function useChatThread(targetId?: string) {
   const dispatch = useDispatch<AppDispatch>();
@@ -141,6 +167,7 @@ export function useChatThread(targetId?: string) {
   const [unarchiveMutation] = useUnarchiveConversationMutation();
   const [deleteConversationMutation] = useDeleteConversationMutation();
   const [reportConversationMutation] = useReportConversationMutation();
+  const [reportUserMutation] = useReportUserMutation();
   const [reactToMessageMutation] = useReactToMessageMutation();
   const [removeMessageReactionMutation] = useRemoveMessageReactionMutation();
   const [blockUserMutation] = useBlockUserMutation();
@@ -149,6 +176,44 @@ export function useChatThread(targetId?: string) {
   const [confirmMediaUpload] = useConfirmMediaUploadMutation();
   const [getMediaStatus] = useLazyGetMediaStatusQuery();
 
+  // 3. Fallback profile query if contact is not in local recipients or inbox cache
+  const shouldFetchFallbackProfile = Boolean(
+    targetId &&
+    token &&
+    !cachedConversation &&
+    !cachedRecipient
+  );
+
+  const { data: fallbackProfile } = useGetUserProfileQuery(targetId || "", {
+    skip: !shouldFetchFallbackProfile,
+  });
+
+  useEffect(() => {
+    if (fallbackProfile && !remoteParticipant) {
+      const displayName =
+        fallbackProfile.display_name?.trim() ||
+        fallbackProfile.username?.trim() ||
+        "";
+      const resolvedAvatar = getUserAvatarUrl(fallbackProfile);
+
+      setRemoteParticipant({
+        id: String(fallbackProfile.user_id || fallbackProfile.id || targetId),
+        name: displayName,
+        username: fallbackProfile.username || "",
+        avatarUrl: resolvedAvatar,
+        initials: getUserInitials(displayName),
+        isOnline: false,
+        avatarColor: getGlobalAvatarColor(String(targetId)),
+      });
+
+      if (fallbackProfile.is_blocked) {
+        setIsBlocked(true);
+        setResolvedCanSendMessages(false);
+      }
+    }
+  }, [fallbackProfile, remoteParticipant, targetId]);
+
+  // Synchronize state from cached conversation or recipient (Deferred / Lazy creation: no eager POST on mount)
   useEffect(() => {
     if (cachedConversation) {
       setResolvedConversationId(cachedConversation.id);
@@ -166,46 +231,13 @@ export function useChatThread(targetId?: string) {
     if (cachedRecipient) {
       setRemoteParticipant(cachedRecipient);
     }
+  }, [cachedConversation, cachedRecipient]);
 
-    if (!targetId || !token) return;
-
-    let isMounted = true;
-    startConversationMutation({ recipient_id: targetId })
-      .unwrap()
-      .then((conv) => {
-        if (!isMounted) return;
-        setResolvedConversationId(conv.id);
-        setIsMuted(Boolean(conv.is_muted));
-        setIsArchived(Boolean(conv.is_archived));
-        setIsBlocked(Boolean(conv.has_blocked_participant));
-        setResolvedCanSendMessages(
-          conv.can_send_messages !== false && !conv.has_blocked_participant
-        );
-        setRemoteParticipant(normalizeRecipient(conv.recipient));
-      })
-      .catch((error) => {
-        if (!isMounted) return;
-        if (error?.status === 403) {
-          setResolvedCanSendMessages(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [
-    targetId,
-    cachedConversation,
-    cachedRecipient,
-    token,
-    startConversationMutation,
-  ]);
-
-  // Fetch conversation details (can_send_messages / has_blocked_participant) when resolved from cache
+  // Fetch conversation details when conversation exists
   const { data: convDetails } = useGetConversationDetailsQuery(
     resolvedConversationId as string,
     {
-      skip: !resolvedConversationId || !token || !cachedConversation,
+      skip: !resolvedConversationId || !token,
     }
   );
 
@@ -224,7 +256,7 @@ export function useChatThread(targetId?: string) {
     }
   }, [convDetails]);
 
-  // 3. Participant with clean loading placeholder while POST /conversations is in flight
+  // Participant resolution
   const participant: OnlineContact = useMemo(() => {
     if (remoteParticipant) {
       return {
@@ -237,9 +269,9 @@ export function useChatThread(targetId?: string) {
       id: targetId || "",
       name: "",
       username: "",
-      initials: "",
+      initials: getUserInitials("", "", "??"),
       isOnline: isPartnerOnline,
-      avatarColor: getAvatarColor(targetId || ""),
+      avatarColor: getGlobalAvatarColor(targetId || ""),
     };
   }, [remoteParticipant, targetId, isPartnerOnline]);
 
@@ -495,21 +527,37 @@ export function useChatThread(targetId?: string) {
 
   // Send message via API (supporting images or text)
   const handleSendMessage = useCallback(async () => {
-    if (!resolvedConversationId || !token) return;
+    if (!token) return;
 
     const trimmed = inputText.trim();
     const hasImages = selectedMedia.length > 0;
 
     if (!trimmed && !hasImages) return;
 
-    // Reset input states
-    setInputText("");
     const mediaToSend = [...selectedMedia];
-    setSelectedMedia([]);
     const replyTarget = replyingTo;
-    setReplyingTo(null);
 
     try {
+      let targetConversationId = resolvedConversationId;
+
+      // Lazy creation: Create conversation on the backend only on first message send
+      if (!targetConversationId) {
+        if (!targetId) {
+          Alert.alert("Error", "Recipient not specified.");
+          return;
+        }
+
+        const createdConversation = await startConversationMutation({
+          recipient_id: targetId,
+        }).unwrap();
+
+        targetConversationId = createdConversation.id;
+        setResolvedConversationId(createdConversation.id);
+        if (createdConversation.recipient) {
+          setRemoteParticipant(normalizeRecipient(createdConversation.recipient));
+        }
+      }
+
       let uploadedMediaIds: string[] | undefined = undefined;
 
       if (hasImages) {
@@ -522,7 +570,7 @@ export function useChatThread(targetId?: string) {
       }
 
       await sendMessageMutation({
-        conversationId: resolvedConversationId,
+        conversationId: targetConversationId,
         body: hasImages ? undefined : trimmed,
         media_ids: uploadedMediaIds,
         optimisticMediaUrls: hasImages ? mediaToSend.map((m) => m.uri) : undefined,
@@ -542,6 +590,11 @@ export function useChatThread(targetId?: string) {
             }
           : null,
       }).unwrap();
+
+      // Reset input states only on successful transmission
+      setInputText("");
+      setSelectedMedia([]);
+      setReplyingTo(null);
     } catch (error: any) {
       const message =
         error?.data?.message || error?.message || "Failed to send message.";
@@ -556,7 +609,9 @@ export function useChatThread(targetId?: string) {
     replyingTo,
     participant.name,
     resolvedConversationId,
+    targetId,
     token,
+    startConversationMutation,
     sendMessageMutation,
     getMediaUploadUrl,
     confirmMediaUpload,
@@ -629,22 +684,41 @@ export function useChatThread(targetId?: string) {
 
   const handleReport = useCallback(
     async (reason: ReportReason) => {
-      if (!resolvedConversationId || !token) return;
+      if (!token) return;
       handleCloseOptions();
       try {
-        await reportConversationMutation({
-          id: resolvedConversationId,
-          reason,
-        }).unwrap();
+        if (resolvedConversationId) {
+          await reportConversationMutation({
+            id: resolvedConversationId,
+            reason,
+          }).unwrap();
+        } else {
+          const reportTargetUserId = partnerId || targetId;
+          if (!reportTargetUserId) return;
+          await reportUserMutation({
+            userId: reportTargetUserId,
+            payload: {
+              reason: mapToUserReportReason(reason),
+            },
+          }).unwrap();
+        }
         Alert.alert(
           "Report Submitted",
-          "Thank you for helping keep Tsiyon safe. We will review this conversation."
+          "Thank you for helping keep Tsiyon safe. We will review this report."
         );
       } catch {
         Alert.alert("Error", "Could not submit report. Please try again.");
       }
     },
-    [resolvedConversationId, token, reportConversationMutation, handleCloseOptions]
+    [
+      resolvedConversationId,
+      partnerId,
+      targetId,
+      token,
+      reportConversationMutation,
+      reportUserMutation,
+      handleCloseOptions,
+    ]
   );
 
   const handleToggleBlock = useCallback(async () => {
@@ -859,6 +933,7 @@ export function useChatThread(targetId?: string) {
     previewMediaIndex,
     handleOpenMediaPreview,
     handleCloseMediaPreview,
+    isDraft: !resolvedConversationId,
     replyingTo,
     handleReplyToMessage,
     handleCancelReply,

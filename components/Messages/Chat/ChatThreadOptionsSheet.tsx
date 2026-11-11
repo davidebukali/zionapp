@@ -31,6 +31,7 @@ export const ChatThreadOptionsSheet = React.memo(
     isMuted,
     isArchived,
     isBlocked,
+    isDraft = false,
     onClose,
     onToggleMute,
     onToggleArchive,
@@ -139,65 +140,69 @@ export const ChatThreadOptionsSheet = React.memo(
             ) : (
               // Main Actions List
               <View style={styles.actionList}>
-                {/* 1. Mute / Unmute */}
-                <TouchableOpacity
-                  onPress={onToggleMute}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={isMuted ? "Unmute notifications" : "Mute notifications"}
-                  style={[
-                    globalStyles.row,
-                    styles.actionRow,
-                    { borderBottomColor: theme.colors.outlineVariant },
-                  ]}
-                >
-                  <View style={globalStyles.row}>
-                    <Ionicons
-                      name={isMuted ? "notifications-outline" : "notifications-off-outline"}
-                      size={22}
-                      color={theme.colors.onSurface}
-                      style={styles.actionIcon}
-                    />
-                    <Text
-                      style={[
-                        styles.actionText,
-                        { color: theme.colors.onSurface },
-                      ]}
-                    >
-                      {isMuted ? "Unmute Notifications" : "Mute Notifications"}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                {/* 1. Mute / Unmute (Hidden for drafts) */}
+                {!isDraft && (
+                  <TouchableOpacity
+                    onPress={onToggleMute}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={isMuted ? "Unmute notifications" : "Mute notifications"}
+                    style={[
+                      globalStyles.row,
+                      styles.actionRow,
+                      { borderBottomColor: theme.colors.outlineVariant },
+                    ]}
+                  >
+                    <View style={globalStyles.row}>
+                      <Ionicons
+                        name={isMuted ? "notifications-outline" : "notifications-off-outline"}
+                        size={22}
+                        color={theme.colors.onSurface}
+                        style={styles.actionIcon}
+                      />
+                      <Text
+                        style={[
+                          styles.actionText,
+                          { color: theme.colors.onSurface },
+                        ]}
+                      >
+                        {isMuted ? "Unmute Notifications" : "Mute Notifications"}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
 
-                {/* 2. Archive / Unarchive */}
-                <TouchableOpacity
-                  onPress={onToggleArchive}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={isArchived ? "Unarchive conversation" : "Archive conversation"}
-                  style={[
-                    globalStyles.row,
-                    styles.actionRow,
-                    { borderBottomColor: theme.colors.outlineVariant },
-                  ]}
-                >
-                  <View style={globalStyles.row}>
-                    <Ionicons
-                      name="archive-outline"
-                      size={22}
-                      color={theme.colors.onSurface}
-                      style={styles.actionIcon}
-                    />
-                    <Text
-                      style={[
-                        styles.actionText,
-                        { color: theme.colors.onSurface },
-                      ]}
-                    >
-                      {isArchived ? "Unarchive Conversation" : "Archive Conversation"}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                {/* 2. Archive / Unarchive (Hidden for drafts) */}
+                {!isDraft && (
+                  <TouchableOpacity
+                    onPress={onToggleArchive}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={isArchived ? "Unarchive conversation" : "Archive conversation"}
+                    style={[
+                      globalStyles.row,
+                      styles.actionRow,
+                      { borderBottomColor: theme.colors.outlineVariant },
+                    ]}
+                  >
+                    <View style={globalStyles.row}>
+                      <Ionicons
+                        name="archive-outline"
+                        size={22}
+                        color={theme.colors.onSurface}
+                        style={styles.actionIcon}
+                      />
+                      <Text
+                        style={[
+                          styles.actionText,
+                          { color: theme.colors.onSurface },
+                        ]}
+                      >
+                        {isArchived ? "Unarchive Conversation" : "Archive Conversation"}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
 
                 {/* 3. Report */}
                 <TouchableOpacity
@@ -234,32 +239,34 @@ export const ChatThreadOptionsSheet = React.memo(
                   />
                 </TouchableOpacity>
 
-                {/* 4. Clear History */}
-                <TouchableOpacity
-                  onPress={onClearHistory}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear chat history"
-                  style={[
-                    globalStyles.row,
-                    styles.actionRow,
-                    { borderBottomColor: theme.colors.outlineVariant },
-                  ]}
-                >
-                  <View style={globalStyles.row}>
-                    <Ionicons
-                      name="trash-outline"
-                      size={22}
-                      color={theme.colors.error}
-                      style={styles.actionIcon}
-                    />
-                    <Text
-                      style={[styles.actionText, { color: theme.colors.error }]}
-                    >
-                      Clear Chat History
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                {/* 4. Clear History (Hidden for drafts) */}
+                {!isDraft && (
+                  <TouchableOpacity
+                    onPress={onClearHistory}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear chat history"
+                    style={[
+                      globalStyles.row,
+                      styles.actionRow,
+                      { borderBottomColor: theme.colors.outlineVariant },
+                    ]}
+                  >
+                    <View style={globalStyles.row}>
+                      <Ionicons
+                        name="trash-outline"
+                        size={22}
+                        color={theme.colors.error}
+                        style={styles.actionIcon}
+                      />
+                      <Text
+                        style={[styles.actionText, { color: theme.colors.error }]}
+                      >
+                        Clear Chat History
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
 
                 {/* 5. Block / Unblock User */}
                 <TouchableOpacity

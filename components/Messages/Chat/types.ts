@@ -91,6 +91,7 @@ export interface ChatThreadOptionsSheetProps {
   isMuted: boolean;
   isArchived: boolean;
   isBlocked: boolean;
+  isDraft?: boolean;
   onClose: () => void;
   onToggleMute: () => void;
   onToggleArchive: () => void;

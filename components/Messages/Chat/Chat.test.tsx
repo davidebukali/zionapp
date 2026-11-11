@@ -77,6 +77,7 @@ jest.mock("../../../hooks/useChatThread", () => ({
     isMuted: false,
     isArchived: false,
     isBlocked: false,
+    isDraft: false,
     handleOpenOptions: jest.fn(),
     handleCloseOptions: jest.fn(),
     handleToggleMute: jest.fn(),
@@ -571,6 +572,39 @@ describe("components/Messages/Chat", () => {
         spamReasonBtn.props.onPress();
       });
       expect(onReport).toHaveBeenCalledWith("spam");
+    });
+
+    it("hides thread-specific actions (mute, archive, clear) when isDraft is true", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatThreadOptionsSheet
+            visible={true}
+            participant={mockParticipant}
+            isMuted={false}
+            isArchived={false}
+            isBlocked={false}
+            isDraft={true}
+            onClose={jest.fn()}
+            onToggleMute={jest.fn()}
+            onToggleArchive={jest.fn()}
+            onClearHistory={jest.fn()}
+            onReport={jest.fn()}
+            onToggleBlock={jest.fn()}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+
+      // Hidden for drafts
+      expect(() => root.findByProps({ accessibilityLabel: "Mute notifications" })).toThrow();
+      expect(() => root.findByProps({ accessibilityLabel: "Archive conversation" })).toThrow();
+      expect(() => root.findByProps({ accessibilityLabel: "Clear chat history" })).toThrow();
+
+      // Visible for drafts
+      expect(root.findByProps({ accessibilityLabel: "Report conversation" })).toBeDefined();
+      expect(root.findByProps({ accessibilityLabel: "Block user" })).toBeDefined();
     });
   });
 

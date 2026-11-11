@@ -84,6 +84,7 @@ export default function ChatScreen() {
         isMuted={thread.isMuted}
         isArchived={thread.isArchived}
         isBlocked={thread.isBlocked}
+        isDraft={thread.isDraft}
         onClose={thread.handleCloseOptions}
         onToggleMute={thread.handleToggleMute}
         onToggleArchive={thread.handleToggleArchive}
