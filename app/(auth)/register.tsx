@@ -183,7 +183,6 @@ export default function RegisterScreen() {
           <AuthHeader
             title="Create account"
             subtitle="Sign up to start your journey with us."
-            badgeText="Project preview"
           />
 
           <View style={styles.formContainer}>

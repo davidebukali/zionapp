@@ -72,7 +72,6 @@ export function LoginForm({
         <AuthHeader
           title="Welcome back"
           subtitle="Sign in to pick up where you left off."
-          badgeText="Project preview"
         />
 
         <View style={styles.formContainer}>
