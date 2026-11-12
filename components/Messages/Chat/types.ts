@@ -28,10 +28,30 @@ export interface ChatReadReceiptProps {
 }
 
 export interface ChatTextBubbleProps {
-  text: string;
+  text?: string | null;
   isOutgoing: boolean;
   isDeleted?: boolean;
   isEdited?: boolean;
+  header?: React.ReactNode;
+  children?: React.ReactNode;
+}
+
+export interface ChatQuickReactionsModalProps {
+  visible: boolean;
+  isOutgoing: boolean;
+  anchorPosition: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null;
+  onDismiss: () => void;
+  onSelectEmoji: (emoji: string) => void;
+  onPressMore: () => void;
+}
+
+export interface ChatSwipeReplyActionProps {
+  isOutgoing?: boolean;
 }
 
 export interface ChatMediaBubbleProps {

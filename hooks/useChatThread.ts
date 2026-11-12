@@ -383,7 +383,7 @@ export function useChatThread(targetId?: string) {
         );
       });
 
-      // 1.4 Reaction updated (support both broadcast naming formats)
+      // 1.4 Reaction updated (.message.reaction_updated per backend contract)
       const handleReactionUpdated = (event: MessageReactionUpdatedEvent) => {
         updateMessageInCache(
           messagesApi,
@@ -402,7 +402,6 @@ export function useChatThread(targetId?: string) {
         );
       };
 
-      privateChannel.listen(".message.reaction.updated", handleReactionUpdated);
       privateChannel.listen(".message.reaction_updated", handleReactionUpdated);
 
       // 1.5 Message read by recipient
@@ -797,12 +796,12 @@ export function useChatThread(targetId?: string) {
         : false;
 
       // Optimistically update local RTK Query cache
-      updateMessageInCache(
+      const undoOptimisticReaction = updateMessageInCache(
         messagesApi,
         dispatch,
         resolvedConversationId,
         messageId,
-        (msg) => {
+        (draftMessage) => {
           const fakeEvent: MessageReactionUpdatedEvent = {
             message_id: messageId,
             conversation_id: resolvedConversationId,
@@ -810,12 +809,12 @@ export function useChatThread(targetId?: string) {
             user_id: currentUserId,
           };
           const updated = applyReactionEventToMessage(
-            msg,
+            draftMessage,
             fakeEvent,
             currentUserId
           );
-          msg.reactions = updated.reactions;
-          msg.rawReactions = updated.rawReactions;
+          draftMessage.reactions = updated.reactions;
+          draftMessage.rawReactions = updated.rawReactions;
         }
       );
 
@@ -832,11 +831,9 @@ export function useChatThread(targetId?: string) {
             emoji,
           }).unwrap();
         }
-      } catch (mutationError) {
-        console.warn(
-          "[ChatThread] Failed to toggle message reaction:",
-          mutationError
-        );
+      } catch {
+        undoOptimisticReaction();
+        Alert.alert("Error", "Could not update reaction. Please try again.");
       }
     },
     [

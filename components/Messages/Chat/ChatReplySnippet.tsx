@@ -177,5 +177,39 @@ const styles = StyleSheet.create({
     padding: 2,
     marginLeft: 4,
   },
+  replyActionContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    width: 48,
+    paddingLeft: 12,
+  },
+  replyActionCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
+
+export const ChatSwipeReplyAction = React.memo(function ChatSwipeReplyAction() {
+  const theme = useTheme();
+
+  return (
+    <View style={styles.replyActionContainer}>
+      <View
+        style={[
+          styles.replyActionCircle,
+          { backgroundColor: theme.colors.surfaceVariant },
+        ]}
+      >
+        <Ionicons
+          name="arrow-undo"
+          size={18}
+          color={theme.colors.primary}
+        />
+      </View>
+    </View>
+  );
 });
 

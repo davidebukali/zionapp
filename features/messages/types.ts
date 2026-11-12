@@ -53,6 +53,12 @@ export interface BackendMessageReaction {
   user_reacted: boolean;
 }
 
+export interface BackendMessageReactionsSummary {
+  summary?: Record<string, number>;
+  viewer_reaction?: string | null;
+  total_count?: number;
+}
+
 export interface BackendMessageReply {
   id: string;
   sender: {
@@ -77,7 +83,7 @@ export interface BackendMessage {
   body: string | null;
   media?: BackendMessageMedia[];
   reply_to?: BackendMessageReply | null;
-  reactions?: BackendMessageReaction[];
+  reactions?: BackendMessageReaction[] | BackendMessageReactionsSummary;
   is_edited: boolean;
   edited_at?: string | null;
   is_deleted_for_everyone: boolean;
@@ -218,11 +224,12 @@ export interface ReactionResponse {
   success: boolean;
   message: string;
   data: {
-    id: string;
+    id: string | number;
     message_id: string;
     user_id: string;
     emoji: string;
     created_at: string;
+    updated_at?: string;
   } | null;
   meta?: null;
 }
@@ -273,7 +280,7 @@ export interface MessageReactionUpdatedEvent {
     user_id: string;
     emoji: string;
   } | null;
-  reactions?: BackendMessageReaction[];
+  reactions?: BackendMessageReaction[] | BackendMessageReactionsSummary;
 }
 
 export interface MessageReadEvent {

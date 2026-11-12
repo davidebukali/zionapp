@@ -270,6 +270,38 @@ describe("features/messages/utils", () => {
       expect(result.isDeletedForEveryone).toBe(false);
     });
 
+    it("transforms backend message with reactions summary object contract", () => {
+      const raw: BackendMessage = {
+        id: "msg-summary-1",
+        conversation_id: "conv-1",
+        sender_id: "user-2",
+        sender: { id: "user-2", name: "Jane", username: "jane" },
+        body: "Look at the reactions",
+        media: [],
+        reply_to: null,
+        reactions: {
+          summary: { "❤️": 2, "🔥": 1 },
+          viewer_reaction: "❤️",
+          total_count: 3,
+        },
+        is_edited: false,
+        is_deleted_for_everyone: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const result = normalizeMessage(raw, "user-1");
+      expect(result.id).toBe("msg-summary-1");
+      expect(result.reactions).toEqual(["❤️", "🔥"]);
+      expect(result.rawReactions).toHaveLength(2);
+      const heart = result.rawReactions?.find((reaction) => reaction.emoji === "❤️");
+      expect(heart?.count).toBe(2);
+      expect(heart?.user_reacted).toBe(true);
+      const fire = result.rawReactions?.find((reaction) => reaction.emoji === "🔥");
+      expect(fire?.count).toBe(1);
+      expect(fire?.user_reacted).toBe(false);
+    });
+
     it("identifies outgoing message and handles deleted text", () => {
       const raw: BackendMessage = {
         id: "msg-2",
@@ -594,12 +626,110 @@ describe("features/messages/utils", () => {
       expect(updated.rawReactions).toHaveLength(2);
       expect(updated.rawReactions?.find((reaction) => reaction.emoji === "👍")?.count).toBe(1);
     });
+
+    it("decrements reaction count and unflags user_reacted when current user removes from shared reaction", () => {
+      const msg: ChatMessage = {
+        id: "m-1",
+        senderId: "u-1",
+        isOutgoing: false,
+        timestamp: "9:00",
+        rawReactions: [{ emoji: "❤️", count: 2, user_reacted: true }],
+        reactions: ["❤️"],
+      };
+
+      const updated = applyReactionEventToMessage(
+        msg,
+        {
+          message_id: "m-1",
+          conversation_id: "c-1",
+          user_id: "me",
+          emoji: null,
+        },
+        "me"
+      );
+
+      expect(updated.reactions).toEqual(["❤️"]);
+      expect(updated.rawReactions).toHaveLength(1);
+      expect(updated.rawReactions?.[0].count).toBe(1);
+      expect(updated.rawReactions?.[0].user_reacted).toBe(false);
+    });
+
+    it("switches reaction cleanly when current user picks a different emoji", () => {
+      const msg: ChatMessage = {
+        id: "m-1",
+        senderId: "u-1",
+        isOutgoing: false,
+        timestamp: "9:00",
+        rawReactions: [{ emoji: "❤️", count: 1, user_reacted: true }],
+        reactions: ["❤️"],
+      };
+
+      const updated = applyReactionEventToMessage(
+        msg,
+        {
+          message_id: "m-1",
+          conversation_id: "c-1",
+          user_id: "me",
+          emoji: "🔥",
+        },
+        "me"
+      );
+
+      expect(updated.reactions).toEqual(["🔥"]);
+      expect(updated.rawReactions).toHaveLength(1);
+      expect(updated.rawReactions?.[0].emoji).toBe("🔥");
+      expect(updated.rawReactions?.[0].count).toBe(1);
+      expect(updated.rawReactions?.[0].user_reacted).toBe(true);
+    });
   });
 
   describe("normalizeReactions", () => {
     it("returns empty array when input is undefined or empty", () => {
       expect(normalizeReactions(undefined)).toEqual([]);
       expect(normalizeReactions([])).toEqual([]);
+    });
+
+    it("parses backend summary object contract with summary and viewer_reaction", () => {
+      const summaryPayload = {
+        summary: { "❤️": 2, "🔥": 1 },
+        viewer_reaction: "❤️",
+        total_count: 3,
+      };
+
+      const result = normalizeReactions(summaryPayload, "me");
+      expect(result).toHaveLength(2);
+
+      const heart = result.find((item) => item.emoji === "❤️");
+      expect(heart?.count).toBe(2);
+      expect(heart?.user_reacted).toBe(true);
+
+      const fire = result.find((item) => item.emoji === "🔥");
+      expect(fire?.count).toBe(1);
+      expect(fire?.user_reacted).toBe(false);
+    });
+
+    it("parses backend summary object contract with null viewer_reaction", () => {
+      const summaryPayload = {
+        summary: { "👍": 4 },
+        viewer_reaction: null,
+        total_count: 4,
+      };
+
+      const result = normalizeReactions(summaryPayload, "me");
+      expect(result).toHaveLength(1);
+      expect(result[0].emoji).toBe("👍");
+      expect(result[0].count).toBe(4);
+      expect(result[0].user_reacted).toBe(false);
+    });
+
+    it("returns empty array when backend summary object has empty summary", () => {
+      const summaryPayload = {
+        summary: {},
+        viewer_reaction: null,
+        total_count: 0,
+      };
+
+      expect(normalizeReactions(summaryPayload, "me")).toEqual([]);
     });
 
     it("preserves pre-aggregated backend reaction objects", () => {

@@ -2,6 +2,7 @@ import {
   BackendConversation,
   BackendMessage,
   BackendMessageReaction,
+  BackendMessageReactionsSummary,
   BackendRecipient,
   ChatMessage,
   Conversation,
@@ -156,19 +157,55 @@ export function formatConversationPreviewText(body: string): string {
 
 /**
  * Normalizes raw reaction items into an aggregated BackendMessageReaction list.
- * Supports both pre-aggregated backend reaction objects ({ emoji, count, user_reacted })
- * and individual reaction models ({ id, user_id, emoji }).
+ * Supports:
+ * 1. Backend summary contract: { summary: Record<string, number>, viewer_reaction: string | null, total_count: number }
+ * 2. Pre-aggregated backend reaction objects: [{ emoji, count, user_reacted }]
+ * 3. Individual reaction models: [{ id, user_id, emoji }]
  */
 export function normalizeReactions(
-  rawReactions?: Array<any> | null,
+  rawReactions?:
+    | Array<any>
+    | BackendMessageReactionsSummary
+    | Record<string, number>
+    | null,
   currentUserId?: string
 ): BackendMessageReaction[] {
-  if (!rawReactions || !Array.isArray(rawReactions) || rawReactions.length === 0) {
+  if (!rawReactions) {
     return [];
   }
 
-  // Pre-aggregated backend reaction objects with count
-  if (typeof rawReactions[0].count === "number") {
+  // 1. Backend summary contract: { summary: { "❤️": 1 }, viewer_reaction: "❤️", total_count: 1 }
+  if (typeof rawReactions === "object" && !Array.isArray(rawReactions)) {
+    const reactionsSummaryObject = rawReactions as any;
+    const summaryDictionary: Record<string, number> =
+      reactionsSummaryObject.summary &&
+      typeof reactionsSummaryObject.summary === "object"
+        ? reactionsSummaryObject.summary
+        : reactionsSummaryObject;
+
+    const viewerReactionEmoji: string | null =
+      reactionsSummaryObject.viewer_reaction ?? null;
+
+    const summaryEntries = Object.entries(summaryDictionary);
+    if (summaryEntries.length === 0) {
+      return [];
+    }
+
+    return summaryEntries
+      .filter(([emoji, count]) => Boolean(emoji) && Number(count) > 0)
+      .map(([emoji, count]) => ({
+        emoji,
+        count: Number(count),
+        user_reacted: viewerReactionEmoji === emoji,
+      }));
+  }
+
+  if (!Array.isArray(rawReactions) || rawReactions.length === 0) {
+    return [];
+  }
+
+  // 2. Pre-aggregated backend reaction objects with count
+  if (typeof rawReactions[0]?.count === "number") {
     return rawReactions.map((reactionItem) => ({
       emoji: String(reactionItem.emoji),
       count: Number(reactionItem.count),
@@ -176,7 +213,7 @@ export function normalizeReactions(
     }));
   }
 
-  // Array of individual reaction records from backend
+  // 3. Array of individual reaction records from backend
   const reactionsMap = new Map<string, { count: number; userReacted: boolean }>();
 
   rawReactions.forEach((reactionItem) => {
@@ -378,57 +415,110 @@ export function mergeMessagesCache(
 
 /**
  * Pure helper to apply a reaction WebSocket event to a ChatMessage.
+ * Confirmed event payload: { message_id, conversation_id, user_id, emoji: string | null }
  */
 export function applyReactionEventToMessage(
-  msg: ChatMessage,
+  message: ChatMessage,
   event: MessageReactionUpdatedEvent,
   currentUserId?: string
 ): ChatMessage {
   if (event.reactions && Array.isArray(event.reactions)) {
-    const rawReactions = normalizeReactions(event.reactions, currentUserId);
-    const reactions = rawReactions.map((reactionItem) => reactionItem.emoji);
+    const normalizedRawReactions = normalizeReactions(event.reactions, currentUserId);
+    const reactionEmojis = normalizedRawReactions.map((reactionItem) => reactionItem.emoji);
     return {
-      ...msg,
-      rawReactions,
-      reactions: reactions.length > 0 ? reactions : undefined,
+      ...message,
+      rawReactions: normalizedRawReactions,
+      reactions: reactionEmojis.length > 0 ? reactionEmojis : undefined,
     };
   }
 
-  const existingRaw = msg.rawReactions || [];
+  const existingRawReactions = message.rawReactions || [];
   const eventUserId = event.user_id ?? event.reaction?.user_id;
-  const isMe =
+  const isCurrentUser =
     Boolean(currentUserId) && String(eventUserId) === String(currentUserId);
 
-  let updatedRaw = existingRaw.filter(
-    (reactionItem) => !(isMe && reactionItem.user_reacted)
-  );
+  const eventEmoji = event.emoji ?? event.reaction?.emoji ?? null;
 
-  const eventEmoji = event.reaction?.emoji ?? event.emoji ?? null;
+  let updatedRawReactions: BackendMessageReaction[] = [];
 
-  if (eventEmoji) {
-    const existingIndex = updatedRaw.findIndex(
-      (reactionItem) => reactionItem.emoji === eventEmoji
-    );
-    if (existingIndex !== -1) {
-      updatedRaw[existingIndex] = {
-        ...updatedRaw[existingIndex],
-        count: updatedRaw[existingIndex].count + 1,
-        user_reacted: isMe ? true : updatedRaw[existingIndex].user_reacted,
-      };
+  if (isCurrentUser) {
+    // Current user added, removed, or changed their reaction
+    // First, remove the current user's reaction from whatever emoji they had reacted to
+    updatedRawReactions = existingRawReactions
+      .map((reactionItem) => {
+        if (!reactionItem.user_reacted) {
+          return reactionItem;
+        }
+        return {
+          ...reactionItem,
+          count: reactionItem.count - 1,
+          user_reacted: false,
+        };
+      })
+      .filter((reactionItem) => reactionItem.count > 0);
+
+    // If an emoji was selected (not removed), increment or append it
+    if (eventEmoji) {
+      const existingEmojiIndex = updatedRawReactions.findIndex(
+        (reactionItem) => reactionItem.emoji === eventEmoji
+      );
+      if (existingEmojiIndex !== -1) {
+        updatedRawReactions[existingEmojiIndex] = {
+          ...updatedRawReactions[existingEmojiIndex],
+          count: updatedRawReactions[existingEmojiIndex].count + 1,
+          user_reacted: true,
+        };
+      } else {
+        updatedRawReactions.push({
+          emoji: eventEmoji,
+          count: 1,
+          user_reacted: true,
+        });
+      }
+    }
+  } else {
+    // Another participant reacted or removed their reaction
+    updatedRawReactions = [...existingRawReactions];
+    if (eventEmoji) {
+      const existingEmojiIndex = updatedRawReactions.findIndex(
+        (reactionItem) => reactionItem.emoji === eventEmoji
+      );
+      if (existingEmojiIndex !== -1) {
+        updatedRawReactions[existingEmojiIndex] = {
+          ...updatedRawReactions[existingEmojiIndex],
+          count: updatedRawReactions[existingEmojiIndex].count + 1,
+        };
+      } else {
+        updatedRawReactions.push({
+          emoji: eventEmoji,
+          count: 1,
+          user_reacted: false,
+        });
+      }
     } else {
-      updatedRaw.push({
-        emoji: eventEmoji,
-        count: 1,
-        user_reacted: isMe,
-      });
+      // Another user removed their reaction: decrement a reaction not authored by current user
+      const candidateIndex = updatedRawReactions.findIndex(
+        (reactionItem) => !reactionItem.user_reacted || reactionItem.count > 1
+      );
+      if (candidateIndex !== -1) {
+        const targetReaction = updatedRawReactions[candidateIndex];
+        if (targetReaction.count > 1) {
+          updatedRawReactions[candidateIndex] = {
+            ...targetReaction,
+            count: targetReaction.count - 1,
+          };
+        } else {
+          updatedRawReactions.splice(candidateIndex, 1);
+        }
+      }
     }
   }
 
-  const reactions = updatedRaw.map((reactionItem) => reactionItem.emoji);
+  const reactionEmojis = updatedRawReactions.map((reactionItem) => reactionItem.emoji);
   return {
-    ...msg,
-    rawReactions: updatedRaw,
-    reactions: reactions.length > 0 ? reactions : undefined,
+    ...message,
+    rawReactions: updatedRawReactions,
+    reactions: reactionEmojis.length > 0 ? reactionEmojis : undefined,
   };
 }
 
