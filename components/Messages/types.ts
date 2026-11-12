@@ -1,9 +1,5 @@
 import { Conversation, OnlineContact } from "../../features/messages/types";
 
-export interface MessagesHeaderProps {
-  onPressCompose?: () => void;
-}
-
 export interface MessagesSearchBarProps {
   value: string;
   onChangeText: (text: string) => void;
@@ -14,6 +10,7 @@ export interface MessagesSearchBarProps {
 export interface ActiveContactsTrayProps {
   contacts: OnlineContact[];
   onSelectContact: (contact: OnlineContact) => void;
+  onPressCompose?: () => void;
 }
 
 export interface ConversationListItemProps {

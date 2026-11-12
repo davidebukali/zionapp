@@ -23,7 +23,6 @@ export function MessagesSearchBar({
 
 const styles = StyleSheet.create({
   outerContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    padding: 16,
   },
 });

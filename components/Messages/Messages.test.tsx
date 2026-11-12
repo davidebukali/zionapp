@@ -158,7 +158,6 @@ jest.mock("react-native-paper", () => {
 
 import * as Haptics from "expo-haptics";
 import {
-  MessagesHeader,
   MessagesSearchBar,
   ActiveContactsTray,
   ConversationListItem,
@@ -173,31 +172,6 @@ import {
 import MessagesScreen from "../../app/(app)/(tabs)/messages";
 
 describe("components/Messages", () => {
-  describe("MessagesHeader", () => {
-    it("renders Messages title and compose button", () => {
-      const onCompose = jest.fn();
-      let renderer: ReactTestRenderer.ReactTestRenderer;
-      act(() => {
-        renderer = ReactTestRenderer.create(
-          <MessagesHeader onPressCompose={onCompose} />
-        );
-      });
-
-      const json = JSON.stringify(renderer!.toJSON());
-      expect(json).toContain("Messages");
-
-      const root = renderer!.root;
-      const composeBtn = root.findByProps({
-        accessibilityLabel: "New message",
-      });
-      expect(composeBtn).toBeDefined();
-
-      act(() => {
-        composeBtn.props.onPress();
-      });
-      expect(onCompose).toHaveBeenCalled();
-    });
-  });
 
   describe("MessagesSearchBar", () => {
     it("renders search placeholder and triggers onChangeText", () => {
@@ -271,6 +245,35 @@ describe("components/Messages", () => {
         mayaButton.props.onPress();
       });
       expect(onSelect).toHaveBeenCalledWith(MOCK_ACTIVE_CONTACTS[0]);
+    });
+
+    it("renders New action button with dashed border and triggers onPressCompose", () => {
+      const onSelect = jest.fn();
+      const onCompose = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ActiveContactsTray
+            contacts={MOCK_ACTIVE_CONTACTS}
+            onSelectContact={onSelect}
+            onPressCompose={onCompose}
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("New");
+
+      const root = renderer!.root;
+      const newButton = root.findByProps({
+        accessibilityLabel: "New message",
+      });
+      expect(newButton).toBeDefined();
+
+      act(() => {
+        newButton.props.onPress();
+      });
+      expect(onCompose).toHaveBeenCalled();
     });
   });
 

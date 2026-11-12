@@ -1,4 +1,3 @@
-export * from "./MessagesHeader";
 export * from "./MessagesSearchBar";
 export * from "./ActiveContactsTray";
 export * from "./ConversationListItem";

@@ -1,7 +1,6 @@
 import React, { useCallback } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
 
 import { globalStyles } from "../../../assets/styles/theme";
@@ -9,7 +8,6 @@ import { InfiniteScrollList } from "../../../components/InfiniteScrollList";
 import { useMessages } from "../../../hooks/useMessages";
 import { Conversation, OnlineContact } from "../../../features/messages/types";
 import {
-  MessagesHeader,
   MessagesSearchBar,
   ActiveContactsTray,
   ConversationListItem,
@@ -19,7 +17,6 @@ import {
 
 export default function MessagesScreen() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
 
   const {
     searchQuery,
@@ -69,13 +66,9 @@ export default function MessagesScreen() {
         globalStyles.screen,
         {
           backgroundColor: theme.colors.background,
-          paddingTop: insets.top,
         },
       ]}
     >
-      {/* Top Navigation Header */}
-      <MessagesHeader onPressCompose={handleOpenCompose} />
-
       {/* Main Conversation Feed */}
       <InfiniteScrollList
         data={conversations}
@@ -92,10 +85,11 @@ export default function MessagesScreen() {
               onChangeText={setSearchQuery}
               onClear={handleClearSearch}
             />
-            {activeContacts.length > 0 && !searchQuery.trim() && (
+            {!searchQuery.trim() && (
               <ActiveContactsTray
                 contacts={activeContacts}
                 onSelectContact={handleOpenContact}
+                onPressCompose={handleOpenCompose}
               />
             )}
           </View>
