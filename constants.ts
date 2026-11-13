@@ -1,10 +1,12 @@
 const android_ip = "10.0.2.2";
 const pece_ip = "192.168.1.160";
+const production = "http://tsiyonapp.com";
 
 //create an object with all ips aboove
 export const ips = {
     android: android_ip,
-    pece: pece_ip
+    pece: pece_ip,
+    production: production
 }
 
 export const current_ip = ips["pece"];

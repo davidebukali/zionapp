@@ -4,13 +4,15 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTheme } from "react-native-paper";
 import { AuthHeader } from "./AuthHeader";
 import { AuthInput } from "./AuthInput";
-import { RememberMeRow } from "./RememberMeRow";
 import { AuthButton } from "./AuthButton";
 import { AuthFooter } from "./AuthFooter";
 import { globalStyles } from "../../assets/styles/theme";
@@ -31,6 +33,7 @@ export function LoginForm({
   onForgotPassword,
   onCreateAccount,
 }: LoginFormProps) {
+  const theme = useTheme();
   const [loading, setLoading] = useState(false);
 
   const {
@@ -42,7 +45,6 @@ export function LoginForm({
     defaultValues: {
       email: initialEmail,
       password: initialPassword,
-      rememberMe: true,
     },
   });
 
@@ -107,17 +109,22 @@ export function LoginForm({
             )}
           />
 
-          <Controller
-            control={control}
-            name="rememberMe"
-            render={({ field: { value, onChange } }) => (
-              <RememberMeRow
-                rememberMe={value}
-                onToggleRememberMe={() => onChange(!value)}
-                onForgotPassword={onForgotPassword}
-              />
-            )}
-          />
+          <TouchableOpacity
+            style={styles.forgotPasswordContainer}
+            onPress={onForgotPassword}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Forgot password?"
+          >
+            <Text
+              style={[
+                styles.forgotPasswordText,
+                { color: theme.colors.primary },
+              ]}
+            >
+              Forgot password?
+            </Text>
+          </TouchableOpacity>
 
           <AuthButton
             title={loading ? "Signing in..." : "Sign in"}
@@ -138,6 +145,15 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: "100%",
+  },
+  forgotPasswordContainer: {
+    alignSelf: "flex-end",
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  forgotPasswordText: {
+    fontSize: 15,
+    fontWeight: "600",
   },
 });
 
