@@ -324,8 +324,14 @@ export default function Settings() {
 
         <SettingsSection title="SUPPORT">
           <SettingsNavItem
+            icon="bulb-outline"
+            title="Feedback"
+            onPress={() => router.push("/feedback" as any)}
+          />
+          <SettingsNavItem
             icon="people-outline"
             title="Community guidelines"
+            showDivider
             onPress={() => {}}
           />
           <SettingsNavItem

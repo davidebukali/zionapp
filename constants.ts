@@ -32,3 +32,8 @@ export const TYPING_THROTTLE_MS = 3000;
 export const TYPING_EXPIRY_MS = 3500;
 export const MAX_MESSAGE_LENGTH = 5000;
 export const MAX_CHAT_MEDIA = 4;
+
+export const FEEDBACK_FORM_URL =
+  process.env.EXPO_PUBLIC_FEEDBACK_FORM_URL ||
+  "https://docs.google.com/forms/d/e/1FAIpQLSfy89QGSk5n0BhfVNm9SmI3ej86Nzp58mDOFdHirtQqZEhIwA/viewform";
+
