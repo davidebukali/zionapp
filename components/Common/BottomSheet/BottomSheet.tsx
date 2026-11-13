@@ -1,6 +1,8 @@
 import React from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -21,10 +23,81 @@ export const BottomSheet = React.memo(function BottomSheet({
   subtitle,
   closeAccessibilityLabel = "Close sheet",
   backdropAccessibilityLabel = "Dismiss sheet",
+  sheetStyle,
+  contentStyle,
+  keyboardAvoiding = false,
+  hideHeader = false,
+  hideDragHandle = false,
   children,
 }: BottomSheetProps) {
   const theme = useTheme();
   const safeAreaInsets = useSafeAreaInsets();
+
+  const sheetBody = (
+    <Pressable
+      style={[
+        styles.sheetContainer,
+        {
+          backgroundColor: theme.colors.surface,
+          paddingBottom: Math.max(safeAreaInsets.bottom + 12, 24),
+        },
+        sheetStyle,
+      ]}
+      onPress={(event) => event.stopPropagation()}
+    >
+      {/* Drag Handle */}
+      {!hideDragHandle && (
+        <View
+          style={[
+            styles.dragHandle,
+            { backgroundColor: theme.colors.outline },
+          ]}
+        />
+      )}
+
+      {/* Optional Title Header */}
+      {!hideHeader && title && (
+        <View style={[globalStyles.row, styles.headerRow]}>
+          <Text
+            style={[
+              globalStyles.commentsHeaderTitle,
+              { color: theme.colors.onSurface },
+            ]}
+          >
+            {title}
+          </Text>
+          <TouchableOpacity
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel={closeAccessibilityLabel}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={globalStyles.postIconButton}
+          >
+            <Ionicons
+              name="close"
+              size={22}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Optional Subtitle */}
+      {!hideHeader && subtitle && (
+        <Text
+          style={[
+            styles.subtitleText,
+            { color: theme.colors.onSurfaceVariant },
+          ]}
+        >
+          {subtitle}
+        </Text>
+      )}
+
+      {/* Body Content */}
+      <View style={[styles.contentContainer, contentStyle]}>{children}</View>
+    </Pressable>
+  );
 
   return (
     <Modal
@@ -40,66 +113,16 @@ export const BottomSheet = React.memo(function BottomSheet({
         accessibilityRole="button"
         accessibilityLabel={backdropAccessibilityLabel}
       >
-        <Pressable
-          style={[
-            styles.sheetContainer,
-            {
-              backgroundColor: theme.colors.surface,
-              paddingBottom: Math.max(safeAreaInsets.bottom + 12, 24),
-            },
-          ]}
-          onPress={(event) => event.stopPropagation()}
-        >
-          {/* Drag Handle */}
-          <View
-            style={[
-              styles.dragHandle,
-              { backgroundColor: theme.colors.outline },
-            ]}
-          />
-
-          {/* Optional Title Header */}
-          {title && (
-            <View style={[globalStyles.row, styles.headerRow]}>
-              <Text
-                style={[
-                  globalStyles.commentsHeaderTitle,
-                  { color: theme.colors.onSurface },
-                ]}
-              >
-                {title}
-              </Text>
-              <TouchableOpacity
-                onPress={onClose}
-                accessibilityRole="button"
-                accessibilityLabel={closeAccessibilityLabel}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={globalStyles.postIconButton}
-              >
-                <Ionicons
-                  name="close"
-                  size={22}
-                  color={theme.colors.onSurfaceVariant}
-                />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Optional Subtitle */}
-          {subtitle && (
-            <Text
-              style={[
-                styles.subtitleText,
-                { color: theme.colors.onSurfaceVariant },
-              ]}
-            >
-              {subtitle}
-            </Text>
-          )}
-
-          {/* Body Content */}
-          <View style={styles.contentContainer}>{children}</View>
-        </Pressable>
+        {keyboardAvoiding ? (
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={styles.keyboardAvoid}
+          >
+            {sheetBody}
+          </KeyboardAvoidingView>
+        ) : (
+          sheetBody
+        )}
       </Pressable>
     </Modal>
   );
@@ -108,6 +131,10 @@ export const BottomSheet = React.memo(function BottomSheet({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
+    justifyContent: "flex-end",
+  },
+  keyboardAvoid: {
+    width: "100%",
     justifyContent: "flex-end",
   },
   sheetContainer: {

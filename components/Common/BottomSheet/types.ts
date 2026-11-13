@@ -1,4 +1,5 @@
 import React from "react";
+import { StyleProp, ViewStyle } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 export interface BottomSheetProps {
@@ -8,6 +9,11 @@ export interface BottomSheetProps {
   subtitle?: string;
   closeAccessibilityLabel?: string;
   backdropAccessibilityLabel?: string;
+  sheetStyle?: StyleProp<ViewStyle>;
+  contentStyle?: StyleProp<ViewStyle>;
+  keyboardAvoiding?: boolean;
+  hideHeader?: boolean;
+  hideDragHandle?: boolean;
   children: React.ReactNode;
 }
 

@@ -1,16 +1,11 @@
 import React, { useEffect, useState } from "react";
 import {
-  Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
-import Ionicons from "@expo/vector-icons/Ionicons";
 
 import {
   AccountClassificationBottomSheetProps,
@@ -21,6 +16,7 @@ import {
   DEFAULT_PERSONAL_CATEGORIES,
 } from "./constants";
 import { ClassificationOptionCard } from "./ClassificationOptionCard";
+import { BottomSheet } from "../BottomSheet";
 
 export function AccountClassificationBottomSheet({
   visible,
@@ -32,7 +28,6 @@ export function AccountClassificationBottomSheet({
   organizationCategories = DEFAULT_ORGANIZATION_CATEGORIES as unknown as string[],
 }: AccountClassificationBottomSheetProps) {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
 
   const [selectedType, setSelectedType] =
     useState<AccountClassificationType>(initialAccountType || "personal");
@@ -50,7 +45,8 @@ export function AccountClassificationBottomSheet({
 
   const handleSelectType = (type: AccountClassificationType) => {
     setSelectedType(type);
-    const activeList = type === "personal" ? personalCategories : organizationCategories;
+    const activeList =
+      type === "personal" ? personalCategories : organizationCategories;
     if (selectedCategory && !activeList.includes(selectedCategory)) {
       setSelectedCategory(null);
     }
@@ -65,172 +61,100 @@ export function AccountClassificationBottomSheet({
   };
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      onClose={onClose}
+      title="Account Type"
+      subtitle="Select your identity on Tsiyon. This classification determines your badges and discovery category."
+      closeAccessibilityLabel="Close"
+      sheetStyle={styles.sheetContainer}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Card 1: Personal Account */}
+        <ClassificationOptionCard
+          type="personal"
+          title="Personal Account"
+          description="For individuals, believers, pastors, elders, leaders, and teachers."
+          iconName="person"
+          isSelected={selectedType === "personal"}
+          onSelect={() => handleSelectType("personal")}
+          categories={personalCategories}
+          selectedCategory={
+            selectedType === "personal" ? selectedCategory : null
+          }
+          onSelectCategory={setSelectedCategory}
+          subCategoryLabel="Select specific role:"
+        />
+
+        {/* Card 2: Church or Ministry Account */}
+        <ClassificationOptionCard
+          type="organization"
+          title="Organization"
+          description="For local congregations, fellowships, non-profits, businesses, and colleges."
+          iconName="church"
+          isSelected={selectedType === "organization"}
+          onSelect={() => handleSelectType("organization")}
+          categories={organizationCategories}
+          selectedCategory={
+            selectedType === "organization" ? selectedCategory : null
+          }
+          onSelectCategory={setSelectedCategory}
+          subCategoryLabel="Select specific category:"
+          hasVerifiedBadge
+        />
+      </ScrollView>
+
+      {/* Action Button */}
+      <TouchableOpacity
+        onPress={handleConfirm}
+        disabled={isConfirmDisabled}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Confirm Classification"
+        style={[
+          styles.confirmButton,
+          {
+            backgroundColor: isConfirmDisabled
+              ? theme.dark
+                ? "rgba(255, 255, 255, 0.12)"
+                : "rgba(0, 0, 0, 0.12)"
+              : theme.colors.primary,
+          },
+        ]}
+      >
+        <Text
           style={[
-            styles.sheetContainer,
+            styles.confirmButtonText,
             {
-              backgroundColor: theme.colors.surface,
-              paddingBottom: Math.max(insets.bottom + 16, 24),
+              color: isConfirmDisabled
+                ? theme.colors.onSurfaceDisabled
+                : "#FFFFFF",
             },
           ]}
-          onPress={(e) => e.stopPropagation()}
         >
-          {/* Drag Handle */}
-          <View style={styles.dragHandle} />
+          Confirm
+        </Text>
+      </TouchableOpacity>
 
-          {/* Header Row */}
-          <View style={styles.headerRow}>
-            <Text
-              style={[styles.sheetTitle, { color: theme.colors.onSurface }]}
-            >
-              Account Type
-            </Text>
-            <TouchableOpacity
-              onPress={onClose}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name="close"
-                size={22}
-                color={theme.colors.onSurfaceVariant}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <Text
-            style={[
-              styles.sheetSubtitle,
-              { color: theme.colors.onSurfaceVariant },
-            ]}
-          >
-            Select your identity on Tsiyon. This classification determines your badges and discovery
-            category.
-          </Text>
-
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-          >
-            {/* Card 1: Personal Account */}
-            <ClassificationOptionCard
-              type="personal"
-              title="Personal Account"
-              description="For individuals, believers, pastors, elders, leaders, and teachers."
-              iconName="person"
-              isSelected={selectedType === "personal"}
-              onSelect={() => handleSelectType("personal")}
-              categories={personalCategories}
-              selectedCategory={selectedType === "personal" ? selectedCategory : null}
-              onSelectCategory={setSelectedCategory}
-              subCategoryLabel="Select specific role:"
-            />
-
-            {/* Card 2: Church or Ministry Account */}
-            <ClassificationOptionCard
-              type="organization"
-              title="Organization"
-              description="For local congregations, fellowships, non-profits, businesses, and colleges."
-              iconName="church"
-              isSelected={selectedType === "organization"}
-              onSelect={() => handleSelectType("organization")}
-              categories={organizationCategories}
-              selectedCategory={selectedType === "organization" ? selectedCategory : null}
-              onSelectCategory={setSelectedCategory}
-              subCategoryLabel="Select specific category:"
-              hasVerifiedBadge
-            />
-          </ScrollView>
-
-          {/* Action Button */}
-          <TouchableOpacity
-            onPress={handleConfirm}
-            disabled={isConfirmDisabled}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Confirm Classification"
-            style={[
-              styles.confirmButton,
-              {
-                backgroundColor: isConfirmDisabled
-                  ? theme.dark
-                    ? "rgba(255, 255, 255, 0.12)"
-                    : "rgba(0, 0, 0, 0.12)"
-                  : theme.colors.primary,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.confirmButtonText,
-                {
-                  color: isConfirmDisabled
-                    ? theme.colors.onSurfaceDisabled
-                    : "#FFFFFF",
-                },
-              ]}
-            >
-              Confirm
-            </Text>
-          </TouchableOpacity>
-
-          <Text
-            style={[
-              styles.footerCaption,
-              { color: theme.colors.onSurfaceVariant },
-            ]}
-          >
-            You can adjust your community role anytime in Edit Profile
-          </Text>
-        </Pressable>
-      </Pressable>
-    </Modal>
+      <Text
+        style={[
+          styles.footerCaption,
+          { color: theme.colors.onSurfaceVariant },
+        ]}
+      >
+        You can adjust your community role anytime in Edit Profile
+      </Text>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.65)",
-    justifyContent: "flex-end",
-  },
   sheetContainer: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 12,
     paddingHorizontal: 16,
     maxHeight: "85%",
-  },
-  dragHandle: {
-    width: 38,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    alignSelf: "center",
-    marginBottom: 12,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  sheetSubtitle: {
-    fontSize: 12,
-    lineHeight: 17,
-    marginBottom: 16,
   },
   scrollContent: {
     gap: 12,
