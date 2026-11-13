@@ -1,6 +1,6 @@
 const android_ip = "10.0.2.2";
 const pece_ip = "192.168.1.160";
-const production = "https://tsiyonapp.com";
+const production = "tsiyonapp.com";
 
 //create an object with all ips aboove
 export const ips = {
@@ -11,7 +11,7 @@ export const ips = {
 
 export const current_ip = ips["production"];
 
-export const BASE_URL = `http://${current_ip}`;
+export const BASE_URL = `https://${current_ip}`;
 export const API_BASE_URL = `${BASE_URL}/api/v1`;
 
 export const MAX_CHARACTERS = 3000;
