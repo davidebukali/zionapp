@@ -18,7 +18,7 @@ export const ChatMessageList = React.memo(function ChatMessageList({
   onPressMedia,
   onReply,
   onReact,
-  onOpenReactionPicker,
+  onLongPress,
 }: ChatMessageListProps) {
   const listRef = useRef<FlatList<ChatMessage>>(null);
 
@@ -35,7 +35,7 @@ export const ChatMessageList = React.memo(function ChatMessageList({
           onPressMedia={onPressMedia}
           onReply={onReply}
           onReact={onReact}
-          onOpenReactionPicker={onOpenReactionPicker}
+          onLongPress={onLongPress}
         />
       )}
       ListHeaderComponent={

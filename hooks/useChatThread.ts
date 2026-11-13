@@ -933,6 +933,7 @@ export function useChatThread(targetId?: string) {
     previewMediaIndex,
     handleOpenMediaPreview,
     handleCloseMediaPreview,
+    conversationId: resolvedConversationId,
     isDraft: !resolvedConversationId,
     replyingTo,
     handleReplyToMessage,

@@ -14,6 +14,7 @@ import {
   OnlineContact,
   RecipientsResult,
 } from "./types";
+import { TEMP_MESSAGE_ID_PREFIX } from "./constants";
 import { formatRelativeTime } from "../../utils/date";
 
 const AVATAR_COLORS = [
@@ -700,3 +701,33 @@ export function updateConversationInCache(
     patch.undo();
   };
 }
+
+/**
+ * Determines whether a message is an optimistic/pending outgoing message that hasn't synced with the server yet.
+ */
+export function isPendingMessage(message: ChatMessage): boolean {
+  return (
+    typeof message.id === "string" &&
+    message.id.startsWith(TEMP_MESSAGE_ID_PREFIX)
+  );
+}
+
+/**
+ * Determines whether a message can be copied to the clipboard (must have text and not be deleted).
+ */
+export function canCopyMessage(message: ChatMessage): boolean {
+  return !message.isDeletedForEveryone && Boolean(message.text?.trim());
+}
+
+/**
+ * Determines whether a message can be reported (must be incoming, not pending, and not deleted).
+ */
+export function canReportMessage(message: ChatMessage): boolean {
+  return (
+    !message.isOutgoing &&
+    !message.isDeletedForEveryone &&
+    !isPendingMessage(message)
+  );
+}
+
+

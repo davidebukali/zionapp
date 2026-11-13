@@ -93,6 +93,17 @@ jest.mock("../../../hooks/useChatThread", () => ({
   })),
 }));
 
+jest.mock("../../../hooks/useMessageActions", () => ({
+  useMessageActions: jest.fn(() => ({
+    actionMessage: null,
+    handleOpenMessageActions: jest.fn(),
+    handleCloseMessageActions: jest.fn(),
+    handleCopyMessage: jest.fn(),
+    handleReportMessage: jest.fn(),
+    handleDeleteMessage: jest.fn(),
+  })),
+}));
+
 jest.mock("react-redux", () => ({
   useSelector: jest.fn(() => ({})),
   useDispatch: () => jest.fn(),
@@ -134,6 +145,8 @@ import {
   ChatComposer,
   ChatMessageList,
   ChatThreadOptionsSheet,
+  ChatMessageActionSheet,
+  QuickReactionBar,
   ChatReplySnippet,
   ChatPostCard,
   ChatPostCardAuthorRow,
@@ -1019,8 +1032,8 @@ describe("components/Messages/Chat", () => {
       expect(reactionBadge).toBeDefined();
     });
 
-    it("opens quick reactions modal on long press and fires onReact callback", () => {
-      const onReactMock = jest.fn();
+    it("fires onLongPress callback when message is long-pressed", () => {
+      const onLongPressMock = jest.fn();
       const message: ChatMessage = {
         id: "msg-longpress-1",
         senderId: "user-maya",
@@ -1032,44 +1045,9 @@ describe("components/Messages/Chat", () => {
       let renderer: ReactTestRenderer.ReactTestRenderer;
       act(() => {
         renderer = ReactTestRenderer.create(
-          <ChatMessageBubble message={message} onReact={onReactMock} />
-        );
-      });
-
-      const root = renderer!.root;
-      const touchable = root.findByProps({ delayLongPress: 250 });
-      act(() => {
-        touchable.props.onLongPress();
-      });
-
-      // Quick reaction buttons should now be available in the modal
-      const heartButton = root.findByProps({
-        accessibilityLabel: "React with ❤️",
-      });
-      expect(heartButton).toBeDefined();
-
-      act(() => {
-        heartButton.props.onPress();
-      });
-      expect(onReactMock).toHaveBeenCalledWith("msg-longpress-1", "❤️");
-    });
-
-    it("opens reaction picker when + is tapped in quick reaction modal", () => {
-      const onOpenReactionPickerMock = jest.fn();
-      const message: ChatMessage = {
-        id: "msg-picker-1",
-        senderId: "user-maya",
-        isOutgoing: false,
-        text: "Hallelujah!",
-        timestamp: "9:25",
-      };
-
-      let renderer: ReactTestRenderer.ReactTestRenderer;
-      act(() => {
-        renderer = ReactTestRenderer.create(
           <ChatMessageBubble
             message={message}
-            onOpenReactionPicker={onOpenReactionPickerMock}
+            onLongPress={onLongPressMock}
           />
         );
       });
@@ -1080,15 +1058,52 @@ describe("components/Messages/Chat", () => {
         touchable.props.onLongPress();
       });
 
-      const moreButton = root.findByProps({
-        accessibilityLabel: "More reactions",
-      });
-      expect(moreButton).toBeDefined();
+      expect(onLongPressMock).toHaveBeenCalledWith(message);
+    });
 
+    it("disables long-press when message is pending or deleted for everyone", () => {
+      const onLongPressMock = jest.fn();
+      const deletedMessage: ChatMessage = {
+        id: "msg-deleted-1",
+        senderId: "user-maya",
+        isOutgoing: false,
+        text: "Deleted",
+        timestamp: "9:20",
+        isDeletedForEveryone: true,
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
       act(() => {
-        moreButton.props.onPress();
+        renderer = ReactTestRenderer.create(
+          <ChatMessageBubble
+            message={deletedMessage}
+            onLongPress={onLongPressMock}
+          />
+        );
       });
-      expect(onOpenReactionPickerMock).toHaveBeenCalledWith("msg-picker-1");
+
+      const touchable = renderer!.root.findByProps({ delayLongPress: 250 });
+      expect(touchable.props.disabled).toBe(true);
+
+      const pendingMessage: ChatMessage = {
+        id: "temp-12345",
+        senderId: "user-me",
+        isOutgoing: true,
+        text: "Sending...",
+        timestamp: "9:21",
+      };
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMessageBubble
+            message={pendingMessage}
+            onLongPress={onLongPressMock}
+          />
+        );
+      });
+      const pendingTouchable = renderer!.root.findByProps({
+        delayLongPress: 250,
+      });
+      expect(pendingTouchable.props.disabled).toBe(true);
     });
 
     it("calls onReply when swiped to the right", () => {
@@ -1115,6 +1130,166 @@ describe("components/Messages/Chat", () => {
       });
 
       expect(onReplyMock).toHaveBeenCalledWith(message);
+    });
+  });
+
+  describe("QuickReactionBar", () => {
+    it("renders emoji reactions and more button", () => {
+      const onSelectEmojiMock = jest.fn();
+      const onPressMoreMock = jest.fn();
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <QuickReactionBar
+            onSelectEmoji={onSelectEmojiMock}
+            onPressMore={onPressMoreMock}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const heartBtn = root.findByProps({
+        accessibilityLabel: "React with ❤️",
+      });
+      act(() => {
+        heartBtn.props.onPress();
+      });
+      expect(onSelectEmojiMock).toHaveBeenCalledWith("❤️");
+
+      const moreBtn = root.findByProps({
+        accessibilityLabel: "More reactions",
+      });
+      act(() => {
+        moreBtn.props.onPress();
+      });
+      expect(onPressMoreMock).toHaveBeenCalled();
+    });
+  });
+
+  describe("ChatMessageActionSheet", () => {
+    const mockMessage: ChatMessage = {
+      id: "msg-action-1",
+      senderId: "user-maya",
+      isOutgoing: false,
+      text: "Bless you!",
+      timestamp: "10:00",
+    };
+
+    it("renders quick reactions, copy, report and delete buttons for incoming messages", () => {
+      const onCopyMock = jest.fn();
+      const onDeleteMock = jest.fn();
+      const onReportMock = jest.fn();
+      const onReactMock = jest.fn();
+      const onOpenReactionPickerMock = jest.fn();
+      const onCloseMock = jest.fn();
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMessageActionSheet
+            message={mockMessage}
+            onClose={onCloseMock}
+            onReact={onReactMock}
+            onOpenReactionPicker={onOpenReactionPickerMock}
+            onCopy={onCopyMock}
+            onReport={onReportMock}
+            onDelete={onDeleteMock}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+
+      // Copy Text
+      const copyBtn = root.findByProps({
+        accessibilityLabel: "Copy message text",
+      });
+      act(() => {
+        copyBtn.props.onPress();
+      });
+      expect(onCopyMock).toHaveBeenCalledWith(mockMessage);
+
+      // Delete Message
+      const deleteBtn = root.findByProps({
+        accessibilityLabel: "Delete message",
+      });
+      act(() => {
+        deleteBtn.props.onPress();
+      });
+      expect(onDeleteMock).toHaveBeenCalledWith(mockMessage);
+    });
+
+    it("hides copy button when message has no text and hides report button for outgoing message", () => {
+      const outgoingNoTextMessage: ChatMessage = {
+        id: "msg-out-no-text",
+        senderId: "user-me",
+        isOutgoing: true,
+        timestamp: "10:05",
+      };
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMessageActionSheet
+            message={outgoingNoTextMessage}
+            onClose={jest.fn()}
+            onReact={jest.fn()}
+            onOpenReactionPicker={jest.fn()}
+            onCopy={jest.fn()}
+            onReport={jest.fn()}
+            onDelete={jest.fn()}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      expect(() =>
+        root.findByProps({ accessibilityLabel: "Copy message text" })
+      ).toThrow();
+      expect(() =>
+        root.findByProps({ accessibilityLabel: "Report message" })
+      ).toThrow();
+      expect(
+        root.findByProps({ accessibilityLabel: "Delete message" })
+      ).toBeDefined();
+    });
+
+    it("transitions to report reasons view when report button is pressed", () => {
+      const onReportMock = jest.fn();
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMessageActionSheet
+            message={mockMessage}
+            onClose={jest.fn()}
+            onReact={jest.fn()}
+            onOpenReactionPicker={jest.fn()}
+            onCopy={jest.fn()}
+            onReport={onReportMock}
+            onDelete={jest.fn()}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      const reportBtn = root.findByProps({
+        accessibilityLabel: "Report message",
+      });
+      act(() => {
+        reportBtn.props.onPress();
+      });
+
+      const spamOption = root.findByProps({
+        accessibilityLabel: "Report as Spam or Scam",
+      });
+      expect(spamOption).toBeDefined();
+
+      act(() => {
+        spamOption.props.onPress();
+      });
+      expect(onReportMock).toHaveBeenCalledWith(mockMessage, "spam");
     });
   });
 

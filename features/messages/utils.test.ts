@@ -1,5 +1,7 @@
 import {
   applyReactionEventToMessage,
+  canCopyMessage,
+  canReportMessage,
   filterConversations,
   filterRecipients,
   formatConversationPreviewText,
@@ -7,6 +9,7 @@ import {
   getAvatarColor,
   getInitials,
   insertMessageInCache,
+  isPendingMessage,
   markConversationReadInCache,
   mergeConversationsCache,
   mergeMessagesCache,
@@ -1019,4 +1022,50 @@ describe("features/messages/utils", () => {
       expect(fakeUndo).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe("Message Action Helpers", () => {
+    const baseMessage: ChatMessage = {
+      id: "msg-123",
+      senderId: "u-1",
+      isOutgoing: false,
+      text: "Hello world",
+      timestamp: "10:00",
+    };
+
+    it("identifies pending messages correctly", () => {
+      expect(isPendingMessage(baseMessage)).toBe(false);
+      expect(
+        isPendingMessage({
+          ...baseMessage,
+          id: "temp-1710000000",
+        })
+      ).toBe(true);
+    });
+
+    it("evaluates canCopyMessage properly", () => {
+      expect(canCopyMessage(baseMessage)).toBe(true);
+      expect(canCopyMessage({ ...baseMessage, text: "" })).toBe(false);
+      expect(canCopyMessage({ ...baseMessage, text: "   " })).toBe(false);
+      expect(
+        canCopyMessage({ ...baseMessage, isDeletedForEveryone: true })
+      ).toBe(false);
+    });
+
+    it("evaluates canReportMessage properly", () => {
+      expect(canReportMessage(baseMessage)).toBe(true);
+      // Own message cannot be reported
+      expect(canReportMessage({ ...baseMessage, isOutgoing: true })).toBe(
+        false
+      );
+      // Deleted message cannot be reported
+      expect(
+        canReportMessage({ ...baseMessage, isDeletedForEveryone: true })
+      ).toBe(false);
+      // Optimistic pending message cannot be reported
+      expect(
+        canReportMessage({ ...baseMessage, id: "temp-12345" })
+      ).toBe(false);
+    });
+  });
 });
+

@@ -36,18 +36,19 @@ export interface ChatTextBubbleProps {
   children?: React.ReactNode;
 }
 
-export interface ChatQuickReactionsModalProps {
-  visible: boolean;
-  isOutgoing: boolean;
-  anchorPosition: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null;
-  onDismiss: () => void;
+export interface QuickReactionBarProps {
   onSelectEmoji: (emoji: string) => void;
   onPressMore: () => void;
+}
+
+export interface ChatMessageActionSheetProps {
+  message: ChatMessage | null;
+  onClose: () => void;
+  onReact: (messageId: string, emoji: string) => void;
+  onOpenReactionPicker: (messageId: string) => void;
+  onCopy: (message: ChatMessage) => void;
+  onReport: (message: ChatMessage, reason: ReportReason) => void;
+  onDelete: (message: ChatMessage) => void;
 }
 
 export interface ChatSwipeReplyActionProps {
@@ -66,7 +67,7 @@ export interface ChatMessageBubbleProps {
   onPressMedia?: (urls: string[], initialIndex: number) => void;
   onReply?: (message: ChatMessage) => void;
   onReact?: (messageId: string, emoji: string) => void;
-  onOpenReactionPicker?: (messageId: string) => void;
+  onLongPress?: (message: ChatMessage) => void;
 }
 
 export interface ChatTypingIndicatorProps {
@@ -102,7 +103,7 @@ export interface ChatMessageListProps {
   onPressMedia?: (urls: string[], initialIndex: number) => void;
   onReply?: (message: ChatMessage) => void;
   onReact?: (messageId: string, emoji: string) => void;
-  onOpenReactionPicker?: (messageId: string) => void;
+  onLongPress?: (message: ChatMessage) => void;
 }
 
 export interface ChatThreadOptionsSheetProps {

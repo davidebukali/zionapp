@@ -5,5 +5,6 @@ export * from "./ErrorStateView";
 export * from "./GlobalOfflineBanner";
 export * from "./AccountClassification";
 export * from "./ImagePreviewModal";
+export * from "./BottomSheet";
 
 

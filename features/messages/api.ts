@@ -34,6 +34,7 @@ import {
   normalizeRecipient,
   updateMessageInCache,
 } from "./utils";
+import { TEMP_MESSAGE_ID_PREFIX } from "./constants";
 import type { RootState } from "../../store/store";
 
 export const messagesApi = baseApi.injectEndpoints({
@@ -267,7 +268,7 @@ export const messagesApi = baseApi.injectEndpoints({
         { dispatch, getState, queryFulfilled }
       ) {
         const currentUserId = (getState() as RootState).auth?.user?.id;
-        const tempId = `temp-${Date.now()}`;
+        const tempId = `${TEMP_MESSAGE_ID_PREFIX}${Date.now()}`;
         const optimisticMedia =
           optimisticMediaUrls && optimisticMediaUrls.length > 0
             ? optimisticMediaUrls.map((url, index) => ({

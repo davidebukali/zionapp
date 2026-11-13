@@ -7,12 +7,14 @@ import EmojiPicker from "rn-emoji-keyboard";
 
 import { globalStyles } from "../../../assets/styles/theme";
 import { useChatThread } from "../../../hooks/useChatThread";
+import { useMessageActions } from "../../../hooks/useMessageActions";
 import { ImagePreviewModal } from "../../../components/Common";
 import {
   ChatHeader,
   ChatMessageList,
   ChatComposer,
   ChatThreadOptionsSheet,
+  ChatMessageActionSheet,
 } from "../../../components/Messages/Chat";
 
 export default function ChatScreen() {
@@ -20,6 +22,7 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const thread = useChatThread(id);
+  const messageActions = useMessageActions(thread.conversationId);
 
   return (
     <View
@@ -56,7 +59,7 @@ export default function ChatScreen() {
           onPressMedia={thread.handleOpenMediaPreview}
           onReply={thread.handleReplyToMessage}
           onReact={thread.handleToggleReaction}
-          onOpenReactionPicker={thread.handleOpenReactionPicker}
+          onLongPress={messageActions.handleOpenMessageActions}
         />
 
         {/* Message Input Bar */}
@@ -91,6 +94,17 @@ export default function ChatScreen() {
         onClearHistory={thread.handleClearHistory}
         onReport={thread.handleReport}
         onToggleBlock={thread.handleToggleBlock}
+      />
+
+      {/* Individual Message Actions Bottom Sheet */}
+      <ChatMessageActionSheet
+        message={messageActions.actionMessage}
+        onClose={messageActions.handleCloseMessageActions}
+        onReact={thread.handleToggleReaction}
+        onOpenReactionPicker={thread.handleOpenReactionPicker}
+        onCopy={messageActions.handleCopyMessage}
+        onReport={messageActions.handleReportMessage}
+        onDelete={messageActions.handleDeleteMessage}
       />
 
       {/* Emoji Keyboard Picker */}

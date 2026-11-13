@@ -10,6 +10,8 @@ export * from "./ChatTypingIndicator";
 export * from "./ChatComposer";
 export * from "./ChatMessageList";
 export * from "./ChatThreadOptionsSheet";
+export * from "./QuickReactionBar";
+export * from "./ChatMessageActionSheet";
 export * from "./ChatPostCard";
 export * from "./ChatPostCardAuthorRow";
 export * from "./ChatPostCardImage";

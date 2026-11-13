@@ -1,16 +1,14 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 
+import { isPendingMessage } from "../../../features/messages/utils";
 import { ChatMessageBubbleProps } from "./types";
 import { ChatTextBubble } from "./ChatTextBubble";
 import { ChatMediaBubble } from "./ChatMediaBubble";
 import { ChatPostCard } from "./ChatPostCard";
-import {
-  ChatQuickReactionsModal,
-  ChatReactionBadge,
-} from "./ChatReactionBadge";
+import { ChatReactionBadge } from "./ChatReactionBadge";
 import { ChatReadReceipt } from "./ChatReadReceipt";
 import {
   ChatReplySnippet,
@@ -23,18 +21,9 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
   onPressMedia,
   onReply,
   onReact,
-  onOpenReactionPicker,
+  onLongPress,
 }: ChatMessageBubbleProps) {
   const swipeableRef = useRef<Swipeable>(null);
-  const bubbleViewRef = useRef<View>(null);
-
-  const [showQuickReactions, setShowQuickReactions] = useState(false);
-  const [anchorPosition, setAnchorPosition] = useState<{
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null>(null);
 
   const {
     id: messageId,
@@ -50,6 +39,8 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
     isDeletedForEveryone,
     isEdited,
   } = message;
+
+  const isPending = isPendingMessage(message);
 
   const mediaUrls =
     media && media.length > 0
@@ -72,36 +63,14 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
   );
 
   const handleLongPress = useCallback(() => {
-    if (isDeletedForEveryone) return;
+    if (isDeletedForEveryone || isPending) return;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch {
       // Haptics unavailable in test/web
     }
-    setShowQuickReactions(true);
-    if (bubbleViewRef.current?.measureInWindow) {
-      bubbleViewRef.current.measureInWindow((x, y, width, height) => {
-        setAnchorPosition({ x, y, width, height });
-      });
-    }
-  }, [isDeletedForEveryone]);
-
-  const handleSelectQuickEmoji = useCallback(
-    (emoji: string) => {
-      setShowQuickReactions(false);
-      onReact?.(messageId, emoji);
-    },
-    [messageId, onReact]
-  );
-
-  const handlePressMoreReactions = useCallback(() => {
-    setShowQuickReactions(false);
-    onOpenReactionPicker?.(messageId);
-  }, [messageId, onOpenReactionPicker]);
-
-  const handleDismissQuickReactions = useCallback(() => {
-    setShowQuickReactions(false);
-  }, []);
+    onLongPress?.(message);
+  }, [isDeletedForEveryone, isPending, message, onLongPress]);
 
   const replySenderName =
     replyTo?.sender?.name || (isOutgoing ? "You" : participantName || "User");
@@ -149,9 +118,9 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
             activeOpacity={0.9}
             delayLongPress={250}
             onLongPress={handleLongPress}
-            disabled={isDeletedForEveryone}
+            disabled={isDeletedForEveryone || isPending}
           >
-            <View ref={bubbleViewRef}>
+            <View>
               {!isDeletedForEveryone && sharedPostId ? (
                 /* Post share bubble with post card & optional reply */
                 <View
@@ -234,15 +203,6 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
       </Swipeable>
 
       {readReceipt && <ChatReadReceipt text={readReceipt} />}
-
-      <ChatQuickReactionsModal
-        visible={showQuickReactions}
-        isOutgoing={isOutgoing}
-        anchorPosition={anchorPosition}
-        onDismiss={handleDismissQuickReactions}
-        onSelectEmoji={handleSelectQuickEmoji}
-        onPressMore={handlePressMoreReactions}
-      />
     </View>
   );
 });
