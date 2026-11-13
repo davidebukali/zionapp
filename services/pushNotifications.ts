@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
+import { CrashlyticsService } from './crashlytics';
 import {
   loadNotificationPreferences,
   shouldDeliverForegroundPush,
@@ -92,6 +93,7 @@ export async function registerForPushNotificationsAsync(options?: {
     return tokenResult.data;
   } catch (tokenError) {
     console.warn('[PushNotifications] Failed to retrieve Expo push token:', tokenError);
+    CrashlyticsService.recordError(tokenError, 'PushTokenRetrievalError');
     return null;
   }
 }

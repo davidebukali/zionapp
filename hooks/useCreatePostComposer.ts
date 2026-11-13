@@ -11,6 +11,7 @@ import {
 } from "../features/posts/api";
 import { PostVisibility } from "../features/posts/types";
 import { MediaItem, uploadAndProcessMedia } from "../utils/mediaUploader";
+import { CrashlyticsService } from "../services/crashlytics";
 import { useComposerCore } from "./useComposerCore";
 
 export type { MediaItem };
@@ -102,6 +103,7 @@ export function useCreatePostComposer() {
       router.back();
     } catch (error: any) {
       console.error("Failed to create post:", error);
+      CrashlyticsService.recordError(error, "CreatePostFailure");
       const errorMessage =
         error?.data?.message ||
         error?.message ||

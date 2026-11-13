@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import * as SecureStore from 'expo-secure-store';
 import { User } from './types';
+import { CrashlyticsService } from '../../services/crashlytics';
 
 export type { User };
 
@@ -28,6 +29,12 @@ export const restoreSession = createAsyncThunk(
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
       const userJson = await SecureStore.getItemAsync(USER_KEY);
       const user = userJson ? (JSON.parse(userJson) as User) : null;
+      if (user?.id) {
+        CrashlyticsService.setUserId(user.id);
+        if (user.email) {
+          CrashlyticsService.setAttribute('email', user.email);
+        }
+      }
       return { token, user };
     } catch {
       return { token: null, user: null };
@@ -41,6 +48,12 @@ export const saveUserData = createAsyncThunk(
     await SecureStore.setItemAsync(TOKEN_KEY, token);
     if (user) {
       await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+      if (user.id) {
+        CrashlyticsService.setUserId(user.id);
+        if (user.email) {
+          CrashlyticsService.setAttribute('email', user.email);
+        }
+      }
     }
     return { token, user: user ?? null };
   }
@@ -54,6 +67,8 @@ export const deleteUserData = createAsyncThunk(
       await SecureStore.deleteItemAsync(USER_KEY);
     } catch {
       // Ignore deletion errors
+    } finally {
+      CrashlyticsService.clearUser();
     }
     return null;
   }
