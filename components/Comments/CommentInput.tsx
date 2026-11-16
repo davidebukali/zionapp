@@ -1,7 +1,10 @@
+import React, { useEffect, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   ActivityIndicator,
+  Keyboard,
   NativeSyntheticEvent,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -41,6 +44,25 @@ export function CommentInput({
 }: CommentInputProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSubscription = Keyboard.addListener?.(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener?.(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription?.remove?.();
+      hideSubscription?.remove?.();
+    };
+  }, []);
+
   const canSubmit = value.trim().length > 0 && !isSubmitting;
   const placeholder = replyingTo ? `Reply to @${replyingTo.username}...` : "Add a comment...";
 
@@ -51,7 +73,7 @@ export function CommentInput({
         {
           backgroundColor: theme.colors.background,
           borderTopColor: theme.colors.outlineVariant,
-          paddingBottom: Math.max(insets.bottom, 12),
+          paddingBottom: isKeyboardVisible ? 8 : Math.max(insets.bottom, 12),
         },
       ]}
     >

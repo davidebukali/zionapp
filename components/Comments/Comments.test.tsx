@@ -158,40 +158,46 @@ describe("Comments components", () => {
 
   describe("CommentInput", () => {
     it("renders standard input when not replying", () => {
-      const tree = ReactTestRenderer.create(
-        <CommentInput
-          value=""
-          initials="ME"
-          onChangeText={jest.fn()}
-          onSubmit={jest.fn()}
-        />
-      );
+      let tree: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        tree = ReactTestRenderer.create(
+          <CommentInput
+            value=""
+            initials="ME"
+            onChangeText={jest.fn()}
+            onSubmit={jest.fn()}
+          />
+        );
+      });
 
-      const input = tree.root.findByType(TextInput);
+      const input = tree!.root.findByType(TextInput);
       expect(input.props.placeholder).toBe("Add a comment...");
     });
 
     it("renders reply banner and cancel button when replyingTo is set", () => {
       const onCancelReply = jest.fn();
-      const tree = ReactTestRenderer.create(
-        <CommentInput
-          value="@bob_b "
-          initials="ME"
-          replyingTo={{ username: "bob_b" }}
-          onCancelReply={onCancelReply}
-          onChangeText={jest.fn()}
-          onSubmit={jest.fn()}
-        />
-      );
+      let tree: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        tree = ReactTestRenderer.create(
+          <CommentInput
+            value="@bob_b "
+            initials="ME"
+            replyingTo={{ username: "bob_b" }}
+            onCancelReply={onCancelReply}
+            onChangeText={jest.fn()}
+            onSubmit={jest.fn()}
+          />
+        );
+      });
 
-      const json = JSON.stringify(tree.toJSON());
+      const json = JSON.stringify(tree!.toJSON());
       expect(json).toContain("Replying to");
       expect(json).toContain("@bob_b");
 
-      const input = tree.root.findByType(TextInput);
+      const input = tree!.root.findByType(TextInput);
       expect(input.props.placeholder).toBe("Reply to @bob_b...");
 
-      const cancelButton = tree.root.findAllByType(TouchableOpacity).find(
+      const cancelButton = tree!.root.findAllByType(TouchableOpacity).find(
         (touchable) => touchable.props.accessibilityLabel === "Cancel reply"
       );
       expect(cancelButton).toBeDefined();

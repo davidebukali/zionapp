@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { globalStyles } from "../../../assets/styles/theme";
@@ -34,6 +37,26 @@ export const ChatComposer = React.memo(function ChatComposer({
   onCancelReply,
 }: ChatComposerProps) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSubscription = Keyboard.addListener?.(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener?.(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription?.remove?.();
+      hideSubscription?.remove?.();
+    };
+  }, []);
+
   const hasImages = selectedMedia.length > 0;
   const canSend = !disabled && !isUploadingMedia && (Boolean(text.trim()) || hasImages);
   const canPickMore = !disabled && !isUploadingMedia && selectedMedia.length < MAX_CHAT_MEDIA;
@@ -47,6 +70,7 @@ export const ChatComposer = React.memo(function ChatComposer({
           alignItems: "stretch",
           backgroundColor: theme.colors.background,
           borderTopColor: theme.colors.outlineVariant,
+          paddingBottom: isKeyboardVisible ? 8 : Math.max(insets.bottom, 8),
         },
       ]}
     >

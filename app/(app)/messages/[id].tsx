@@ -1,5 +1,5 @@
 import React from "react";
-import { KeyboardAvoidingView, Platform, View } from "react-native";
+import { KeyboardAvoidingView, Platform } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
@@ -25,15 +25,15 @@ export default function ChatScreen() {
   const messageActions = useMessageActions(thread.conversationId);
 
   return (
-    <View
+    <KeyboardAvoidingView
       style={[
         globalStyles.screen,
         {
           backgroundColor: theme.colors.background,
           paddingTop: insets.top,
-          paddingBottom: insets.bottom,
         },
       ]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       {/* Recipient Header */}
       <ChatHeader
@@ -43,42 +43,36 @@ export default function ChatScreen() {
         onPressOptions={thread.handleOpenOptions}
       />
 
-      {/* Keyboard Avoiding Container */}
-      <KeyboardAvoidingView
-        style={globalStyles.screen}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        {/* Message Stream */}
-        <ChatMessageList
-          messages={thread.messages}
-          participant={thread.participant}
-          isTyping={thread.isTyping}
-          onLoadMore={thread.onLoadMore}
-          isLoadingMore={thread.isLoadingMore}
-          hasMore={thread.hasMore}
-          onPressMedia={thread.handleOpenMediaPreview}
-          onReply={thread.handleReplyToMessage}
-          onReact={thread.handleToggleReaction}
-          onLongPress={messageActions.handleOpenMessageActions}
-        />
+      {/* Message Stream */}
+      <ChatMessageList
+        messages={thread.messages}
+        participant={thread.participant}
+        isTyping={thread.isTyping}
+        onLoadMore={thread.onLoadMore}
+        isLoadingMore={thread.isLoadingMore}
+        hasMore={thread.hasMore}
+        onPressMedia={thread.handleOpenMediaPreview}
+        onReply={thread.handleReplyToMessage}
+        onReact={thread.handleToggleReaction}
+        onLongPress={messageActions.handleOpenMessageActions}
+      />
 
-        {/* Message Input Bar */}
-        <ChatComposer
-          text={thread.inputText}
-          onChangeText={thread.setInputText}
-          onSend={thread.handleSendMessage}
-          onToggleEmoji={thread.handleToggleEmoji}
-          disabled={!thread.canSendMessages}
-          selectedMedia={thread.selectedMedia}
-          onPickMedia={thread.handlePickMedia}
-          onRemoveMedia={thread.handleRemoveMedia}
-          isUploadingMedia={thread.isUploadingMedia}
-          uploadStatusText={thread.uploadStatusText}
-          replyingTo={thread.replyingTo}
-          participantName={thread.participant.name}
-          onCancelReply={thread.handleCancelReply}
-        />
-      </KeyboardAvoidingView>
+      {/* Message Input Bar */}
+      <ChatComposer
+        text={thread.inputText}
+        onChangeText={thread.setInputText}
+        onSend={thread.handleSendMessage}
+        onToggleEmoji={thread.handleToggleEmoji}
+        disabled={!thread.canSendMessages}
+        selectedMedia={thread.selectedMedia}
+        onPickMedia={thread.handlePickMedia}
+        onRemoveMedia={thread.handleRemoveMedia}
+        isUploadingMedia={thread.isUploadingMedia}
+        uploadStatusText={thread.uploadStatusText}
+        replyingTo={thread.replyingTo}
+        participantName={thread.participant.name}
+        onCancelReply={thread.handleCancelReply}
+      />
 
       {/* Thread & User Actions Bottom Sheet */}
       <ChatThreadOptionsSheet
@@ -140,6 +134,6 @@ export default function ChatScreen() {
         onClose={thread.handleCloseMediaPreview}
         enableDownload
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }

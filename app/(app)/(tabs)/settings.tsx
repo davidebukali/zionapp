@@ -259,12 +259,6 @@ export default function Settings() {
             onValueChange={handleTogglePrivacy}
             showDivider
           />
-          <SettingsNavItem
-            icon="shield-outline"
-            title="Security"
-            showDivider
-            onPress={() => {}}
-          />
           <SettingsToggleItem
             icon="bulb-outline"
             title="Appearance"
