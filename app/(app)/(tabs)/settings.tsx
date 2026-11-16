@@ -28,6 +28,7 @@ import {
   openWebBrowserUrl,
   TERMS_OF_SERVICE_URL,
   PRIVACY_POLICY_URL,
+  COMMUNITY_GUIDELINES
 } from "../../../features/settings/utils";
 import { AppDispatch, RootState } from "../../../store/store";
 import { useAppearance } from "../../../hooks/useAppearance";
@@ -332,7 +333,7 @@ export default function Settings() {
             icon="people-outline"
             title="Community guidelines"
             showDivider
-            onPress={() => {}}
+            onPress={() => openWebBrowserUrl(COMMUNITY_GUIDELINES)}
           />
           <SettingsNavItem
             icon="document-text-outline"

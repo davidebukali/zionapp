@@ -87,9 +87,9 @@ export function updateUserProfileState(
 }
 
 export const SUPPORT_EMAIL_ADDRESS = "support@tsiyonapp.com";
-
 export const TERMS_OF_SERVICE_URL = "https://tsiyonapp.com/terms";
 export const PRIVACY_POLICY_URL = "https://tsiyonapp.com/privacy";
+export const COMMUNITY_GUIDELINES = "https://tsiyonapp.com/community-guidelines";
 
 /**
  * Opens a web URL using the in-app browser (SFSafariViewController / Chrome Custom Tabs),
