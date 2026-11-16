@@ -3,11 +3,13 @@ import {
   BackendMessage,
   BackendMessageReaction,
   BackendMessageReactionsSummary,
+  BackendMessageReply,
   BackendRecipient,
   ChatMessage,
   Conversation,
   ConversationsResult,
   LastMessage,
+  MessageDeliveryStatus,
   MessagePreviewType,
   MessageReactionUpdatedEvent,
   MessagesResult,
@@ -15,7 +17,12 @@ import {
   RecipientsResult,
 } from "./types";
 import { TEMP_MESSAGE_ID_PREFIX } from "./constants";
-import { formatRelativeTime } from "../../utils/date";
+import {
+  formatMessageDateHeader,
+  formatMessageTime,
+  formatRelativeTime,
+  getDateGroupKey,
+} from "../../utils/date";
 
 const AVATAR_COLORS = [
   "#7CB342",
@@ -283,8 +290,16 @@ export function normalizeMessage(
       ? normalizedRawReactions.map((reactionItem) => reactionItem.emoji)
       : undefined;
 
+  const rawIdString = String(raw.id);
+  const isPending = isPendingMessage({ id: rawIdString } as ChatMessage);
+  const status: MessageDeliveryStatus | undefined = isOutgoing
+    ? isPending
+      ? "sending"
+      : "sent"
+    : undefined;
+
   return {
-    id: String(raw.id),
+    id: rawIdString,
     conversationId: String(raw.conversation_id),
     senderId: String(raw.sender_id),
     isOutgoing,
@@ -293,13 +308,103 @@ export function normalizeMessage(
     mediaUrl,
     media: isDeleted ? [] : raw.media,
     replyTo: raw.reply_to || null,
-    timestamp: formatMessageTimestamp(raw.created_at),
+    timestamp: formatMessageTime(raw.created_at) || formatMessageTimestamp(raw.created_at),
+    status,
     reactions,
     rawReactions: normalizedRawReactions,
     isEdited: Boolean(raw.is_edited),
     isDeletedForEveryone: isDeleted,
     createdAt: raw.created_at,
   };
+}
+
+export interface BuildOptimisticMessageParams {
+  tempId: string;
+  conversationId: string;
+  senderId: string;
+  senderName?: string;
+  body?: string | null;
+  optimisticMediaUrls?: string[];
+  replyTo?: BackendMessageReply | null;
+}
+
+/**
+ * Builds an optimistic outgoing ChatMessage with status "sending".
+ */
+export function buildOptimisticMessage({
+  tempId,
+  conversationId,
+  senderId,
+  senderName = "Me",
+  body,
+  optimisticMediaUrls,
+  replyTo,
+}: BuildOptimisticMessageParams): ChatMessage {
+  const optimisticMedia =
+    optimisticMediaUrls && optimisticMediaUrls.length > 0
+      ? optimisticMediaUrls.map((url, index) => ({
+          id: `opt-media-${index}-${Date.now()}`,
+          url,
+          type: "image",
+          mime_type: "image/jpeg",
+          size: 0,
+        }))
+      : [];
+
+  return normalizeMessage(
+    {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: senderId,
+      sender: {
+        id: senderId,
+        name: senderName,
+        username: "",
+      },
+      body: body || null,
+      media: optimisticMedia,
+      reply_to: replyTo || null,
+      reactions: [],
+      is_edited: false,
+      is_deleted_for_everyone: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    senderId
+  );
+}
+
+export interface ResolveMessageStatusContext {
+  isPartnerOnline?: boolean;
+  isPartnerInChat?: boolean;
+  hasNewerIncomingMessage?: boolean;
+}
+
+/**
+ * Computes the real-time WhatsApp-style delivery & read status of an outgoing message.
+ */
+export function resolveMessageStatus(
+  message: ChatMessage,
+  context?: ResolveMessageStatusContext
+): MessageDeliveryStatus {
+  if (isPendingMessage(message)) {
+    return "sending";
+  }
+
+  if (
+    message.status === "read" ||
+    Boolean(message.readReceipt) ||
+    Boolean(context?.isPartnerInChat) ||
+    Boolean(context?.hasNewerIncomingMessage)
+  ) {
+    return "read";
+  }
+
+  if (message.status === "delivered" || Boolean(context?.isPartnerOnline)) {
+    return "delivered";
+  }
+
+  return message.status || "sent";
 }
 
 /**
@@ -539,6 +644,7 @@ export function insertMessageInCache(
 ): () => void {
   let conversationFound = false;
   let alreadyExists = false;
+  let patchApplied = false;
 
   const patchMessages = dispatch(
     api.util.updateQueryData(
@@ -546,16 +652,21 @@ export function insertMessageInCache(
       { conversationId },
       (draft: MessagesResult) => {
         if (!draft || !draft.messages) return;
+        patchApplied = true;
         const existsIndex = draft.messages.findIndex((m) => m.id === message.id);
         if (existsIndex !== -1) {
           alreadyExists = true;
+          draft.messages[existsIndex] = {
+            ...draft.messages[existsIndex],
+            ...message,
+          };
           return;
         }
 
         // If message is outgoing and not a temp id, check if there's a pending optimistic message to replace
-        if (message.isOutgoing && !message.id.startsWith("temp-")) {
+        if (message.isOutgoing && !message.id.startsWith(TEMP_MESSAGE_ID_PREFIX)) {
           const optimisticIndex = draft.messages.findIndex(
-            (m) => m.isOutgoing && m.id.startsWith("temp-")
+            (m) => m.isOutgoing && m.id.startsWith(TEMP_MESSAGE_ID_PREFIX)
           );
           if (optimisticIndex !== -1) {
             draft.messages[optimisticIndex] = message;
@@ -567,6 +678,22 @@ export function insertMessageInCache(
       }
     )
   );
+
+  let undoUpsert: (() => void) | undefined;
+  if (!patchApplied && typeof api?.util?.upsertQueryData === "function") {
+    const upsertAction = api.util.upsertQueryData(
+      "getMessages",
+      { conversationId },
+      {
+        messages: [message],
+        nextCursor: null,
+      }
+    );
+    const upsertResult = dispatch(upsertAction);
+    if (upsertResult && typeof upsertResult.undo === "function") {
+      undoUpsert = upsertResult.undo;
+    }
+  }
 
   const patchConversations = dispatch(
     api.util.updateQueryData(
@@ -591,7 +718,9 @@ export function insertMessageInCache(
           conv.lastMessage = {
             text: previewText,
             type: message.isOutgoing ? "outgoing" : "text",
-            timestamp: message.timestamp || "Just now",
+            timestamp:
+              formatMessageTimestamp(message.createdAt || message.timestamp) ||
+              "Just now",
           };
           if (!message.isOutgoing && !alreadyExists) {
             conv.unreadCount += 1;
@@ -613,8 +742,45 @@ export function insertMessageInCache(
   }
 
   return () => {
-    patchMessages.undo();
-    patchConversations.undo();
+    if (patchMessages && typeof patchMessages.undo === "function") {
+      patchMessages.undo();
+    }
+    if (undoUpsert) {
+      undoUpsert();
+    }
+    if (patchConversations && typeof patchConversations.undo === "function") {
+      patchConversations.undo();
+    }
+  };
+}
+
+/**
+ * Removes a temporary message from the RTK Query messages cache upon send cancellation or failure.
+ */
+export function removeMessageFromCache(
+  api: any,
+  dispatch: any,
+  conversationId: string,
+  messageId: string
+): () => void {
+  const patch = dispatch(
+    api.util.updateQueryData(
+      "getMessages",
+      { conversationId },
+      (draft: MessagesResult) => {
+        if (!draft || !draft.messages) return;
+        const index = draft.messages.findIndex((m) => m.id === messageId);
+        if (index !== -1) {
+          draft.messages.splice(index, 1);
+        }
+      }
+    )
+  );
+
+  return () => {
+    if (patch && typeof patch.undo === "function") {
+      patch.undo();
+    }
   };
 }
 
@@ -675,6 +841,55 @@ export function markConversationReadInCache(
 }
 
 /**
+ * Marks messages as read in the getMessages cache up to lastReadMessageId.
+ */
+export function markMessagesReadInCache(
+  api: any,
+  dispatch: any,
+  conversationId: string,
+  lastReadMessageId?: string | null,
+  readAtTimestamp?: string
+): () => void {
+  const formattedReadReceipt = readAtTimestamp
+    ? `Read ${formatMessageTimestamp(readAtTimestamp)}`
+    : "Read";
+
+  const patch = dispatch(
+    api.util.updateQueryData(
+      "getMessages",
+      { conversationId },
+      (draft: MessagesResult) => {
+        if (!draft || !draft.messages) return;
+
+        const targetIndex = lastReadMessageId
+          ? draft.messages.findIndex((m) => m.id === lastReadMessageId)
+          : -1;
+
+        // Messages are reverse-chronological (0 is newest).
+        // If targetIndex is found, that message and all older messages (index >= targetIndex) are read.
+        // If targetIndex is -1 (no specific id provided), all existing outgoing messages are marked read.
+        const cutoffIndex = targetIndex === -1 ? 0 : targetIndex;
+
+        draft.messages.forEach((msg, index) => {
+          if (msg.isOutgoing && index >= cutoffIndex) {
+            msg.status = "read";
+            if (index === cutoffIndex) {
+              msg.readReceipt = formattedReadReceipt;
+            }
+          }
+        });
+      }
+    )
+  );
+
+  return () => {
+    if (patch && typeof patch.undo === "function") {
+      patch.undo();
+    }
+  };
+}
+
+/**
  * Updates a conversation in the getConversations cache.
  */
 export function updateConversationInCache(
@@ -728,6 +943,42 @@ export function canReportMessage(message: ChatMessage): boolean {
     !message.isDeletedForEveryone &&
     !isPendingMessage(message)
   );
+}
+
+/**
+ * Determines whether a date separator should be rendered above the message at `index`
+ * in a reverse-chronological (newest-first) messages array.
+ */
+export function shouldShowDateSeparator(
+  messages: ChatMessage[],
+  index: number
+): boolean {
+  if (index < 0 || index >= messages.length) return false;
+
+  // Always show above the oldest loaded message in the list
+  if (index === messages.length - 1) {
+    return true;
+  }
+
+  const currentMsg = messages[index];
+  const olderMsg = messages[index + 1];
+
+  const currentKey = getDateGroupKey(currentMsg.createdAt || currentMsg.timestamp);
+  const olderKey = getDateGroupKey(olderMsg.createdAt || olderMsg.timestamp);
+
+  if (!currentKey && !olderKey) return false;
+  return currentKey !== olderKey;
+}
+
+/**
+ * Resolves the date header label (e.g. "May 21, 2026") for a message's calendar day.
+ */
+export function getMessageDateHeader(
+  message: ChatMessage,
+  fallbackLabel = ""
+): string {
+  const formatted = formatMessageDateHeader(message.createdAt || message.timestamp);
+  return formatted || fallbackLabel;
 }
 
 

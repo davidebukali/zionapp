@@ -1,6 +1,7 @@
 import {
   BackendMessageReaction,
   ChatMessage,
+  MessageDeliveryStatus,
   OnlineContact,
   ReportReason,
 } from "../../../features/messages/types";
@@ -32,6 +33,8 @@ export interface ChatTextBubbleProps {
   isOutgoing: boolean;
   isDeleted?: boolean;
   isEdited?: boolean;
+  timestamp?: string;
+  status?: MessageDeliveryStatus;
   header?: React.ReactNode;
   children?: React.ReactNode;
 }
@@ -58,6 +61,9 @@ export interface ChatSwipeReplyActionProps {
 export interface ChatMediaBubbleProps {
   mediaUrl?: string;
   mediaUrls?: string[];
+  isOutgoing?: boolean;
+  timestamp?: string;
+  status?: MessageDeliveryStatus;
   onPressMedia?: (urls: string[], initialIndex: number) => void;
 }
 

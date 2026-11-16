@@ -246,28 +246,98 @@ describe("components/Messages/Chat", () => {
   });
 
   describe("ChatTextBubble", () => {
-    it("renders outgoing text bubble", () => {
+    it("renders outgoing text bubble with timestamp and sending status icon", () => {
       let renderer: ReactTestRenderer.ReactTestRenderer;
       act(() => {
         renderer = ReactTestRenderer.create(
-          <ChatTextBubble text="outgoing test" isOutgoing={true} />
+          <ChatTextBubble
+            text="outgoing test"
+            isOutgoing={true}
+            timestamp="9:12"
+            status="sending"
+          />
         );
       });
 
       const json = JSON.stringify(renderer!.toJSON());
       expect(json).toContain("outgoing test");
+      expect(json).toContain("9:12");
+      expect(json).toContain("time-outline");
     });
 
-    it("renders incoming text bubble", () => {
+    it("renders outgoing text bubble with sent checkmark", () => {
       let renderer: ReactTestRenderer.ReactTestRenderer;
       act(() => {
         renderer = ReactTestRenderer.create(
-          <ChatTextBubble text="incoming test" isOutgoing={false} />
+          <ChatTextBubble
+            text="sent message"
+            isOutgoing={true}
+            timestamp="9:13"
+            status="sent"
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("sent message");
+      expect(json).toContain("9:13");
+      expect(json).toContain("checkmark");
+    });
+
+    it("renders outgoing text bubble with delivered checkmark-done", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatTextBubble
+            text="delivered message"
+            isOutgoing={true}
+            timestamp="9:14"
+            status="delivered"
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("delivered message");
+      expect(json).toContain("checkmark-done");
+    });
+
+    it("renders outgoing text bubble with read checkmark-done and blue tint", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatTextBubble
+            text="read message"
+            isOutgoing={true}
+            timestamp="9:15"
+            status="read"
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("read message");
+      expect(json).toContain("checkmark-done");
+      expect(json).toContain("#64D2FF");
+    });
+
+    it("renders incoming text bubble with timestamp and no status icon", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatTextBubble
+            text="incoming test"
+            isOutgoing={false}
+            timestamp="9:16"
+          />
         );
       });
 
       const json = JSON.stringify(renderer!.toJSON());
       expect(json).toContain("incoming test");
+      expect(json).toContain("9:16");
+      expect(json).not.toContain("checkmark");
+      expect(json).not.toContain("time-outline");
     });
   });
 
@@ -283,6 +353,24 @@ describe("components/Messages/Chat", () => {
       const root = renderer!.root;
       const img = root.findByProps({ resizeMode: "cover" });
       expect(img.props.source.uri).toBe("https://example.com/banner.jpg");
+    });
+
+    it("renders floating pill with timestamp and status icon when timestamp is provided", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMediaBubble
+            mediaUrl="https://example.com/banner.jpg"
+            isOutgoing={true}
+            timestamp="9:20"
+            status="delivered"
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("9:20");
+      expect(json).toContain("checkmark-done");
     });
 
     it("renders multi-image grid when multiple mediaUrls are provided", () => {
@@ -649,6 +737,49 @@ describe("components/Messages/Chat", () => {
       expect(flatList.props.inverted).toBe(true);
       expect(root.findByProps({ label: "Today · 9:12" })).toBeDefined();
       expect(root.findByProps({ visible: true })).toBeDefined();
+    });
+
+    it("groups messages by calendar date across multiple days", () => {
+      const multiDayMessages: ChatMessage[] = [
+        {
+          id: "m-3",
+          senderId: "user-maya",
+          isOutgoing: false,
+          text: "Message from today",
+          timestamp: "6:16 PM",
+          createdAt: "2026-05-22T18:16:00Z",
+        },
+        {
+          id: "m-2",
+          senderId: "user-me",
+          isOutgoing: true,
+          text: "Earlier message from today",
+          timestamp: "10:00 AM",
+          createdAt: "2026-05-22T10:00:00Z",
+        },
+        {
+          id: "m-1",
+          senderId: "user-maya",
+          isOutgoing: false,
+          text: "Yesterday message",
+          timestamp: "3:00 PM",
+          createdAt: "2026-05-21T15:00:00Z",
+        },
+      ];
+
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ChatMessageList
+            messages={multiDayMessages}
+            participant={mockParticipant}
+          />
+        );
+      });
+
+      const root = renderer!.root;
+      expect(root.findByProps({ label: "May 22, 2026" })).toBeDefined();
+      expect(root.findByProps({ label: "May 21, 2026" })).toBeDefined();
     });
   });
 

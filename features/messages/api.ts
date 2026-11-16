@@ -25,6 +25,7 @@ import {
   StartConversationRequest,
 } from "./types";
 import {
+  buildOptimisticMessage,
   insertMessageInCache,
   mergeConversationsCache,
   mergeMessagesCache,
@@ -264,43 +265,20 @@ export const messagesApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: SendMessageResponse) => response.data,
       async onQueryStarted(
-        { conversationId, body, media_ids, reply_to_message_id, optimisticMediaUrls, optimisticReplyTo },
+        { conversationId, tempId, body, media_ids, reply_to_message_id, optimisticMediaUrls, optimisticReplyTo },
         { dispatch, getState, queryFulfilled }
       ) {
         const currentUserId = (getState() as RootState).auth?.user?.id;
-        const tempId = `${TEMP_MESSAGE_ID_PREFIX}${Date.now()}`;
-        const optimisticMedia =
-          optimisticMediaUrls && optimisticMediaUrls.length > 0
-            ? optimisticMediaUrls.map((url, index) => ({
-                id: `opt-media-${index}-${Date.now()}`,
-                url,
-                type: "image",
-                mime_type: "image/jpeg",
-                size: 0,
-              }))
-            : [];
-
-        const optimisticMessage = normalizeMessage(
-          {
-            id: tempId,
-            conversation_id: conversationId,
-            sender_id: String(currentUserId || "current-user"),
-            sender: {
-              id: String(currentUserId || "current-user"),
-              name: (getState() as RootState).auth?.user?.name || "Me",
-              username: "",
-            },
-            body: body || null,
-            media: optimisticMedia,
-            reply_to: optimisticReplyTo || null,
-            reactions: [],
-            is_edited: false,
-            is_deleted_for_everyone: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          currentUserId ? String(currentUserId) : undefined
-        );
+        const resolvedTempId = tempId || `${TEMP_MESSAGE_ID_PREFIX}${Date.now()}`;
+        const optimisticMessage = buildOptimisticMessage({
+          tempId: resolvedTempId,
+          conversationId,
+          senderId: String(currentUserId || "current-user"),
+          senderName: (getState() as RootState).auth?.user?.name || "Me",
+          body,
+          optimisticMediaUrls,
+          replyTo: optimisticReplyTo,
+        });
 
         const undoOptimistic = insertMessageInCache(
           messagesApi,
@@ -320,7 +298,7 @@ export const messagesApi = baseApi.injectEndpoints({
             messagesApi,
             dispatch,
             conversationId,
-            tempId,
+            resolvedTempId,
             (draftMsg) => {
               Object.assign(draftMsg, normalized);
             }

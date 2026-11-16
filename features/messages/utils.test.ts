@@ -1,5 +1,6 @@
 import {
   applyReactionEventToMessage,
+  buildOptimisticMessage,
   canCopyMessage,
   canReportMessage,
   filterConversations,
@@ -8,9 +9,11 @@ import {
   formatMessageTimestamp,
   getAvatarColor,
   getInitials,
+  getMessageDateHeader,
   insertMessageInCache,
   isPendingMessage,
   markConversationReadInCache,
+  markMessagesReadInCache,
   mergeConversationsCache,
   mergeMessagesCache,
   mergeRecipientsCache,
@@ -19,6 +22,9 @@ import {
   normalizeReactions,
   normalizeRecipient,
   POST_SHARE_PREVIEW_TEXT,
+  removeMessageFromCache,
+  resolveMessageStatus,
+  shouldShowDateSeparator,
   updateMessageInCache,
 } from "./utils";
 import {
@@ -271,6 +277,7 @@ describe("features/messages/utils", () => {
       expect(result.text).toBe("Hey there");
       expect(result.reactions).toEqual(["🔥"]);
       expect(result.isDeletedForEveryone).toBe(false);
+      expect(result.timestamp).toMatch(/^\d{1,2}:\d{2}\s[AP]M$/);
     });
 
     it("transforms backend message with reactions summary object contract", () => {
@@ -1020,6 +1027,225 @@ describe("features/messages/utils", () => {
       expect(dispatch).toHaveBeenCalledTimes(1);
       undo();
       expect(fakeUndo).toHaveBeenCalledTimes(1);
+    });
+
+    it("insertMessageInCache seeds uninitialized cache via upsertQueryData", () => {
+      const fakeUndo = jest.fn();
+      const dispatch = jest.fn().mockReturnValue({ undo: fakeUndo });
+      const upsertMock = jest.fn().mockReturnValue({ type: "upsert", undo: fakeUndo });
+      const api = {
+        util: {
+          updateQueryData: jest.fn().mockImplementation((_endpoint, _arg, updater) => {
+            // Simulate uninitialized cache: draft is undefined
+            updater(undefined as any);
+            return { type: "patch" };
+          }),
+          upsertQueryData: upsertMock,
+        },
+      };
+
+      const newMsg: ChatMessage = {
+        id: "temp-999",
+        senderId: "u-1",
+        isOutgoing: true,
+        text: "first message",
+        timestamp: "10:00",
+      };
+
+      const undo = insertMessageInCache(api, dispatch, "c-new", newMsg);
+      expect(upsertMock).toHaveBeenCalledWith(
+        "getMessages",
+        { conversationId: "c-new" },
+        { messages: [newMsg], nextCursor: null }
+      );
+      undo();
+      expect(fakeUndo).toHaveBeenCalled();
+    });
+
+    it("removeMessageFromCache removes message by id", () => {
+      const fakeUndo = jest.fn();
+      const dispatch = jest.fn().mockReturnValue({ undo: fakeUndo });
+      const api = {
+        util: {
+          updateQueryData: jest.fn().mockImplementation((endpoint, arg, updater) => {
+            const draft = {
+              messages: [
+                { id: "temp-1", text: "sending" },
+                { id: "msg-1", text: "confirmed" },
+              ] as any[],
+            };
+            updater(draft);
+            expect(draft.messages).toHaveLength(1);
+            expect(draft.messages[0].id).toBe("msg-1");
+            return { type: "patch" };
+          }),
+        },
+      };
+
+      const undo = removeMessageFromCache(api, dispatch, "c-1", "temp-1");
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      undo();
+      expect(fakeUndo).toHaveBeenCalledTimes(1);
+    });
+
+    it("markMessagesReadInCache marks outgoing messages at or older than lastReadMessageId as read", () => {
+      const fakeUndo = jest.fn();
+      const dispatch = jest.fn().mockReturnValue({ undo: fakeUndo });
+      const api = {
+        util: {
+          updateQueryData: jest.fn().mockImplementation((endpoint, arg, updater) => {
+            const draft = {
+              // Messages in reverse-chronological order: 0 is newest
+              messages: [
+                { id: "msg-3", isOutgoing: true, status: "sent" },
+                { id: "msg-2", isOutgoing: true, status: "sent" },
+                { id: "msg-1", isOutgoing: true, status: "sent" },
+              ] as any[],
+            };
+            updater(draft);
+            // If lastReadMessageId is msg-2 (index 1), then msg-2 and msg-1 (index >= 1) become read
+            expect(draft.messages[0].status).toBe("sent");
+            expect(draft.messages[1].status).toBe("read");
+            expect(draft.messages[1].readReceipt).toBe("Read 9:30");
+            expect(draft.messages[2].status).toBe("read");
+            return { type: "patch" };
+          }),
+        },
+      };
+
+      const undo = markMessagesReadInCache(
+        api,
+        dispatch,
+        "c-1",
+        "msg-2",
+        "9:30"
+      );
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      undo();
+      expect(fakeUndo).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("Optimistic & Status Helpers", () => {
+    it("buildOptimisticMessage constructs normalized outgoing message with status sending", () => {
+      const optimisticMsg = buildOptimisticMessage({
+        tempId: "temp-12345",
+        conversationId: "conv-1",
+        senderId: "u-me",
+        senderName: "Me",
+        body: "Hello optimistic world",
+        optimisticMediaUrls: ["file:///local/photo.jpg"],
+      });
+
+      expect(optimisticMsg.id).toBe("temp-12345");
+      expect(optimisticMsg.isOutgoing).toBe(true);
+      expect(optimisticMsg.status).toBe("sending");
+      expect(optimisticMsg.text).toBe("Hello optimistic world");
+      expect(optimisticMsg.media).toHaveLength(1);
+      expect(optimisticMsg.mediaUrl).toBe("file:///local/photo.jpg");
+    });
+
+    it("resolveMessageStatus resolves states correctly across lifecycle", () => {
+      const pendingMsg: ChatMessage = {
+        id: "temp-1",
+        senderId: "u-1",
+        isOutgoing: true,
+        text: "pending",
+        timestamp: "9:00",
+      };
+      expect(resolveMessageStatus(pendingMsg)).toBe("sending");
+
+      const sentMsg: ChatMessage = {
+        id: "msg-1",
+        senderId: "u-1",
+        isOutgoing: true,
+        status: "sent",
+        text: "sent",
+        timestamp: "9:01",
+      };
+      expect(resolveMessageStatus(sentMsg)).toBe("sent");
+
+      // When partner is online, sent transitions to delivered
+      expect(resolveMessageStatus(sentMsg, { isPartnerOnline: true })).toBe("delivered");
+
+      // When partner is actively in the chat, message is read
+      expect(resolveMessageStatus(sentMsg, { isPartnerInChat: true })).toBe("read");
+
+      // When recipient has replied after our message, message is read
+      expect(resolveMessageStatus(sentMsg, { hasNewerIncomingMessage: true })).toBe("read");
+
+      // When readReceipt exists, message is read
+      const readMsg: ChatMessage = {
+        ...sentMsg,
+        readReceipt: "Read 9:05",
+      };
+      expect(resolveMessageStatus(readMsg)).toBe("read");
+    });
+  });
+
+  describe("Date Grouping Helpers", () => {
+    it("shouldShowDateSeparator identifies calendar day boundaries in reverse-chronological list", () => {
+      // In reverse-chronological order: index 0 is newest (May 22), index 1 is older on same day (May 22), index 2 is previous day (May 21)
+      const messages: ChatMessage[] = [
+        {
+          id: "m-3",
+          senderId: "u-1",
+          isOutgoing: true,
+          text: "today latest",
+          timestamp: "6:16 PM",
+          createdAt: "2026-05-22T18:16:00Z",
+        },
+        {
+          id: "m-2",
+          senderId: "u-2",
+          isOutgoing: false,
+          text: "today earlier",
+          timestamp: "10:00 AM",
+          createdAt: "2026-05-22T10:00:00Z",
+        },
+        {
+          id: "m-1",
+          senderId: "u-1",
+          isOutgoing: true,
+          text: "yesterday message",
+          timestamp: "3:00 PM",
+          createdAt: "2026-05-21T15:00:00Z",
+        },
+      ];
+
+      // Index 0: same day as index 1 -> false
+      expect(shouldShowDateSeparator(messages, 0)).toBe(false);
+
+      // Index 1: May 22, older message at index 2 is May 21 -> crosses boundary -> true
+      expect(shouldShowDateSeparator(messages, 1)).toBe(true);
+
+      // Index 2: oldest loaded message (last index) -> always shows date separator -> true
+      expect(shouldShowDateSeparator(messages, 2)).toBe(true);
+
+      // Out of bounds
+      expect(shouldShowDateSeparator(messages, -1)).toBe(false);
+      expect(shouldShowDateSeparator(messages, 3)).toBe(false);
+    });
+
+    it("getMessageDateHeader formats createdAt into calendar date header or falls back cleanly", () => {
+      const messageWithDate: ChatMessage = {
+        id: "m-1",
+        senderId: "u-1",
+        isOutgoing: true,
+        timestamp: "6:16 AM",
+        createdAt: "2026-05-21T06:16:00Z",
+      };
+      expect(getMessageDateHeader(messageWithDate)).toBe("May 21, 2026");
+
+      const messageWithoutDate: ChatMessage = {
+        id: "m-2",
+        senderId: "u-1",
+        isOutgoing: false,
+        timestamp: "9:00",
+      };
+      expect(getMessageDateHeader(messageWithoutDate, "Today · 9:00")).toBe(
+        "Today · 9:00"
+      );
     });
   });
 

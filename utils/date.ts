@@ -1,5 +1,6 @@
 import {
   differenceInSeconds,
+  format,
   formatDistanceToNowStrict,
   isValid,
   parseISO,
@@ -7,7 +8,7 @@ import {
 import { enUS } from "date-fns/locale";
 import type { FormatDistanceFn, FormatDistanceToken } from "date-fns/locale";
 
-type RelativeTimeInput = Date | string;
+export type RelativeTimeInput = Date | string;
 
 const unitByToken: Record<FormatDistanceToken, string> = {
   lessThanXSeconds: "s",
@@ -59,4 +60,56 @@ export const formatRelativeTime = (value: RelativeTimeInput): string => {
     addSuffix: true,
     locale: compactEnglishLocale,
   });
+};
+
+/**
+ * Formats an ISO timestamp or Date into 12-hour AM/PM time (e.g. "6:16 AM").
+ * Preserves already-formatted time strings (e.g. "6:16 AM" or "9:12").
+ */
+export const formatMessageTime = (value?: RelativeTimeInput | null): string => {
+  if (!value) return "";
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^\d{1,2}:\d{2}(\s?[AP]M)?$/i.test(trimmed)) {
+      return trimmed.toUpperCase();
+    }
+  }
+
+  const date = typeof value === "string" ? parseISO(value) : value;
+  if (!isValid(date)) {
+    return "";
+  }
+
+  return format(date, "h:mm a");
+};
+
+/**
+ * Formats an ISO timestamp or Date into a calendar date label (e.g. "May 21, 2026").
+ */
+export const formatMessageDateHeader = (
+  value?: RelativeTimeInput | null
+): string => {
+  if (!value) return "";
+
+  const date = typeof value === "string" ? parseISO(value) : value;
+  if (!isValid(date)) {
+    return "";
+  }
+
+  return format(date, "MMM d, yyyy");
+};
+
+/**
+ * Returns a local calendar day key ("yyyy-MM-dd") for grouping messages by day.
+ */
+export const getDateGroupKey = (value?: RelativeTimeInput | null): string => {
+  if (!value) return "";
+
+  const date = typeof value === "string" ? parseISO(value) : value;
+  if (!isValid(date)) {
+    return "";
+  }
+
+  return format(date, "yyyy-MM-dd");
 };

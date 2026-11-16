@@ -7,6 +7,7 @@ import { EmojiType } from "rn-emoji-keyboard";
 import type { RootState, AppDispatch } from "../store/store";
 import { getEchoClient } from "../services/echo";
 import { MAX_CHAT_MEDIA, TYPING_EXPIRY_MS, TYPING_THROTTLE_MS } from "../constants";
+import { TEMP_MESSAGE_ID_PREFIX } from "../features/messages/constants";
 import {
   ChatMessage,
   MessageDeletedEvent,
@@ -21,12 +22,16 @@ import {
 } from "../features/messages/types";
 import {
   applyReactionEventToMessage,
+  buildOptimisticMessage,
   formatMessageTimestamp,
   getAvatarColor,
   insertMessageInCache,
   markConversationReadInCache,
+  markMessagesReadInCache,
   normalizeMessage,
   normalizeRecipient,
+  removeMessageFromCache,
+  resolveMessageStatus,
   updateMessageInCache,
 } from "../features/messages/utils";
 import {
@@ -298,10 +303,27 @@ export function useChatThread(targetId?: string) {
     }
   );
 
-  const messages: ChatMessage[] = useMemo(
-    () => messagesData?.messages ?? [],
-    [messagesData?.messages]
-  );
+  const messages: ChatMessage[] = useMemo(() => {
+    const rawMessages = messagesData?.messages ?? [];
+    if (rawMessages.length === 0) return [];
+
+    let hasEncounteredIncoming = false;
+    return rawMessages.map((msg) => {
+      if (!msg.isOutgoing) {
+        hasEncounteredIncoming = true;
+        return msg;
+      }
+      const effectiveStatus = resolveMessageStatus(msg, {
+        isPartnerOnline,
+        isPartnerInChat,
+        hasNewerIncomingMessage: hasEncounteredIncoming,
+      });
+      return {
+        ...msg,
+        status: effectiveStatus,
+      };
+    });
+  }, [messagesData?.messages, isPartnerOnline, isPartnerInChat]);
 
   const [inputText, setInputText] = useState("");
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
@@ -410,16 +432,12 @@ export function useChatThread(targetId?: string) {
           return;
         }
 
-        updateMessageInCache(
+        markMessagesReadInCache(
           messagesApi,
           dispatch,
           resolvedConversationId,
-          event.last_read_message_id || "",
-          (msg) => {
-            if (msg.isOutgoing) {
-              msg.readReceipt = `Read ${formatMessageTimestamp(event.read_at)}`;
-            }
-          }
+          event.last_read_message_id,
+          event.read_at
         );
       });
 
@@ -524,7 +542,142 @@ export function useChatThread(targetId?: string) {
     setSelectedMedia((prev) => prev.filter((_, idx) => idx !== index));
   }, []);
 
-  // Send message via API (supporting images or text)
+  interface ExecuteSendMessageParams {
+    textToSend: string;
+    mediaToSend: MediaItem[];
+    replyTarget: ChatMessage | null;
+  }
+
+  const executeSendMessage = useCallback(
+    async ({ textToSend, mediaToSend, replyTarget }: ExecuteSendMessageParams) => {
+      if (!token) return;
+
+      const hasImages = mediaToSend.length > 0;
+      const tempId = `${TEMP_MESSAGE_ID_PREFIX}${Date.now()}`;
+      let targetConversationId = resolvedConversationId;
+
+      try {
+        // 1. Lazy creation if conversation does not exist yet
+        if (!targetConversationId) {
+          if (!targetId) {
+            Alert.alert("Error", "Recipient not specified.");
+            return;
+          }
+
+          const createdConversation = await startConversationMutation({
+            recipient_id: targetId,
+          }).unwrap();
+
+          targetConversationId = createdConversation.id;
+          setResolvedConversationId(createdConversation.id);
+          if (createdConversation.recipient) {
+            setRemoteParticipant(normalizeRecipient(createdConversation.recipient));
+          }
+        }
+
+        // 2. Insert optimistic message into cache immediately so it appears instantly
+        const optimisticMessage = buildOptimisticMessage({
+          tempId,
+          conversationId: targetConversationId,
+          senderId: String(currentUserId || "current-user"),
+          senderName: currentUser?.name || "Me",
+          body: hasImages ? null : textToSend,
+          optimisticMediaUrls: hasImages ? mediaToSend.map((item) => item.uri) : undefined,
+          replyTo: replyTarget
+            ? {
+                id: replyTarget.id,
+                sender: {
+                  id: replyTarget.senderId,
+                  name: replyTarget.isOutgoing ? "You" : participant.name,
+                },
+                body:
+                  replyTarget.text ||
+                  (replyTarget.sharedPostId ? "Shared post" : null),
+                mediaUrl: replyTarget.mediaUrl || replyTarget.media?.[0]?.url,
+                is_deleted_for_everyone: false,
+              }
+            : null,
+        });
+
+        insertMessageInCache(
+          messagesApi,
+          dispatch,
+          targetConversationId,
+          optimisticMessage
+        );
+
+        // 3. Process media upload if needed
+        let uploadedMediaIds: string[] | undefined = undefined;
+        if (hasImages) {
+          setIsUploadingMedia(true);
+          uploadedMediaIds = await uploadAndProcessMedia(
+            mediaToSend,
+            { getMediaUploadUrl, confirmMediaUpload, getMediaStatus },
+            setUploadStatusText
+          );
+        }
+
+        // 4. Send mutation to backend
+        await sendMessageMutation({
+          conversationId: targetConversationId,
+          tempId,
+          body: hasImages ? undefined : textToSend,
+          media_ids: uploadedMediaIds,
+          optimisticMediaUrls: hasImages ? mediaToSend.map((item) => item.uri) : undefined,
+          reply_to_message_id: replyTarget?.id,
+          optimisticReplyTo: replyTarget
+            ? {
+                id: replyTarget.id,
+                sender: {
+                  id: replyTarget.senderId,
+                  name: replyTarget.isOutgoing ? "You" : participant.name,
+                },
+                body:
+                  replyTarget.text ||
+                  (replyTarget.sharedPostId ? "Shared post" : null),
+                mediaUrl: replyTarget.mediaUrl || replyTarget.media?.[0]?.url,
+                is_deleted_for_everyone: false,
+              }
+            : null,
+        }).unwrap();
+      } catch (error: any) {
+        if (targetConversationId) {
+          removeMessageFromCache(messagesApi, dispatch, targetConversationId, tempId);
+        }
+        const message =
+          error?.data?.message || error?.message || "Failed to send message.";
+
+        Alert.alert("Failed to Send", message, [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Resend",
+            onPress: () => {
+              void executeSendMessage({ textToSend, mediaToSend, replyTarget });
+            },
+          },
+        ]);
+      } finally {
+        setIsUploadingMedia(false);
+        setUploadStatusText(null);
+      }
+    },
+    [
+      token,
+      resolvedConversationId,
+      targetId,
+      currentUserId,
+      currentUser?.name,
+      participant.name,
+      dispatch,
+      startConversationMutation,
+      getMediaUploadUrl,
+      confirmMediaUpload,
+      getMediaStatus,
+      sendMessageMutation,
+    ]
+  );
+
+  // Send message via API with immediate input clearing and optimistic rendering
   const handleSendMessage = useCallback(async () => {
     if (!token) return;
 
@@ -533,88 +686,22 @@ export function useChatThread(targetId?: string) {
 
     if (!trimmed && !hasImages) return;
 
+    const textToSend = trimmed;
     const mediaToSend = [...selectedMedia];
     const replyTarget = replyingTo;
 
-    try {
-      let targetConversationId = resolvedConversationId;
+    // Immediately clear input and composer states (0ms lag)
+    setInputText("");
+    setSelectedMedia([]);
+    setReplyingTo(null);
 
-      // Lazy creation: Create conversation on the backend only on first message send
-      if (!targetConversationId) {
-        if (!targetId) {
-          Alert.alert("Error", "Recipient not specified.");
-          return;
-        }
-
-        const createdConversation = await startConversationMutation({
-          recipient_id: targetId,
-        }).unwrap();
-
-        targetConversationId = createdConversation.id;
-        setResolvedConversationId(createdConversation.id);
-        if (createdConversation.recipient) {
-          setRemoteParticipant(normalizeRecipient(createdConversation.recipient));
-        }
-      }
-
-      let uploadedMediaIds: string[] | undefined = undefined;
-
-      if (hasImages) {
-        setIsUploadingMedia(true);
-        uploadedMediaIds = await uploadAndProcessMedia(
-          mediaToSend,
-          { getMediaUploadUrl, confirmMediaUpload, getMediaStatus },
-          setUploadStatusText
-        );
-      }
-
-      await sendMessageMutation({
-        conversationId: targetConversationId,
-        body: hasImages ? undefined : trimmed,
-        media_ids: uploadedMediaIds,
-        optimisticMediaUrls: hasImages ? mediaToSend.map((m) => m.uri) : undefined,
-        reply_to_message_id: replyTarget?.id,
-        optimisticReplyTo: replyTarget
-          ? {
-              id: replyTarget.id,
-              sender: {
-                id: replyTarget.senderId,
-                name: replyTarget.isOutgoing ? "You" : participant.name,
-              },
-              body:
-                replyTarget.text ||
-                (replyTarget.sharedPostId ? "Shared post" : null),
-              mediaUrl: replyTarget.mediaUrl || replyTarget.media?.[0]?.url,
-              is_deleted_for_everyone: false,
-            }
-          : null,
-      }).unwrap();
-
-      // Reset input states only on successful transmission
-      setInputText("");
-      setSelectedMedia([]);
-      setReplyingTo(null);
-    } catch (error: any) {
-      const message =
-        error?.data?.message || error?.message || "Failed to send message.";
-      Alert.alert("Error", message);
-    } finally {
-      setIsUploadingMedia(false);
-      setUploadStatusText(null);
-    }
+    await executeSendMessage({ textToSend, mediaToSend, replyTarget });
   }, [
+    token,
     inputText,
     selectedMedia,
     replyingTo,
-    participant.name,
-    resolvedConversationId,
-    targetId,
-    token,
-    startConversationMutation,
-    sendMessageMutation,
-    getMediaUploadUrl,
-    confirmMediaUpload,
-    getMediaStatus,
+    executeSendMessage,
   ]);
 
   // Thread options handlers

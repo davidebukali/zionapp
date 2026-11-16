@@ -38,9 +38,14 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
     readReceipt,
     isDeletedForEveryone,
     isEdited,
+    timestamp,
+    status,
   } = message;
 
   const isPending = isPendingMessage(message);
+  const effectiveStatus = isOutgoing
+    ? status ?? (isPending ? "sending" : readReceipt ? "read" : "sent")
+    : undefined;
 
   const mediaUrls =
     media && media.length > 0
@@ -143,6 +148,8 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
                       isOutgoing={isOutgoing}
                       isDeleted={isDeletedForEveryone}
                       isEdited={isEdited}
+                      timestamp={timestamp}
+                      status={effectiveStatus}
                     />
                   )}
                   <ChatPostCard postId={sharedPostId} isOutgoing={isOutgoing} />
@@ -154,6 +161,8 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
                   isOutgoing={isOutgoing}
                   isDeleted={isDeletedForEveryone}
                   isEdited={isEdited}
+                  timestamp={timestamp}
+                  status={effectiveStatus}
                   header={
                     <>
                       <ChatReplySnippet
@@ -166,6 +175,7 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
                         <ChatMediaBubble
                           mediaUrl={mediaUrl}
                           mediaUrls={mediaUrls}
+                          isOutgoing={isOutgoing}
                           onPressMedia={onPressMedia}
                         />
                       )}
@@ -178,6 +188,9 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
                 <ChatMediaBubble
                   mediaUrl={mediaUrl}
                   mediaUrls={mediaUrls}
+                  isOutgoing={isOutgoing}
+                  timestamp={timestamp}
+                  status={effectiveStatus}
                   onPressMedia={onPressMedia}
                 />
               ) : (
@@ -187,6 +200,8 @@ export const ChatMessageBubble = React.memo(function ChatMessageBubble({
                   isOutgoing={isOutgoing}
                   isDeleted={isDeletedForEveryone}
                   isEdited={isEdited}
+                  timestamp={timestamp}
+                  status={effectiveStatus}
                 />
               )}
             </View>

@@ -2,6 +2,8 @@
 
 export type MessagePreviewType = "text" | "outgoing" | "reaction" | "photo";
 
+export type MessageDeliveryStatus = "sending" | "sent" | "delivered" | "read";
+
 export interface BackendAvatar {
   id: string;
   url: string;
@@ -169,6 +171,7 @@ export interface MessagesResult {
 
 export interface SendMessageRequest {
   conversationId: string;
+  tempId?: string;
   body?: string;
   media_ids?: string[];
   reply_to_message_id?: string | null;
@@ -337,6 +340,7 @@ export interface ChatMessage {
   media?: BackendMessageMedia[];
   replyTo?: BackendMessageReply | null;
   timestamp: string;
+  status?: MessageDeliveryStatus;
   reactions?: string[];
   rawReactions?: BackendMessageReaction[];
   readReceipt?: string;
