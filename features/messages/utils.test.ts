@@ -1,14 +1,13 @@
 import {
   applyReactionEventToMessage,
   buildOptimisticMessage,
+  buildOptimisticReply,
   canCopyMessage,
   canReportMessage,
   filterConversations,
   filterRecipients,
   formatConversationPreviewText,
   formatMessageTimestamp,
-  getAvatarColor,
-  getInitials,
   getMessageDateHeader,
   insertMessageInCache,
   isPendingMessage,
@@ -77,19 +76,72 @@ const TEST_CONVERSATIONS: Conversation[] = [
 ];
 
 describe("features/messages/utils", () => {
-  describe("getInitials & getAvatarColor", () => {
-    it("extracts initials correctly", () => {
-      expect(getInitials("Maya Chen")).toBe("MC");
-      expect(getInitials("Single")).toBe("SI");
-      expect(getInitials("")).toBe("??");
-      expect(getInitials(undefined)).toBe("??");
+  describe("buildOptimisticReply", () => {
+    it("returns null if replyTarget is null", () => {
+      expect(buildOptimisticReply(null, "Maya")).toBeNull();
     });
 
-    it("generates deterministic avatar color", () => {
-      const color1 = getAvatarColor("user-1");
-      const color2 = getAvatarColor("user-1");
-      expect(color1).toBe(color2);
-      expect(typeof color1).toBe("string");
+    it("constructs optimistic reply for incoming message", () => {
+      const incomingMessage: ChatMessage = {
+        id: "msg-123",
+        conversationId: "conv-1",
+        senderId: "user-maya",
+        isOutgoing: false,
+        text: "Hey there!",
+        timestamp: "10:00 AM",
+      };
+
+      const result = buildOptimisticReply(incomingMessage, "Maya Chen");
+      expect(result).toEqual({
+        id: "msg-123",
+        sender: {
+          id: "user-maya",
+          name: "Maya Chen",
+        },
+        body: "Hey there!",
+        mediaUrl: undefined,
+        is_deleted_for_everyone: false,
+      });
+    });
+
+    it("constructs optimistic reply for outgoing message with 'You' sender name", () => {
+      const outgoingMessage: ChatMessage = {
+        id: "msg-456",
+        conversationId: "conv-1",
+        senderId: "current-user",
+        isOutgoing: true,
+        text: "My outgoing message",
+        timestamp: "10:01 AM",
+      };
+
+      const result = buildOptimisticReply(outgoingMessage, "Maya Chen");
+      expect(result).toEqual({
+        id: "msg-456",
+        sender: {
+          id: "current-user",
+          name: "You",
+        },
+        body: "My outgoing message",
+        mediaUrl: undefined,
+        is_deleted_for_everyone: false,
+      });
+    });
+
+    it("handles post shares and media attachments in reply preview", () => {
+      const postShareMessage: ChatMessage = {
+        id: "msg-789",
+        conversationId: "conv-1",
+        senderId: "user-maya",
+        isOutgoing: false,
+        text: undefined,
+        sharedPostId: "post-100",
+        mediaUrl: "https://example.com/image.png",
+        timestamp: "10:02 AM",
+      };
+
+      const result = buildOptimisticReply(postShareMessage, "Maya Chen");
+      expect(result?.body).toBe("Shared post");
+      expect(result?.mediaUrl).toBe("https://example.com/image.png");
     });
   });
 

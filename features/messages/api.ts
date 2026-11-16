@@ -64,10 +64,10 @@ export const messagesApi = baseApi.injectEndpoints({
         return {
           conversations: rawConversations
             .filter(
-              (c): c is BackendConversation =>
-                Boolean(c?.id && c?.recipient?.id && (c?.recipient?.name || c?.recipient?.username))
+              (conv): conv is BackendConversation =>
+                Boolean(conv?.id && conv?.recipient?.id && (conv?.recipient?.name || conv?.recipient?.username))
             )
-            .map((c) => normalizeConversation(c, arg?.currentUserId)),
+            .map((conv) => normalizeConversation(conv, arg?.currentUserId)),
           nextCursor: response?.meta?.next_cursor ?? null,
         };
       },
@@ -82,10 +82,10 @@ export const messagesApi = baseApi.injectEndpoints({
           ? [
               { type: "Conversation" as const, id: "LIST" },
               ...result.conversations
-                .filter((c): c is Conversation => Boolean(c?.id))
-                .map((c) => ({
+                .filter((conv): conv is Conversation => Boolean(conv?.id))
+                .map((conv) => ({
                   type: "Conversation" as const,
-                  id: c.id,
+                  id: conv.id,
                 })),
             ]
           : [{ type: "Conversation" as const, id: "LIST" }],
@@ -110,8 +110,8 @@ export const messagesApi = baseApi.injectEndpoints({
         return {
           recipients: raw
             .filter(
-              (r): r is BackendRecipient =>
-                Boolean(r?.id && (r?.name || r?.username))
+              (recipient): recipient is BackendRecipient =>
+                Boolean(recipient?.id && (recipient?.name || recipient?.username))
             )
             .map(normalizeRecipient),
           nextCursor: response?.meta?.next_cursor ?? null,
@@ -237,7 +237,7 @@ export const messagesApi = baseApi.injectEndpoints({
       ): MessagesResult => {
         const raw = Array.isArray(response?.data) ? response.data : [];
         return {
-          messages: raw.map((m) => normalizeMessage(m, arg.currentUserId)),
+          messages: raw.map((message) => normalizeMessage(message, arg.currentUserId)),
           nextCursor: response?.meta?.next_cursor ?? null,
         };
       },
@@ -392,7 +392,9 @@ export const messagesApi = baseApi.injectEndpoints({
             { conversationId },
             (draft) => {
               if (draft && draft.messages) {
-                draft.messages = draft.messages.filter((m) => m.id !== messageId);
+                draft.messages = draft.messages.filter(
+                  (existingMessage) => existingMessage.id !== messageId
+                );
               }
             }
           )

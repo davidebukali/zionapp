@@ -58,11 +58,11 @@ export function useMessages() {
     const list = conversationsData?.conversations ?? [];
     if (onlineUserIds.length === 0) return list;
     const onlineSet = new Set(onlineUserIds);
-    return list.map((c) => ({
-      ...c,
+    return list.map((conversation) => ({
+      ...conversation,
       participant: {
-        ...c.participant,
-        isOnline: onlineSet.has(String(c.participant.id)),
+        ...conversation.participant,
+        isOnline: onlineSet.has(String(conversation.participant.id)),
       },
     }));
   }, [conversationsData?.conversations, onlineUserIds]);
@@ -71,9 +71,9 @@ export function useMessages() {
     const list = recipientsData?.recipients ?? [];
     if (onlineUserIds.length === 0) return list;
     const onlineSet = new Set(onlineUserIds);
-    return list.map((r) => ({
-      ...r,
-      isOnline: onlineSet.has(String(r.id)),
+    return list.map((recipient) => ({
+      ...recipient,
+      isOnline: onlineSet.has(String(recipient.id)),
     }));
   }, [recipientsData?.recipients, onlineUserIds]);
 

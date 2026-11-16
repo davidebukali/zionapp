@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import * as SecureStore from 'expo-secure-store';
 import { User } from './types';
 import { CrashlyticsService } from '../../services/crashlytics';
+import { disconnectEcho } from '../../services/echo';
 
 export type { User };
 
@@ -69,6 +70,7 @@ export const deleteUserData = createAsyncThunk(
       // Ignore deletion errors
     } finally {
       CrashlyticsService.clearUser();
+      disconnectEcho();
     }
     return null;
   }

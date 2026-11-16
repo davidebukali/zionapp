@@ -23,37 +23,7 @@ import {
   formatRelativeTime,
   getDateGroupKey,
 } from "../../utils/date";
-
-const AVATAR_COLORS = [
-  "#7CB342",
-  "#E64A19",
-  "#8BC34A",
-  "#9E9D24",
-  "#F4511E",
-  "#278CCB",
-  "#B277E8",
-  "#D75E98",
-];
-
-export function getAvatarColor(seed: string): string {
-  if (!seed) return AVATAR_COLORS[0];
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash << 5) - hash + seed.charCodeAt(i);
-    hash |= 0;
-  }
-  const index = Math.abs(hash) % AVATAR_COLORS.length;
-  return AVATAR_COLORS[index];
-}
-
-export function getInitials(name?: string): string {
-  if (!name) return "??";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
-}
+import { getAvatarColor, getUserInitials } from "../../utils/user";
 
 /**
  * Normalizes a backend recipient into the UI OnlineContact model.
@@ -66,7 +36,7 @@ export function normalizeRecipient(raw: BackendRecipient): OnlineContact {
     name: displayName,
     username: raw.username || "",
     avatarUrl: raw.avatar?.url || undefined,
-    initials: getInitials(displayName),
+    initials: getUserInitials(displayName, null, "??"),
     isOnline: false,
     avatarColor: getAvatarColor(String(raw.id)),
   };
@@ -329,6 +299,34 @@ export interface BuildOptimisticMessageParams {
 }
 
 /**
+ * Constructs an optimistic BackendMessageReply payload for a replied-to message.
+ */
+export function buildOptimisticReply(
+  replyTarget: ChatMessage | null,
+  participantName: string
+): BackendMessageReply | null {
+  if (!replyTarget) {
+    return null;
+  }
+
+  const senderName = replyTarget.isOutgoing ? "You" : participantName;
+  const replyBody =
+    replyTarget.text || (replyTarget.sharedPostId ? "Shared post" : null);
+  const replyMediaUrl = replyTarget.mediaUrl || replyTarget.media?.[0]?.url;
+
+  return {
+    id: replyTarget.id,
+    sender: {
+      id: replyTarget.senderId,
+      name: senderName,
+    },
+    body: replyBody,
+    mediaUrl: replyMediaUrl,
+    is_deleted_for_everyone: false,
+  };
+}
+
+/**
  * Builds an optimistic outgoing ChatMessage with status "sending".
  */
 export function buildOptimisticMessage({
@@ -464,9 +462,11 @@ export function mergeRecipientsCache(
     return;
   }
 
-  const existingIds = new Set(currentCache.recipients.map((r) => r.id));
+  const existingIds = new Set(
+    currentCache.recipients.map((recipient) => recipient.id)
+  );
   const uniqueIncoming = newItems.recipients.filter(
-    (r) => !existingIds.has(r.id)
+    (recipient) => !existingIds.has(recipient.id)
   );
   currentCache.recipients.push(...uniqueIncoming);
   currentCache.nextCursor = newItems.nextCursor;
@@ -488,9 +488,11 @@ export function mergeConversationsCache(
   }
 
   // Appending next page: deduplicate by id
-  const existingIds = new Set(currentCache.conversations.map((c) => c.id));
+  const existingIds = new Set(
+    currentCache.conversations.map((conversation) => conversation.id)
+  );
   const uniqueIncoming = newItems.conversations.filter(
-    (c) => !existingIds.has(c.id)
+    (conversation) => !existingIds.has(conversation.id)
   );
   currentCache.conversations.push(...uniqueIncoming);
   currentCache.nextCursor = newItems.nextCursor;
@@ -510,9 +512,11 @@ export function mergeMessagesCache(
     return;
   }
 
-  const existingIds = new Set(currentCache.messages.map((m) => m.id));
+  const existingIds = new Set(
+    currentCache.messages.map((message) => message.id)
+  );
   const uniqueIncoming = newItems.messages.filter(
-    (m) => !existingIds.has(m.id)
+    (message) => !existingIds.has(message.id)
   );
   // Reverse-chronological order (newest first for inverted FlatList): older messages appended
   currentCache.messages = [...currentCache.messages, ...uniqueIncoming];
@@ -653,7 +657,9 @@ export function insertMessageInCache(
       (draft: MessagesResult) => {
         if (!draft || !draft.messages) return;
         patchApplied = true;
-        const existsIndex = draft.messages.findIndex((m) => m.id === message.id);
+        const existsIndex = draft.messages.findIndex(
+          (existingMessage) => existingMessage.id === message.id
+        );
         if (existsIndex !== -1) {
           alreadyExists = true;
           draft.messages[existsIndex] = {
@@ -666,7 +672,9 @@ export function insertMessageInCache(
         // If message is outgoing and not a temp id, check if there's a pending optimistic message to replace
         if (message.isOutgoing && !message.id.startsWith(TEMP_MESSAGE_ID_PREFIX)) {
           const optimisticIndex = draft.messages.findIndex(
-            (m) => m.isOutgoing && m.id.startsWith(TEMP_MESSAGE_ID_PREFIX)
+            (pendingMessage) =>
+              pendingMessage.isOutgoing &&
+              pendingMessage.id.startsWith(TEMP_MESSAGE_ID_PREFIX)
           );
           if (optimisticIndex !== -1) {
             draft.messages[optimisticIndex] = message;
@@ -702,7 +710,7 @@ export function insertMessageInCache(
       (draft: ConversationsResult) => {
         if (!draft || !draft.conversations) return;
         const convIndex = draft.conversations.findIndex(
-          (c) => c.id === conversationId
+          (conv) => conv.id === conversationId
         );
         if (convIndex !== -1) {
           conversationFound = true;
@@ -769,7 +777,9 @@ export function removeMessageFromCache(
       { conversationId },
       (draft: MessagesResult) => {
         if (!draft || !draft.messages) return;
-        const index = draft.messages.findIndex((m) => m.id === messageId);
+        const index = draft.messages.findIndex(
+          (msg) => msg.id === messageId
+        );
         if (index !== -1) {
           draft.messages.splice(index, 1);
         }
@@ -800,84 +810,12 @@ export function updateMessageInCache(
       { conversationId },
       (draft: MessagesResult) => {
         if (!draft || !draft.messages) return;
-        const msg = draft.messages.find((m) => m.id === messageId);
+        const msg = draft.messages.find(
+          (candidateMessage) => candidateMessage.id === messageId
+        );
         if (msg) {
           updater(msg);
         }
-      }
-    )
-  );
-
-  return () => {
-    patch.undo();
-  };
-}
-
-/**
- * Resets unreadCount to 0 for a conversation in the getConversations cache.
- */
-export function markConversationReadInCache(
-  api: any,
-  dispatch: any,
-  conversationId: string
-): () => void {
-  const patch = dispatch(
-    api.util.updateQueryData(
-      "getConversations",
-      undefined,
-      (draft: ConversationsResult) => {
-        if (!draft || !draft.conversations) return;
-        const conv = draft.conversations.find((c) => c.id === conversationId);
-        if (conv) {
-          conv.unreadCount = 0;
-        }
-      }
-    )
-  );
-
-  return () => {
-    patch.undo();
-  };
-}
-
-/**
- * Marks messages as read in the getMessages cache up to lastReadMessageId.
- */
-export function markMessagesReadInCache(
-  api: any,
-  dispatch: any,
-  conversationId: string,
-  lastReadMessageId?: string | null,
-  readAtTimestamp?: string
-): () => void {
-  const formattedReadReceipt = readAtTimestamp
-    ? `Read ${formatMessageTimestamp(readAtTimestamp)}`
-    : "Read";
-
-  const patch = dispatch(
-    api.util.updateQueryData(
-      "getMessages",
-      { conversationId },
-      (draft: MessagesResult) => {
-        if (!draft || !draft.messages) return;
-
-        const targetIndex = lastReadMessageId
-          ? draft.messages.findIndex((m) => m.id === lastReadMessageId)
-          : -1;
-
-        // Messages are reverse-chronological (0 is newest).
-        // If targetIndex is found, that message and all older messages (index >= targetIndex) are read.
-        // If targetIndex is -1 (no specific id provided), all existing outgoing messages are marked read.
-        const cutoffIndex = targetIndex === -1 ? 0 : targetIndex;
-
-        draft.messages.forEach((msg, index) => {
-          if (msg.isOutgoing && index >= cutoffIndex) {
-            msg.status = "read";
-            if (index === cutoffIndex) {
-              msg.readReceipt = formattedReadReceipt;
-            }
-          }
-        });
       }
     )
   );
@@ -904,7 +842,9 @@ export function updateConversationInCache(
       undefined,
       (draft: ConversationsResult) => {
         if (!draft || !draft.conversations) return;
-        const conv = draft.conversations.find((c) => c.id === conversationId);
+        const conv = draft.conversations.find(
+          (candidateConversation) => candidateConversation.id === conversationId
+        );
         if (conv) {
           updater(conv);
         }
@@ -913,7 +853,76 @@ export function updateConversationInCache(
   );
 
   return () => {
-    patch.undo();
+    if (patch && typeof patch.undo === "function") {
+      patch.undo();
+    }
+  };
+}
+
+/**
+ * Resets unreadCount to 0 for a conversation in the getConversations cache.
+ */
+export function markConversationReadInCache(
+  api: any,
+  dispatch: any,
+  conversationId: string
+): () => void {
+  return updateConversationInCache(
+    api,
+    dispatch,
+    conversationId,
+    (conversation) => {
+      conversation.unreadCount = 0;
+    }
+  );
+}
+
+/**
+ * Marks messages as read in the getMessages cache up to lastReadMessageId.
+ */
+export function markMessagesReadInCache(
+  api: any,
+  dispatch: any,
+  conversationId: string,
+  lastReadMessageId?: string | null,
+  readAtTimestamp?: string
+): () => void {
+  const formattedReadReceipt = readAtTimestamp
+    ? `Read ${formatMessageTimestamp(readAtTimestamp)}`
+    : "Read";
+
+  const patch = dispatch(
+    api.util.updateQueryData(
+      "getMessages",
+      { conversationId },
+      (draft: MessagesResult) => {
+        if (!draft || !draft.messages) return;
+
+        const targetIndex = lastReadMessageId
+          ? draft.messages.findIndex((msg) => msg.id === lastReadMessageId)
+          : -1;
+
+        // Messages are reverse-chronological (0 is newest).
+        // If targetIndex is found, that message and all older messages (index >= targetIndex) are read.
+        // If targetIndex is -1 (no specific id provided), all existing outgoing messages are marked read.
+        const cutoffIndex = targetIndex === -1 ? 0 : targetIndex;
+
+        draft.messages.forEach((msg, index) => {
+          if (msg.isOutgoing && index >= cutoffIndex) {
+            msg.status = "read";
+            if (index === cutoffIndex) {
+              msg.readReceipt = formattedReadReceipt;
+            }
+          }
+        });
+      }
+    )
+  );
+
+  return () => {
+    if (patch && typeof patch.undo === "function") {
+      patch.undo();
+    }
   };
 }
 

@@ -3,6 +3,8 @@ import { useSelector, useDispatch } from "react-redux";
 import type { RootState, AppDispatch } from "../store/store";
 import { getEchoClient } from "../services/echo";
 import { messagesApi } from "../features/messages/api";
+import { useGetMeQuery } from "../features/auth/api";
+import { setUser } from "../features/auth/authSlice";
 import { MessageSentEvent, PresenceMember } from "../features/messages/types";
 import {
   setOnlineUsers,
@@ -18,10 +20,10 @@ import { NewFeedItemEvent } from "../features/posts/types";
 
 /**
  * Subscribes to:
- * 1. Global user channel `private-users.{userId}` to receive incoming messages,
- *    update unread counts, and track new feed items.
- * 2. Global presence channel `presence-online` (via Echo.join('online'))
+ * 1. Global presence channel `presence-online` (via Echo.join('online'))
  *    to track active online users across the entire application.
+ * 2. Global user channel `private-users.{userId}` to receive incoming messages,
+ *    update unread counts, and track new feed items.
  */
 export function useGlobalUserChannel() {
   const dispatch = useDispatch<AppDispatch>();
@@ -29,6 +31,59 @@ export function useGlobalUserChannel() {
   const currentUser = useSelector((state: RootState) => state.auth.user);
   const currentUserId = currentUser?.id ? String(currentUser.id) : null;
 
+  // Hydrate user profile if token is present but currentUser is not yet loaded into state
+  const { data: meData } = useGetMeQuery(undefined, {
+    skip: !token || Boolean(currentUserId),
+  });
+
+  useEffect(() => {
+    if (meData && !currentUser) {
+      const resolvedUser = meData.resource || meData.data;
+      if (resolvedUser) {
+        dispatch(setUser(resolvedUser));
+      }
+    }
+  }, [meData, currentUser, dispatch]);
+
+  // 1. Global Presence Channel (Active whenever authenticated with a token)
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    try {
+      const echo = getEchoClient(token);
+      const onlineChannel = echo.join("online");
+
+      onlineChannel.here((users: PresenceMember[]) => {
+        if (Array.isArray(users)) {
+          dispatch(
+            setOnlineUsers(users.map((member) => String(member.id)))
+          );
+        }
+      });
+
+      onlineChannel.joining((member: PresenceMember) => {
+        if (member?.id) {
+          dispatch(userJoinedOnline(String(member.id)));
+        }
+      });
+
+      onlineChannel.leaving((member: PresenceMember) => {
+        if (member?.id) {
+          dispatch(userLeftOnline(String(member.id)));
+        }
+      });
+
+      return () => {
+        echo.leave("online");
+      };
+    } catch (error) {
+      console.warn("[WS:Global] Online presence setup error:", error);
+    }
+  }, [token, dispatch]);
+
+  // 2. User Private Channel (Incoming messages & feed events)
   useEffect(() => {
     if (!token || !currentUserId) {
       return;
@@ -36,8 +91,6 @@ export function useGlobalUserChannel() {
 
     try {
       const echo = getEchoClient(token);
-
-      // 1. User Private Channel
       const userChannel = echo.private(`users.${currentUserId}`);
 
       userChannel.listen(".message.sent", (event: MessageSentEvent) => {
@@ -58,33 +111,11 @@ export function useGlobalUserChannel() {
         dispatch(newFeedItemReceived(String(event.post_id)));
       });
 
-      // 2. Global App Presence Channel
-      const onlineChannel = echo.join("online");
-
-      onlineChannel.here((users: PresenceMember[]) => {
-        if (Array.isArray(users)) {
-          dispatch(setOnlineUsers(users.map((member) => String(member.id))));
-        }
-      });
-
-      onlineChannel.joining((member: PresenceMember) => {
-        if (member?.id) {
-          dispatch(userJoinedOnline(String(member.id)));
-        }
-      });
-
-      onlineChannel.leaving((member: PresenceMember) => {
-        if (member?.id) {
-          dispatch(userLeftOnline(String(member.id)));
-        }
-      });
-
       return () => {
         echo.leave(`users.${currentUserId}`);
-        echo.leave("online");
       };
     } catch (error) {
-      console.warn("[WS:Global] Setup error:", error);
+      console.warn("[WS:Global] User channel setup error:", error);
     }
   }, [token, currentUserId, dispatch]);
 }

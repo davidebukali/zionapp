@@ -23,8 +23,8 @@ import {
 import {
   applyReactionEventToMessage,
   buildOptimisticMessage,
+  buildOptimisticReply,
   formatMessageTimestamp,
-  getAvatarColor,
   insertMessageInCache,
   markConversationReadInCache,
   markMessagesReadInCache,
@@ -68,7 +68,7 @@ import {
 import { MediaItem, uploadAndProcessMedia } from "../utils/mediaUploader";
 import { pickImageFromLibrary } from "../utils/mediaPicker";
 import {
-  getAvatarColor as getGlobalAvatarColor,
+  getAvatarColor,
   getUserAvatarUrl,
   getUserInitials,
 } from "../utils/user";
@@ -111,7 +111,8 @@ export function useChatThread(targetId?: string) {
     if (!targetId || !cachedInbox?.conversations) return null;
     return (
       cachedInbox.conversations.find(
-        (c) => c.participant.id === targetId || c.id === targetId
+        (conversation) =>
+          conversation.participant.id === targetId || conversation.id === targetId
       ) || null
     );
   }, [targetId, cachedInbox?.conversations]);
@@ -119,7 +120,9 @@ export function useChatThread(targetId?: string) {
   const cachedRecipient = useMemo(() => {
     if (!targetId || !cachedRecipients?.recipients) return null;
     return (
-      cachedRecipients.recipients.find((r) => r.id === targetId) || null
+      cachedRecipients.recipients.find(
+        (recipient) => recipient.id === targetId
+      ) || null
     );
   }, [targetId, cachedRecipients?.recipients]);
 
@@ -208,7 +211,7 @@ export function useChatThread(targetId?: string) {
         avatarUrl: resolvedAvatar,
         initials: getUserInitials(displayName),
         isOnline: false,
-        avatarColor: getGlobalAvatarColor(String(targetId)),
+        avatarColor: getAvatarColor(String(targetId)),
       });
 
       if (fallbackProfile.is_blocked) {
@@ -276,7 +279,7 @@ export function useChatThread(targetId?: string) {
       username: "",
       initials: getUserInitials("", "", "??"),
       isOnline: isPartnerOnline,
-      avatarColor: getGlobalAvatarColor(targetId || ""),
+      avatarColor: getAvatarColor(targetId || ""),
     };
   }, [remoteParticipant, targetId, isPartnerOnline]);
 
@@ -576,6 +579,7 @@ export function useChatThread(targetId?: string) {
         }
 
         // 2. Insert optimistic message into cache immediately so it appears instantly
+        const optimisticReply = buildOptimisticReply(replyTarget, participant.name);
         const optimisticMessage = buildOptimisticMessage({
           tempId,
           conversationId: targetConversationId,
@@ -583,20 +587,7 @@ export function useChatThread(targetId?: string) {
           senderName: currentUser?.name || "Me",
           body: hasImages ? null : textToSend,
           optimisticMediaUrls: hasImages ? mediaToSend.map((item) => item.uri) : undefined,
-          replyTo: replyTarget
-            ? {
-                id: replyTarget.id,
-                sender: {
-                  id: replyTarget.senderId,
-                  name: replyTarget.isOutgoing ? "You" : participant.name,
-                },
-                body:
-                  replyTarget.text ||
-                  (replyTarget.sharedPostId ? "Shared post" : null),
-                mediaUrl: replyTarget.mediaUrl || replyTarget.media?.[0]?.url,
-                is_deleted_for_everyone: false,
-              }
-            : null,
+          replyTo: optimisticReply,
         });
 
         insertMessageInCache(
@@ -625,20 +616,7 @@ export function useChatThread(targetId?: string) {
           media_ids: uploadedMediaIds,
           optimisticMediaUrls: hasImages ? mediaToSend.map((item) => item.uri) : undefined,
           reply_to_message_id: replyTarget?.id,
-          optimisticReplyTo: replyTarget
-            ? {
-                id: replyTarget.id,
-                sender: {
-                  id: replyTarget.senderId,
-                  name: replyTarget.isOutgoing ? "You" : participant.name,
-                },
-                body:
-                  replyTarget.text ||
-                  (replyTarget.sharedPostId ? "Shared post" : null),
-                mediaUrl: replyTarget.mediaUrl || replyTarget.media?.[0]?.url,
-                is_deleted_for_everyone: false,
-              }
-            : null,
+          optimisticReplyTo: optimisticReply,
         }).unwrap();
       } catch (error: any) {
         if (targetConversationId) {
@@ -988,7 +966,6 @@ export function useChatThread(targetId?: string) {
     inputText,
     setInputText: handleInputChange,
     isTyping,
-    setIsTyping,
     isEmojiPickerOpen,
     setIsEmojiPickerOpen,
     handleToggleEmoji,

@@ -1,6 +1,7 @@
 import Echo from "laravel-echo";
 import Pusher from "pusher-js";
 import {
+  BASE_URL,
   BROADCAST_AUTH_URL,
   REVERB_APP_KEY,
   REVERB_FORCE_TLS,
@@ -15,6 +16,28 @@ const PusherClient: any =
 (globalThis as any).Pusher = PusherClient;
 if (typeof window !== "undefined") {
   (window as any).Pusher = PusherClient;
+}
+
+// Ensure WebSocket handshakes in React Native include the expected Origin header for Laravel Reverb
+if (typeof globalThis.WebSocket !== "undefined") {
+  const NativeWebSocket: any = globalThis.WebSocket;
+  class ReverbWebSocket extends NativeWebSocket {
+    constructor(url: string, protocols?: string | string[], options?: any) {
+      const isReverbConnection =
+        typeof url === "string" && Boolean(REVERB_HOST) && url.includes(REVERB_HOST);
+      const mergedOptions = isReverbConnection
+        ? {
+            ...options,
+            headers: {
+              ...options?.headers,
+              Origin: BASE_URL,
+            },
+          }
+        : options;
+      super(url, protocols, mergedOptions);
+    }
+  }
+  globalThis.WebSocket = ReverbWebSocket as any;
 }
 
 let echoInstance: Echo<"reverb"> | null = null;

@@ -10,8 +10,9 @@ export const ips = {
 }
 
 export const current_ip = ips["production"];
+const isProductionHost = current_ip === ips.production;
 
-export const BASE_URL = `https://${current_ip}`;
+export const BASE_URL = `${isProductionHost ? "https" : "http"}://${current_ip}`;
 export const API_BASE_URL = `${BASE_URL}/api/v1`;
 
 export const MAX_CHARACTERS = 3000;
@@ -23,9 +24,9 @@ export const DEBOUNCE_DELAY_MS = 300;
 
 export const REVERB_APP_KEY =
   process.env.EXPO_PUBLIC_REVERB_APP_KEY || "8e18i7j3rlxczsyjllta";
-export const REVERB_HOST = __DEV__ ? current_ip : "tsiyonapp.com";
-export const REVERB_PORT = __DEV__ ? 8080 : 443;
-export const REVERB_FORCE_TLS = !__DEV__;
+export const REVERB_HOST = isProductionHost ? "tsiyonapp.com" : current_ip;
+export const REVERB_PORT = isProductionHost ? 443 : 8080;
+export const REVERB_FORCE_TLS = isProductionHost;
 export const BROADCAST_AUTH_URL = `${BASE_URL}/api/broadcasting/auth`;
 
 export const TYPING_THROTTLE_MS = 3000;

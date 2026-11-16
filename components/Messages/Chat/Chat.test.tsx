@@ -61,7 +61,6 @@ jest.mock("../../../hooks/useChatThread", () => ({
     inputText: "",
     setInputText: jest.fn(),
     isTyping: true,
-    setIsTyping: jest.fn(),
     isEmojiPickerOpen: false,
     setIsEmojiPickerOpen: jest.fn(),
     handleToggleEmoji: jest.fn(),
