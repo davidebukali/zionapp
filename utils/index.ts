@@ -4,4 +4,5 @@ export * from "./network";
 export * from "./mediaUploader";
 export * from "./mediaPicker";
 export * from "./debounce";
+export * from "./throttle";
 

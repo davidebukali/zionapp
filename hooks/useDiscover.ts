@@ -11,6 +11,7 @@ import { useSearchPostsQuery } from "../features/posts/api";
 import { Post } from "../features/posts/types";
 import { mergeUniquePosts } from "../features/posts/utils";
 import { useDebounce } from "./useDebounce";
+import { throttle } from "../utils";
 import { useFeedPostActions } from "./useFeedPostActions";
 import { useReportPost } from "./useReportPost";
 import { useSharePostViaDM } from "./useSharePostViaDM";
@@ -117,19 +118,24 @@ export function useDiscover() {
   const [followUser] = useFollowUserMutation();
   const [unfollowUser] = useUnfollowUserMutation();
 
-  const handleToggleFollow = useCallback(
-    async (account: DiscoverAccount) => {
-      const searchArgs = { q: activeSearchTerm };
-      try {
-        if (account.isFollowing) {
-          await unfollowUser({ userId: account.id, searchArgs }).unwrap();
-        } else {
-          await followUser({ userId: account.id, searchArgs }).unwrap();
-        }
-      } catch {
-        // Automatic rollback handled in mutation lifecycle
-      }
-    },
+  const handleToggleFollow = useMemo(
+    () =>
+      throttle(
+        async (account: DiscoverAccount) => {
+          const searchArgs = { q: activeSearchTerm };
+          try {
+            if (account.isFollowing) {
+              await unfollowUser({ userId: account.id, searchArgs }).unwrap();
+            } else {
+              await followUser({ userId: account.id, searchArgs }).unwrap();
+            }
+          } catch {
+            // Automatic rollback handled in mutation lifecycle
+          }
+        },
+        600,
+        (account) => account.id
+      ),
     [activeSearchTerm, followUser, unfollowUser]
   );
 

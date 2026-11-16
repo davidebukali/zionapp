@@ -25,6 +25,11 @@ const mockPosts = [
   { id: "p2", title: "Daily Devotional", author: "Pastor Mensah", content: "Word of the day" },
 ];
 
+const mockFollowUserUnwrap = jest.fn().mockResolvedValue({});
+const mockFollowUser = jest.fn(() => ({ unwrap: mockFollowUserUnwrap }));
+const mockUnfollowUserUnwrap = jest.fn().mockResolvedValue({});
+const mockUnfollowUser = jest.fn(() => ({ unwrap: mockUnfollowUserUnwrap }));
+
 jest.mock("../features/users/api", () => ({
   useSearchUsersQuery: () => ({
     data: mockAccounts,
@@ -32,8 +37,8 @@ jest.mock("../features/users/api", () => ({
     isFetching: false,
     refetch: jest.fn(),
   }),
-  useFollowUserMutation: () => [jest.fn()],
-  useUnfollowUserMutation: () => [jest.fn()],
+  useFollowUserMutation: () => [mockFollowUser],
+  useUnfollowUserMutation: () => [mockUnfollowUser],
 }));
 
 jest.mock("../features/posts/api", () => ({
@@ -140,5 +145,34 @@ describe("hooks/useDiscover", () => {
 
     expect(hookResult.posts).toHaveLength(1);
     expect(hookResult.posts[0].author).toBe("Grace Church");
+  });
+
+  it("throttles rapid consecutive follow taps on the same account", async () => {
+    mockFollowUser.mockClear();
+
+    act(() => {
+      ReactTestRenderer.create(<TestHookConsumer />);
+    });
+
+    const account = mockAccounts[0];
+
+    // First tap executes
+    act(() => {
+      hookResult.handleToggleFollow(account);
+    });
+    expect(mockFollowUser).toHaveBeenCalledTimes(1);
+
+    // Rapid second tap on the same account within 600ms is suppressed
+    act(() => {
+      hookResult.handleToggleFollow(account);
+    });
+    expect(mockFollowUser).toHaveBeenCalledTimes(1);
+
+    // Tapping another account is not blocked
+    const otherAccount = mockAccounts[1];
+    act(() => {
+      hookResult.handleToggleFollow(otherAccount);
+    });
+    expect(mockFollowUser).toHaveBeenCalledTimes(2);
   });
 });
