@@ -1,16 +1,31 @@
+let cachedCrashlyticsInstance: any = null;
+
 function getCrashlytics() {
+  if (cachedCrashlyticsInstance) {
+    return cachedCrashlyticsInstance;
+  }
   try {
     // Dynamically require to avoid crashing in Jest / test environments
     // where native RNFBAppModule is not linked.
     const rawModule = require('@react-native-firebase/crashlytics');
     const crashlytics = rawModule.default || rawModule;
-    return typeof crashlytics === 'function' ? crashlytics() : null;
+    cachedCrashlyticsInstance =
+      typeof crashlytics === 'function' ? crashlytics() : null;
+    return cachedCrashlyticsInstance;
   } catch {
     return null;
   }
 }
 
 export const CrashlyticsService = {
+  /**
+   * Eagerly initialize Crashlytics at app startup so global uncaught JS error
+   * and unhandled promise rejection handlers are registered immediately.
+   */
+  init: (): void => {
+    getCrashlytics();
+  },
+
   /**
    * Associate future crash reports and logs with the specific tester ID
    */
@@ -80,6 +95,20 @@ export const CrashlyticsService = {
         const resolvedError =
           error instanceof Error ? error : new Error(String(error));
         crashlytics.recordError(resolvedError, jsErrorName);
+      }
+    } catch {
+      // Safe fallback
+    }
+  },
+
+  /**
+   * Force a native crash (useful for testing Crashlytics integration)
+   */
+  crash: (): void => {
+    try {
+      const crashlytics = getCrashlytics();
+      if (crashlytics) {
+        crashlytics.crash();
       }
     } catch {
       // Safe fallback

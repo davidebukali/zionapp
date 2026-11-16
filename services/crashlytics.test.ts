@@ -4,6 +4,7 @@ const mockSetUserId = jest.fn().mockResolvedValue(undefined);
 const mockSetAttribute = jest.fn().mockResolvedValue(undefined);
 const mockLog = jest.fn();
 const mockRecordError = jest.fn();
+const mockCrash = jest.fn();
 
 jest.mock('@react-native-firebase/crashlytics', () => {
   const mockFn = jest.fn(() => ({
@@ -11,6 +12,7 @@ jest.mock('@react-native-firebase/crashlytics', () => {
     setAttribute: mockSetAttribute,
     log: mockLog,
     recordError: mockRecordError,
+    crash: mockCrash,
   }));
   return {
     __esModule: true,
@@ -96,6 +98,26 @@ describe('CrashlyticsService', () => {
         throw new Error('Record error');
       });
       expect(() => CrashlyticsService.recordError(new Error('Fail'))).not.toThrow();
+    });
+  });
+
+  describe('init', () => {
+    it('initializes crashlytics module without throwing', () => {
+      expect(() => CrashlyticsService.init()).not.toThrow();
+    });
+  });
+
+  describe('crash', () => {
+    it('calls native crash function', () => {
+      CrashlyticsService.crash();
+      expect(mockCrash).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles crash invocation failure gracefully without throwing', () => {
+      mockCrash.mockImplementationOnce(() => {
+        throw new Error('Crash trigger error');
+      });
+      expect(() => CrashlyticsService.crash()).not.toThrow();
     });
   });
 });

@@ -15,6 +15,10 @@ import { restoreSession } from "../features/auth/authSlice";
 import { GlobalOfflineBanner } from "../components/Common/GlobalOfflineBanner";
 import { useRestoreAppearance } from "../hooks/useAppearance";
 import { configureForegroundNotificationHandler } from "../services/pushNotifications";
+import { CrashlyticsService } from "../services/crashlytics";
+
+// Initialize Crashlytics global error and promise rejection handlers
+CrashlyticsService.init();
 
 // Initialize foreground push notification presentation
 configureForegroundNotificationHandler();
