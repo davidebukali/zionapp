@@ -5,12 +5,12 @@ import {
   TextInputSelectionChangeEventData,
 } from "react-native";
 import { useSelector } from "react-redux";
-import * as ImagePicker from "expo-image-picker";
 import { EmojiType } from "rn-emoji-keyboard";
 
 import { RootState } from "../store/store";
 import { MAX_CHARACTERS, MAX_MEDIA } from "../constants";
 import { MediaItem } from "../utils/mediaUploader";
+import { pickImageFromLibrary } from "../utils/mediaPicker";
 import { getUserInitials, getUserAvatarUrl } from "../utils/user";
 import { TaggableUser } from "../features/users/types";
 import {
@@ -113,37 +113,36 @@ export function useComposerCore() {
     [content, cursorPosition, hadTypedAtSymbol, taggedUserIds]
   );
 
-  // Media picking
+  // Crop modal state
+  const [isCropModalVisible, setIsCropModalVisible] = useState(false);
+  const [cropTargetIndex, setCropTargetIndex] = useState<number | null>(null);
+
+  // Media picking using centralized utility
   const pickMedia = useCallback(async () => {
     if (mediaItems.length >= MAX_MEDIA) {
       Alert.alert("Limit Reached", `You can attach up to ${MAX_MEDIA} images.`);
       return;
     }
 
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(
-        "Permission Denied",
-        "Photo library access is needed to add photos to your post."
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
+    const assets = await pickImageFromLibrary({
+      allowsEditing: false,
       allowsMultipleSelection: true,
       selectionLimit: MAX_MEDIA - mediaItems.length,
       quality: 0.8,
+      permissionRationale:
+        "Photo library access is needed to add photos to your post.",
     });
 
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      const newItems: MediaItem[] = result.assets.map((asset) => ({
+    if (assets && assets.length > 0) {
+      const newItems: MediaItem[] = assets.map((asset) => ({
         uri: asset.uri,
         filename: asset.fileName || undefined,
         mimeType: asset.mimeType || undefined,
         fileSize: asset.fileSize || undefined,
       }));
-      setMediaItems((prev) => [...prev, ...newItems].slice(0, MAX_MEDIA));
+      setMediaItems((previousItems) =>
+        [...previousItems, ...newItems].slice(0, MAX_MEDIA)
+      );
     }
   }, [mediaItems.length]);
 
@@ -151,9 +150,48 @@ export function useComposerCore() {
     setMediaItems([]);
   }, []);
 
+  const updateMediaItem = useCallback(
+    (targetIndex: number, updatedItem: MediaItem) => {
+      setMediaItems((previousItems) =>
+        previousItems.map((item, itemIndex) =>
+          itemIndex === targetIndex ? updatedItem : item
+        )
+      );
+    },
+    []
+  );
+
+  const openCropper = useCallback((targetIndex: number) => {
+    setCropTargetIndex(targetIndex);
+    setIsCropModalVisible(true);
+  }, []);
+
+  const closeCropper = useCallback(() => {
+    setIsCropModalVisible(false);
+    setCropTargetIndex(null);
+  }, []);
+
+  const handleApplyCrop = useCallback(
+    (croppedResult: { uri: string; width: number; height: number }) => {
+      if (cropTargetIndex !== null && cropTargetIndex < mediaItems.length) {
+        const existingItem = mediaItems[cropTargetIndex];
+        const updatedItem: MediaItem = {
+          ...existingItem,
+          uri: croppedResult.uri,
+          fileSize: undefined,
+        };
+        updateMediaItem(cropTargetIndex, updatedItem);
+      }
+      closeCropper();
+    },
+    [cropTargetIndex, mediaItems, updateMediaItem, closeCropper]
+  );
+
   const deleteReviewItem = useCallback(() => {
-    setMediaItems((prev) => {
-      const updated = prev.filter((_, idx) => idx !== reviewIndex);
+    setMediaItems((previousItems) => {
+      const updated = previousItems.filter(
+        (_, itemIndex) => itemIndex !== reviewIndex
+      );
       if (updated.length === 0) {
         setIsReviewModalVisible(false);
         setReviewIndex(0);
@@ -170,7 +208,9 @@ export function useComposerCore() {
   }, []);
 
   const handleEmojiSelected = useCallback((emojiObject: EmojiType) => {
-    setContent((prev) => (prev + emojiObject.emoji).slice(0, MAX_CHARACTERS));
+    setContent((previousContent) =>
+      (previousContent + emojiObject.emoji).slice(0, MAX_CHARACTERS)
+    );
   }, []);
 
   const remainingChars = MAX_CHARACTERS - content.length;
@@ -189,6 +229,12 @@ export function useComposerCore() {
     reviewIndex,
     setReviewIndex,
     openReviewModal,
+    isCropModalVisible,
+    cropTargetIndex,
+    openCropper,
+    closeCropper,
+    handleApplyCrop,
+    updateMediaItem,
     isEmojiPickerOpen,
     setIsEmojiPickerOpen,
     isMentionSheetVisible,

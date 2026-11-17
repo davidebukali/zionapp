@@ -14,7 +14,7 @@ import { useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { globalStyles } from "../../../assets/styles/theme";
-import { MediaItem } from "../../../hooks/useCreatePostComposer";
+import { MediaItem } from "../../../utils/mediaUploader";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -25,6 +25,7 @@ interface MediaReviewModalProps {
   onIndexChange: (index: number) => void;
   onClose: () => void;
   onDeleteItem: () => void;
+  onCropItem?: (currentIndex: number) => void;
 }
 
 export function MediaReviewModal({
@@ -34,6 +35,7 @@ export function MediaReviewModal({
   onIndexChange,
   onClose,
   onDeleteItem,
+  onCropItem,
 }: MediaReviewModalProps) {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -75,6 +77,16 @@ export function MediaReviewModal({
           </Text>
 
           <View style={[globalStyles.postActionGroup, { gap: 14 }]}>
+            {onCropItem && items.length > 0 && (
+              <TouchableOpacity
+                onPress={() => onCropItem(currentIndex)}
+                style={globalStyles.postIconButton}
+                accessibilityLabel="Crop item"
+              >
+                <Ionicons name="crop-outline" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               onPress={onDeleteItem}
               style={globalStyles.postIconButton}

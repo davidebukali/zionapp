@@ -17,6 +17,7 @@ import { PostHeader } from "../../components/Posts/Composer/PostHeader";
 import { PostVisibilityDropdown } from "../../components/Posts/Composer/PostVisibilityDropdown";
 import { MediaCollage } from "../../components/Common/MediaCollage";
 import { MediaReviewModal } from "../../components/Posts/Composer/MediaReviewModal";
+import { ImageEditor } from "expo-dynamic-image-crop";
 import { PostToolbar } from "../../components/Posts/Composer/PostToolbar";
 import { FollowedUsersBottomSheet } from "../../components/Users";
 
@@ -39,6 +40,11 @@ export default function NewPostScreen() {
     reviewIndex,
     setReviewIndex,
     openReviewModal,
+    isCropModalVisible,
+    cropTargetIndex,
+    openCropper,
+    closeCropper,
+    handleApplyCrop,
     isEmojiPickerOpen,
     setIsEmojiPickerOpen,
     handleEmojiSelected,
@@ -157,6 +163,19 @@ export default function NewPostScreen() {
         onIndexChange={setReviewIndex}
         onClose={() => setIsReviewModalVisible(false)}
         onDeleteItem={deleteReviewItem}
+        onCropItem={openCropper}
+      />
+
+      {/* Dynamic Image Cropper */}
+      <ImageEditor
+        isVisible={isCropModalVisible}
+        imageUri={
+          cropTargetIndex !== null && cropTargetIndex < mediaItems.length
+            ? mediaItems[cropTargetIndex].uri
+            : null
+        }
+        onEditingComplete={handleApplyCrop}
+        onEditingCancel={closeCropper}
       />
 
       {/* Taggable Users Bottom Sheet */}
