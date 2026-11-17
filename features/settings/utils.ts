@@ -127,19 +127,11 @@ export async function openSupportEmailComposer(
 ): Promise<void> {
   const mailtoUrl = `mailto:${recipientEmailAddress}`;
   try {
-    const canOpenUrl = await Linking.canOpenURL(mailtoUrl);
-    if (canOpenUrl) {
-      await Linking.openURL(mailtoUrl);
-    } else {
-      Alert.alert(
-        "Unable to Open Email",
-        `No email application was found on this device. Please reach out to us at ${recipientEmailAddress}.`
-      );
-    }
+    await Linking.openURL(mailtoUrl);
   } catch {
     Alert.alert(
       "Unable to Open Email",
-      `Please contact support directly at ${recipientEmailAddress}.`
+      `No email application was found on this device. Please reach out to us at ${recipientEmailAddress}.`
     );
   }
 }

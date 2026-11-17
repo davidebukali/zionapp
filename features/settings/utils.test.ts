@@ -156,39 +156,33 @@ describe("features/settings/utils", () => {
       jest.restoreAllMocks();
     });
 
-    it("opens email app when mailto URL can be handled", async () => {
-      jest.spyOn(Linking, "canOpenURL").mockResolvedValueOnce(true);
+    it("opens email app directly with the support mailto URL", async () => {
       jest.spyOn(Linking, "openURL").mockResolvedValueOnce(undefined as any);
 
       await openSupportEmailComposer();
 
-      expect(Linking.canOpenURL).toHaveBeenCalledWith(
-        `mailto:${SUPPORT_EMAIL_ADDRESS}`
-      );
       expect(Linking.openURL).toHaveBeenCalledWith(
         `mailto:${SUPPORT_EMAIL_ADDRESS}`
       );
       expect(Alert.alert).not.toHaveBeenCalled();
     });
 
-    it("displays an alert when device cannot handle mailto URL", async () => {
-      jest.spyOn(Linking, "canOpenURL").mockResolvedValueOnce(false);
+    it("opens email app with custom recipient email address when provided", async () => {
+      const customRecipientEmail = "dev@example.com";
       jest.spyOn(Linking, "openURL").mockResolvedValueOnce(undefined as any);
 
-      await openSupportEmailComposer();
+      await openSupportEmailComposer(customRecipientEmail);
 
-      expect(Linking.canOpenURL).toHaveBeenCalledWith(
-        `mailto:${SUPPORT_EMAIL_ADDRESS}`
+      expect(Linking.openURL).toHaveBeenCalledWith(
+        `mailto:${customRecipientEmail}`
       );
-      expect(Linking.openURL).not.toHaveBeenCalled();
-      expect(Alert.alert).toHaveBeenCalledWith(
-        "Unable to Open Email",
-        expect.stringContaining(SUPPORT_EMAIL_ADDRESS)
-      );
+      expect(Alert.alert).not.toHaveBeenCalled();
     });
 
-    it("displays an alert when an error is thrown", async () => {
-      jest.spyOn(Linking, "canOpenURL").mockRejectedValueOnce(new Error("Fail"));
+    it("displays an alert when openURL rejects because no email app is available", async () => {
+      jest
+        .spyOn(Linking, "openURL")
+        .mockRejectedValueOnce(new Error("No activity found to handle intent"));
 
       await openSupportEmailComposer();
 

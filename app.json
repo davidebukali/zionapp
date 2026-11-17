@@ -55,7 +55,8 @@
             "targetSdkVersion": 36
           }
         }
-      ]
+      ],
+      "./plugins/withMailtoQuery.js"
     ],
     "experiments": {
       "typedRoutes": true
