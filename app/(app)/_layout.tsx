@@ -62,13 +62,6 @@ export default function AppGroupLayout() {
           headerShown: false,
         }}
       />
-      <Stack.Screen
-        name="feedback"
-        options={{
-          presentation: "card",
-          headerShown: false,
-        }}
-      />
     </Stack>
   );
 }

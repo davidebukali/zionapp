@@ -4,6 +4,7 @@ import { User, UserProfile } from "../auth/types";
 import { BackendProfile } from "../users/types";
 import { DeviceNotificationPreferences } from "../notifications/types";
 import { getUserAvatarUrl } from "../../utils/user";
+import { buildFeedbackFormUrl } from "../../utils/feedback";
 import {
   FormattedSettingsUser,
   IndividualNotificationPreferences,
@@ -135,3 +136,14 @@ export async function openSupportEmailComposer(
     );
   }
 }
+
+/**
+ * Assembles prefilled diagnostic data and opens the feedback form in the in-app browser.
+ */
+export async function openFeedbackForm(
+  currentUser?: User | null
+): Promise<void> {
+  const feedbackUrl = buildFeedbackFormUrl(currentUser);
+  await openWebBrowserUrl(feedbackUrl);
+}
+

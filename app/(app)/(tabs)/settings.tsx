@@ -26,6 +26,7 @@ import {
   updateUserProfileState,
   openSupportEmailComposer,
   openWebBrowserUrl,
+  openFeedbackForm,
   TERMS_OF_SERVICE_URL,
   PRIVACY_POLICY_URL,
   COMMUNITY_GUIDELINES
@@ -321,7 +322,7 @@ export default function Settings() {
           <SettingsNavItem
             icon="bulb-outline"
             title="Feedback"
-            onPress={() => router.push("/feedback" as any)}
+            onPress={() => openFeedbackForm(activeUser)}
           />
           <SettingsNavItem
             icon="people-outline"

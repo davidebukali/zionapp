@@ -7,6 +7,7 @@ import {
   updateUserProfileState,
   openSupportEmailComposer,
   openWebBrowserUrl,
+  openFeedbackForm,
   SUPPORT_EMAIL_ADDRESS,
   TERMS_OF_SERVICE_URL,
   PRIVACY_POLICY_URL,
@@ -244,4 +245,36 @@ describe("features/settings/utils", () => {
       );
     });
   });
+
+  describe("openFeedbackForm", () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("constructs prefilled feedback URL and opens in-app browser", async () => {
+      (WebBrowser.openBrowserAsync as jest.Mock).mockResolvedValueOnce({
+        type: "dismiss",
+      });
+
+      const mockUser: User = {
+        id: "user-1",
+        name: "Test User",
+        email: "test@example.com",
+        profile: { username: "tester123" },
+      };
+
+      await openFeedbackForm(mockUser);
+
+      expect(WebBrowser.openBrowserAsync).toHaveBeenCalledTimes(1);
+      const calledUrl = (WebBrowser.openBrowserAsync as jest.Mock).mock.calls[0][0];
+      expect(calledUrl).toContain("usp=pp_url");
+      expect(calledUrl).toContain("entry.1086525665=tester123");
+    });
+  });
 });
+
