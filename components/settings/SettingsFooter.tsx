@@ -18,7 +18,6 @@ export function SettingsFooter({
 
   const appName =
     propAppName ||
-    Application.applicationName ||
     Constants.expoConfig?.name ||
     "Tsiyon";
 
