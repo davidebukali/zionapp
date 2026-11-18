@@ -63,16 +63,14 @@ export const usersApi = baseApi.injectEndpoints({
       ): DiscoverAccount[] => {
         const rawUsers: BackendUser[] = Array.isArray(response)
           ? response
-          : response?.data || [];
-        return rawUsers.map((u) => normalizeDiscoverAccount(u));
+          : Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response?.data?.users)
+          ? response.data.users
+          : [];
+        return rawUsers.map((rawUser) => normalizeDiscoverAccount(rawUser));
       },
-      providesTags: (result) =>
-        result
-          ? [
-              ...result.map(({ id }) => ({ type: "User" as const, id })),
-              { type: "User", id: "LIST" },
-            ]
-          : [{ type: "User", id: "LIST" }],
+      providesTags: [{ type: "User", id: "LIST" }],
     }),
 
     followUser: builder.mutation<
@@ -83,7 +81,13 @@ export const usersApi = baseApi.injectEndpoints({
         url: `/users/${userId}/follow`,
         method: "POST",
       }),
-      async onQueryStarted({ userId, searchArgs }, { dispatch, queryFulfilled }) {
+      async onQueryStarted(
+        { userId, searchArgs },
+        { dispatch, getState, queryFulfilled }
+      ) {
+        const currentUserId = (
+          getState() as { auth?: { user?: { id?: string } } }
+        )?.auth?.user?.id;
         const undoDiscover = updateUserInCaches(
           usersApi,
           dispatch,
@@ -97,7 +101,8 @@ export const usersApi = baseApi.injectEndpoints({
           usersApi,
           dispatch,
           userId,
-          true
+          true,
+          currentUserId ? String(currentUserId) : undefined
         );
 
         try {
@@ -107,11 +112,14 @@ export const usersApi = baseApi.injectEndpoints({
           undoProfile();
         }
       },
-      invalidatesTags: (_result, _error, { userId }) => [
-        { type: "User", id: userId },
-        { type: "User", id: `${userId}_followers` },
-        { type: "Conversation", id: "RECIPIENTS" },
-      ],
+      invalidatesTags: (_result, error, { userId }) =>
+        error
+          ? []
+          : [
+              { type: "User", id: userId },
+              { type: "User", id: `${userId}_followers` },
+              { type: "Conversation", id: "RECIPIENTS" },
+            ],
     }),
 
     unfollowUser: builder.mutation<
@@ -122,7 +130,13 @@ export const usersApi = baseApi.injectEndpoints({
         url: `/users/${userId}/follow`,
         method: "DELETE",
       }),
-      async onQueryStarted({ userId, searchArgs }, { dispatch, queryFulfilled }) {
+      async onQueryStarted(
+        { userId, searchArgs },
+        { dispatch, getState, queryFulfilled }
+      ) {
+        const currentUserId = (
+          getState() as { auth?: { user?: { id?: string } } }
+        )?.auth?.user?.id;
         const undoDiscover = updateUserInCaches(
           usersApi,
           dispatch,
@@ -136,7 +150,8 @@ export const usersApi = baseApi.injectEndpoints({
           usersApi,
           dispatch,
           userId,
-          false
+          false,
+          currentUserId ? String(currentUserId) : undefined
         );
 
         try {
@@ -146,11 +161,14 @@ export const usersApi = baseApi.injectEndpoints({
           undoProfile();
         }
       },
-      invalidatesTags: (_result, _error, { userId }) => [
-        { type: "User", id: userId },
-        { type: "User", id: `${userId}_followers` },
-        { type: "Conversation", id: "RECIPIENTS" },
-      ],
+      invalidatesTags: (_result, error, { userId }) =>
+        error
+          ? []
+          : [
+              { type: "User", id: userId },
+              { type: "User", id: `${userId}_followers` },
+              { type: "Conversation", id: "RECIPIENTS" },
+            ],
     }),
 
     getUserProfile: builder.query<BackendProfile, string>({
@@ -259,6 +277,7 @@ export const usersApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, userId) => [
         { type: "User", id: userId },
+        { type: "User", id: "LIST" },
         { type: "Conversation", id: "LIST" },
         { type: "Conversation", id: "RECIPIENTS" },
       ],
@@ -271,6 +290,7 @@ export const usersApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, userId) => [
         { type: "User", id: userId },
+        { type: "User", id: "LIST" },
         { type: "Conversation", id: "LIST" },
         { type: "Conversation", id: "RECIPIENTS" },
       ],

@@ -170,43 +170,44 @@ export function updateUserInCaches(
 ): () => void {
   const patches: Array<{ undo: () => void }> = [];
 
-  // If specific searchArgs provided, patch it directly
-  if (searchArgs) {
+  // If specific searchArgs provided (and distinct from default '*'), patch it directly
+  if (searchArgs && searchArgs.q !== "*") {
     const patch = dispatch(
       api.util.updateQueryData("searchUsers", searchArgs, (draft: any) => {
         if (!Array.isArray(draft)) return;
-        draft.forEach((acc: DiscoverAccount) => {
-          if (acc.id === userId) updater(acc);
+        draft.forEach((account: DiscoverAccount) => {
+          if (account.id === userId) updater(account);
         });
       })
     );
     patches.push(patch);
   }
 
-  // Also patch the default suggested search cache (q: '*')
+  // Always patch the default suggested search cache (q: '*')
   const patchDefault = dispatch(
     api.util.updateQueryData("searchUsers", { q: "*" }, (draft: any) => {
       if (!Array.isArray(draft)) return;
-      draft.forEach((acc: DiscoverAccount) => {
-        if (acc.id === userId) updater(acc);
+      draft.forEach((account: DiscoverAccount) => {
+        if (account.id === userId) updater(account);
       });
     })
   );
   patches.push(patchDefault);
 
   return () => {
-    patches.forEach((p) => p.undo());
+    [...patches].reverse().forEach((patch) => patch.undo());
   };
 }
 
 /**
- * Optimistically updates user profile follow status and follower counts in RTK Query caches.
+ * Optimistically updates user profile follow status, follower counts, and current user following counts in RTK Query caches.
  */
 export function updateProfileFollowInCaches(
   api: any,
   dispatch: any,
   userId: string,
-  isFollowing: boolean
+  isFollowing: boolean,
+  currentUserId?: string
 ): () => void {
   const patches: Array<{ undo: () => void }> = [];
 
@@ -228,8 +229,23 @@ export function updateProfileFollowInCaches(
   );
   patches.push(patchFollowers);
 
+  if (currentUserId) {
+    const patchFollowing = dispatch(
+      api.util.updateQueryData(
+        "getUserFollowingCount",
+        String(currentUserId),
+        (draft: any) => {
+          if (draft && typeof draft.total === "number") {
+            draft.total = Math.max(0, draft.total + (isFollowing ? 1 : -1));
+          }
+        }
+      )
+    );
+    patches.push(patchFollowing);
+  }
+
   return () => {
-    patches.forEach((p) => p.undo());
+    [...patches].reverse().forEach((patch) => patch.undo());
   };
 }
 

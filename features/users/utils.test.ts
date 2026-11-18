@@ -115,17 +115,52 @@ describe("features/users/utils", () => {
         { q: "user" }
       );
 
-      // Verify dispatch was called
-      expect(mockDispatch).toHaveBeenCalled();
+      // Verify dispatch was called for both custom query and default '*'
+      expect(mockDispatch).toHaveBeenCalledTimes(2);
       expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
         "searchUsers",
         { q: "user" },
         expect.any(Function)
       );
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        "searchUsers",
+        { q: "*" },
+        expect.any(Function)
+      );
 
       // Trigger undo
       undo();
-      expect(undoMock).toHaveBeenCalled();
+      expect(undoMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("only dispatches once when searchArgs is default '*' to prevent duplicate patches", () => {
+      const undoMock = jest.fn();
+      const mockDispatch = jest.fn(() => ({ undo: undoMock }));
+      const mockApi = {
+        util: {
+          updateQueryData: jest.fn(),
+        },
+      };
+
+      const undo = updateUserInCaches(
+        mockApi,
+        mockDispatch,
+        "u-1",
+        (acc) => {
+          acc.isFollowing = true;
+        },
+        { q: "*" }
+      );
+
+      expect(mockDispatch).toHaveBeenCalledTimes(1);
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        "searchUsers",
+        { q: "*" },
+        expect.any(Function)
+      );
+
+      undo();
+      expect(undoMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -237,6 +272,44 @@ describe("features/users/utils", () => {
 
       undo();
       expect(undoMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("dispatches cache update for current user following count when currentUserId is provided", () => {
+      const undoMock = jest.fn();
+      const mockDispatch = jest.fn(() => ({ undo: undoMock }));
+      const mockApi = {
+        util: {
+          updateQueryData: jest.fn(),
+        },
+      };
+
+      const undo = updateProfileFollowInCaches(
+        mockApi,
+        mockDispatch,
+        "user-10",
+        true,
+        "current-user-1"
+      );
+
+      expect(mockDispatch).toHaveBeenCalledTimes(3);
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        "getUserProfile",
+        "user-10",
+        expect.any(Function)
+      );
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        "getUserFollowersCount",
+        "user-10",
+        expect.any(Function)
+      );
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        "getUserFollowingCount",
+        "current-user-1",
+        expect.any(Function)
+      );
+
+      undo();
+      expect(undoMock).toHaveBeenCalledTimes(3);
     });
   });
 
