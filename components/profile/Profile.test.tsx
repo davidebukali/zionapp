@@ -40,6 +40,7 @@ jest.mock("react-native-paper", () => {
 import { ProfileHeader } from "./ProfileHeader";
 import { ProfileInfo } from "./ProfileInfo";
 import { ProfileTabs } from "./ProfileTabs";
+import { ProfileFeed } from "./ProfileFeed";
 import { BlockedProfileNotice } from "./BlockedProfileNotice";
 import { ProfileMoreMenu } from "./ProfileMoreMenu";
 import { ReportUserSheet } from "./ReportUserSheet";
@@ -218,6 +219,130 @@ describe("components/profile", () => {
         likesTab.props.onPress();
       });
       expect(onSelect).toHaveBeenCalledWith("likes");
+    });
+
+    it("renders bookmarks tab when isOwnProfile is true", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ProfileTabs activeTab="posts" onSelectTab={jest.fn()} isOwnProfile={true} />
+        );
+      });
+
+      const root = renderer!.root;
+      const bookmarksTab = root.findByProps({ accessibilityLabel: "Bookmarks tab" });
+      expect(bookmarksTab).toBeDefined();
+    });
+
+    it("omits bookmarks tab when isOwnProfile is false", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ProfileTabs activeTab="posts" onSelectTab={jest.fn()} isOwnProfile={false} />
+        );
+      });
+
+      const root = renderer!.root;
+      const bookmarksTabs = root.findAllByProps({ accessibilityLabel: "Bookmarks tab" });
+      expect(bookmarksTabs).toHaveLength(0);
+    });
+  });
+
+  describe("ProfileFeed", () => {
+    const mockPost = {
+      id: "post-1",
+      title: "Jane Doe",
+      content: "Feed post content",
+      author: "Jane Doe",
+      authorId: "user-1",
+      likes: "10",
+      comments: "2",
+      liked: true,
+      isReposted: false,
+      repostsCount: 1,
+      bookmarked: false,
+      createdAt: "2026-11-20T10:00:00Z",
+      updatedAt: "2026-11-20T10:00:00Z",
+    };
+
+    it("renders post card for likes tab when posts exist", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ProfileFeed
+            activeTab="likes"
+            posts={[mockPost as any]}
+            isPostsLoading={false}
+            currentUserId="user-me"
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Feed post content");
+      expect(json).toContain("Jane Doe");
+    });
+
+    it("renders post card for reposts tab when posts exist", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ProfileFeed
+            activeTab="reposts"
+            posts={[mockPost as any]}
+            isPostsLoading={false}
+            currentUserId="user-me"
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("Feed post content");
+    });
+
+    it("renders empty state for reposts tab when posts array is empty", () => {
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ProfileFeed
+            activeTab="reposts"
+            posts={[]}
+            isPostsLoading={false}
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("No reposts yet");
+    });
+
+    it("renders private account notice with follow button when isPrivateAccount is true", () => {
+      const onFollow = jest.fn();
+      let renderer: ReactTestRenderer.ReactTestRenderer;
+      act(() => {
+        renderer = ReactTestRenderer.create(
+          <ProfileFeed
+            activeTab="posts"
+            posts={[]}
+            isPostsLoading={false}
+            isPrivateAccount={true}
+            onPressFollow={onFollow}
+          />
+        );
+      });
+
+      const json = JSON.stringify(renderer!.toJSON());
+      expect(json).toContain("This account is private");
+      expect(json).toContain("Follow this account to see their posts, likes, and reposts.");
+
+      const root = renderer!.root;
+      const followButton = root.findByProps({ accessibilityLabel: "Follow private account" });
+      expect(followButton).toBeDefined();
+
+      act(() => {
+        followButton.props.onPress();
+      });
+      expect(onFollow).toHaveBeenCalledTimes(1);
     });
   });
 

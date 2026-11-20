@@ -28,6 +28,8 @@ export default function ProfileScreen() {
     setActiveTab,
     posts,
     isPostsLoading,
+    isFetchingMore,
+    isPrivateAccount,
     currentUserId,
     isBlocked,
     isUnblocking,
@@ -37,6 +39,7 @@ export default function ProfileScreen() {
     isReportSheetVisible,
     handleToggleFollow,
     handleRefresh,
+    handleLoadMore,
     handlePressBack,
     handlePressEditProfile,
     handlePressMessage,
@@ -66,7 +69,7 @@ export default function ProfileScreen() {
       <StatusBar translucent backgroundColor="transparent" style="light" />
 
       <FlatList
-        data={!isBlocked && activeTab === "posts" ? posts : []}
+        data={!isBlocked ? posts : []}
         keyExtractor={(item) => String(item.id)}
         renderItem={null}
         ListHeaderComponent={
@@ -92,20 +95,30 @@ export default function ProfileScreen() {
               />
             ) : (
               <>
-                <ProfileTabs activeTab={activeTab} onSelectTab={setActiveTab} />
+                <ProfileTabs
+                  activeTab={activeTab}
+                  onSelectTab={setActiveTab}
+                  isOwnProfile={isOwnProfile}
+                />
                 <ProfileFeed
                   activeTab={activeTab}
                   posts={posts}
                   isPostsLoading={isPostsLoading}
+                  isFetchingMore={isFetchingMore}
+                  isPrivateAccount={isPrivateAccount}
+                  isFollowLoading={isFollowLoading}
                   currentUserId={currentUserId}
                   onLikePost={handleLikePost}
                   onRepostPost={handleRepostPost}
                   onBookmarkPost={handleBookmarkPost}
+                  onPressFollow={handleToggleFollow}
                 />
               </>
             )}
           </>
         }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.4}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}

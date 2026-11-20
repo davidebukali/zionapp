@@ -1,7 +1,11 @@
 import { baseApi } from "../../services/baseApi";
 import { DiscoverAccount } from "../../components/Discover/types";
 import { FeedResult } from "../posts/types";
-import { normalizePost } from "../posts/utils";
+import {
+  normalizePost,
+  normalizeCursorPaginatedPosts,
+  mergeCursorPaginatedPosts,
+} from "../posts/utils";
 import {
   AccountTypeCategoryGroup,
   AccountTypesResponse,
@@ -229,20 +233,15 @@ export const usersApi = baseApi.injectEndpoints({
           per_page: perPage,
         },
       }),
-      transformResponse: (response: any): FeedResult => {
-        const items = response?.data || [];
-        return {
-          posts: items.map((item: any) => {
-            const rawPost = item.post || item;
-            const publishedAt = item.published_at || rawPost.created_at;
-            return normalizePost(rawPost, publishedAt);
-          }),
-          nextCursor:
-            response?.meta?.meta?.next_cursor ??
-            response?.meta?.next_cursor ??
-            null,
-        };
-      },
+      transformResponse: (response: any): FeedResult =>
+        normalizeCursorPaginatedPosts(response),
+      serializeQueryArgs: ({ endpointName, queryArgs }) =>
+        `${endpointName}(${queryArgs.userId})`,
+      merge: (currentCache, newItems, { arg }) =>
+        mergeCursorPaginatedPosts(currentCache, newItems, arg?.cursor),
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.cursor !== previousArg?.cursor ||
+        currentArg?.userId !== previousArg?.userId,
       providesTags: (_result, _error, { userId }) => [
         { type: "Post", id: `USER_${userId}` },
       ],

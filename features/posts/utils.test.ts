@@ -1,5 +1,7 @@
 import {
   normalizePost,
+  normalizeCursorPaginatedPosts,
+  mergeCursorPaginatedPosts,
   mergeUniquePosts,
   updatePostInCaches,
   removePostFromCaches,
@@ -9,8 +11,9 @@ import {
   getNewPostsCount,
   formatNewPostsLabel,
   isNotFoundError,
+  isPrivateAccountError,
 } from './utils';
-import { BackendPost, PostActivity } from './types';
+import { BackendPost, PostActivity, CursorPaginatedPostsResponse } from './types';
 
 describe('features/posts/utils', () => {
   describe('normalizePost', () => {
@@ -86,6 +89,135 @@ describe('features/posts/utils', () => {
       expect(normalized.activityActor).toBe('Bob Reposter');
       expect(normalized.feedItemId).toBe('feed-item-1');
     });
+    it('resolves author avatar URL when author.profile.avatar.url is provided', () => {
+      const raw: BackendPost = {
+        id: 'post-with-avatar',
+        content: 'Post with author avatar',
+        author: {
+          id: 'author-1',
+          name: 'Pastor John',
+          profile: {
+            username: 'pastorjohn',
+            avatar: {
+              id: 'media-avatar',
+              url: 'https://cdn.example.com/avatar.jpg',
+            },
+          } as any,
+        },
+      };
+
+      const normalized = normalizePost(raw);
+      expect(normalized.avatarUrl).toBe('https://cdn.example.com/avatar.jpg');
+    });
+  });
+
+  describe('normalizeCursorPaginatedPosts', () => {
+    it('normalizes paginated response with nested meta.meta.next_cursor', () => {
+      const response: CursorPaginatedPostsResponse = {
+        success: true,
+        data: [
+          {
+            id: 'p-1',
+            content: 'First post',
+            author: { id: 'u1', name: 'User 1' },
+          },
+        ],
+        meta: {
+          meta: {
+            path: 'https://api.example.com/likes',
+            per_page: 15,
+            next_cursor: 'cursor-abc',
+            prev_cursor: null,
+          },
+        },
+      };
+
+      const result = normalizeCursorPaginatedPosts(response);
+      expect(result.posts).toHaveLength(1);
+      expect(result.posts[0].id).toBe('p-1');
+      expect(result.nextCursor).toBe('cursor-abc');
+    });
+
+    it('handles flat meta.next_cursor and missing data gracefully', () => {
+      const response = {
+        data: null,
+        meta: {
+          next_cursor: 'cursor-flat',
+        },
+      };
+
+      const result = normalizeCursorPaginatedPosts(response);
+      expect(result.posts).toEqual([]);
+      expect(result.nextCursor).toBe('cursor-flat');
+    });
+  });
+
+  describe('mergeCursorPaginatedPosts', () => {
+    it('replaces currentCache with newItems when cursor is falsy', () => {
+      const currentCache = {
+        posts: [{ id: 'p-1', title: 'Old' } as any],
+        nextCursor: 'old-cursor',
+      };
+      const newItems = {
+        posts: [{ id: 'p-2', title: 'New' } as any],
+        nextCursor: 'new-cursor',
+      };
+
+      const result = mergeCursorPaginatedPosts(currentCache, newItems, null);
+      expect(result).toEqual(newItems);
+    });
+
+    it('merges new items uniquely and updates nextCursor when cursor is provided', () => {
+      const currentCache = {
+        posts: [{ id: 'p-1', title: 'First' } as any],
+        nextCursor: 'cursor-1',
+      };
+      const newItems = {
+        posts: [
+          { id: 'p-1', title: 'Duplicate First' } as any,
+          { id: 'p-2', title: 'Second' } as any,
+        ],
+        nextCursor: 'cursor-2',
+      };
+
+      mergeCursorPaginatedPosts(currentCache, newItems, 'cursor-1');
+      expect(currentCache.posts).toHaveLength(2);
+      expect(currentCache.posts.map((p) => p.id)).toEqual(['p-1', 'p-2']);
+      expect(currentCache.nextCursor).toBe('cursor-2');
+    });
+  });
+
+  describe('isPrivateAccountError', () => {
+    it('returns true when status is 403 and message mentions private', () => {
+      expect(
+        isPrivateAccountError({
+          status: 403,
+          data: { message: 'This account is private.' },
+        })
+      ).toBe(true);
+      expect(
+        isPrivateAccountError({
+          status: 403,
+          data: { message: 'ACCOUNT_IS_PRIVATE' },
+        })
+      ).toBe(true);
+    });
+
+    it('returns false for 403 with other messages', () => {
+      expect(
+        isPrivateAccountError({
+          status: 403,
+          data: { message: 'You cannot view this user\'s content.' },
+        })
+      ).toBe(false);
+    });
+
+    it('returns false for non-403 statuses or invalid errors', () => {
+      expect(isPrivateAccountError({ status: 404 })).toBe(false);
+      expect(isPrivateAccountError({ status: 401 })).toBe(false);
+      expect(isPrivateAccountError(null)).toBe(false);
+      expect(isPrivateAccountError('error')).toBe(false);
+    });
   });
 
   describe('mergeUniquePosts', () => {
@@ -146,6 +278,46 @@ describe('features/posts/utils', () => {
       expect(undoFeed).toHaveBeenCalledTimes(1);
       expect(undoPosts).toHaveBeenCalledTimes(1);
       expect(undoSingle).toHaveBeenCalledTimes(1);
+    });
+
+    it('scans and updates dynamic profile queries when state is provided', () => {
+      const undoCustom = jest.fn();
+      const mockApi = {
+        reducerPath: 'api',
+        util: {
+          updateQueryData: jest.fn(() => ({ undo: undoCustom })),
+        },
+      };
+
+      const dispatch = jest.fn((action: any) => action);
+      const mockState = {
+        api: {
+          queries: {
+            'getLikedPosts("me")': {
+              endpointName: 'getLikedPosts',
+              originalArgs: undefined,
+            },
+            'getRepostedPosts({"userId":"u1"})': {
+              endpointName: 'getRepostedPosts',
+              originalArgs: { userId: 'u1' },
+            },
+          },
+        },
+      };
+
+      const undo = updatePostInCaches(mockApi, dispatch, 'post-1', jest.fn(), mockState);
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        'getLikedPosts',
+        undefined,
+        expect.any(Function)
+      );
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        'getRepostedPosts',
+        { userId: 'u1' },
+        expect.any(Function)
+      );
+      undo();
+      expect(undoCustom).toHaveBeenCalled();
     });
   });
 

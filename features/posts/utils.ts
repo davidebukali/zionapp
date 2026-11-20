@@ -1,4 +1,5 @@
-import { Post, BackendPost, PostActivity } from './types';
+import { Post, BackendPost, PostActivity, CursorPaginatedPostsResponse, FeedResult } from './types';
+import { getUserAvatarUrl } from '../../utils/user';
 
 /**
  * Normalizes a raw Laravel Post model and optional activity metadata
@@ -12,6 +13,7 @@ export function normalizePost(
 ): Post {
   const authorName = raw.user?.name || raw.author?.name || 'Zion Member';
   const authorId = raw.user?.id ?? raw.author?.id;
+  const avatarUrl = getUserAvatarUrl(raw.user || raw.author);
   const firstMedia = raw.media && raw.media.length > 0 ? raw.media[0] : undefined;
   const imageUrl = firstMedia?.url;
   const mediaWidth = firstMedia?.width;
@@ -31,7 +33,7 @@ export function normalizePost(
     content: raw.content || '',
     author: authorName,
     authorId,
-    avatarUrl: undefined,
+    avatarUrl,
     imageUrl,
     mediaWidth,
     mediaHeight,
@@ -54,6 +56,64 @@ export function normalizePost(
 }
 
 /**
+ * Normalizes a cursor-paginated posts API response envelope into FeedResult.
+ */
+export function normalizeCursorPaginatedPosts(
+  response: CursorPaginatedPostsResponse | any
+): FeedResult {
+  const items = Array.isArray(response?.data) ? response.data : [];
+  return {
+    posts: items.map((item: any) => {
+      const rawPost = item.post || item;
+      const publishedAt = item.published_at || rawPost.created_at;
+      return normalizePost(rawPost, publishedAt);
+    }),
+    nextCursor:
+      response?.meta?.meta?.next_cursor ??
+      response?.meta?.next_cursor ??
+      null,
+  };
+}
+
+/**
+ * Merges cursor-paginated posts into an existing cache.
+ * When cursor is null or undefined, replaces cache (initial load or refresh).
+ * When cursor is present, appends unique posts.
+ */
+export function mergeCursorPaginatedPosts(
+  currentCache: FeedResult,
+  newItems: FeedResult,
+  cursor?: string | null
+): FeedResult | void {
+  if (!cursor) {
+    return newItems;
+  }
+  currentCache.posts = mergeUniquePosts(
+    currentCache.posts,
+    newItems.posts,
+    (post) => post.id
+  );
+  currentCache.nextCursor = newItems.nextCursor;
+}
+
+/**
+ * Detects whether an API or RTK Query error is a 403 Forbidden private account error.
+ */
+export function isPrivateAccountError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('status' in error)) {
+    return false;
+  }
+  const status = (error as { status?: unknown }).status;
+  if (status !== 403) {
+    return false;
+  }
+  const message = String(
+    (error as { data?: { message?: string } })?.data?.message || ''
+  ).toLowerCase();
+  return message.includes('private');
+}
+
+/**
  * Optimistically updates a post across all active RTK Query caches.
  * Uses Dependency Injection for the api slice to avoid circular dependencies.
  *
@@ -63,8 +123,11 @@ export function updatePostInCaches(
   api: any,
   dispatch: any,
   postId: string,
-  updater: (post: Post) => void
+  updater: (post: Post) => void,
+  state?: unknown
 ): () => void {
+  const undos: Array<() => void> = [];
+
   // 1. Patch personalized feed cache (may contain multiple items for same post)
   const patchFeed = dispatch(
     api.util.updateQueryData('getFeed', undefined as any, (draft: any) => {
@@ -73,6 +136,7 @@ export function updatePostInCaches(
       });
     })
   );
+  if (patchFeed?.undo) undos.push(patchFeed.undo);
 
   // 2. Patch public posts cache (used as fallback when feed is empty)
   const patchPosts = dispatch(
@@ -83,6 +147,7 @@ export function updatePostInCaches(
       });
     })
   );
+  if (patchPosts?.undo) undos.push(patchPosts.undo);
 
   // 3. Patch single post detail cache (if currently open)
   const patchSingle = dispatch(
@@ -90,11 +155,43 @@ export function updatePostInCaches(
       if (draft) updater(draft);
     })
   );
+  if (patchSingle?.undo) undos.push(patchSingle.undo);
+
+  // 4. Scan active dynamic user-scoped and profile queries if state provided
+  if (state && typeof state === 'object') {
+    const reducerPath = api?.reducerPath || 'api';
+    const apiState = (state as Record<string, any>)?.[reducerPath];
+    const queries = apiState?.queries;
+    if (queries && typeof queries === 'object') {
+      const handledKeys = new Set<string>();
+      Object.keys(queries).forEach((queryKey) => {
+        const queryEntry = queries[queryKey];
+        const endpointName = queryEntry?.endpointName;
+        if (
+          endpointName &&
+          ['getLikedPosts', 'getRepostedPosts', 'getBookmarkedPosts', 'getUserPosts'].includes(endpointName)
+        ) {
+          const serializedKey = `${endpointName}:${JSON.stringify(queryEntry.originalArgs ?? null)}`;
+          if (!handledKeys.has(serializedKey)) {
+            handledKeys.add(serializedKey);
+            const patch = dispatch(
+              api.util.updateQueryData(endpointName, queryEntry.originalArgs, (draft: any) => {
+                if (draft?.posts && Array.isArray(draft.posts)) {
+                  draft.posts.forEach((p: Post) => {
+                    if (p.id === postId) updater(p);
+                  });
+                }
+              })
+            );
+            if (patch?.undo) undos.push(patch.undo);
+          }
+        }
+      });
+    }
+  }
 
   return () => {
-    patchFeed.undo();
-    patchPosts.undo();
-    patchSingle.undo();
+    [...undos].reverse().forEach((undo) => undo());
   };
 }
 
@@ -112,14 +209,17 @@ export function mergeUniquePosts<T>(
 }
 
 /**
- * Optimistically removes a post from active RTK Query caches (getFeed, getPosts).
+ * Optimistically removes a post from active RTK Query caches (getFeed, getPosts, and active profile feeds).
  * Returns an undo function that restores previous cache states if deletion fails.
  */
 export function removePostFromCaches(
   api: any,
   dispatch: any,
-  postId: string
+  postId: string,
+  state?: unknown
 ): () => void {
+  const undos: Array<() => void> = [];
+
   const patchFeed = dispatch(
     api.util.updateQueryData('getFeed', undefined as any, (draft: any) => {
       if (draft?.posts) {
@@ -127,6 +227,7 @@ export function removePostFromCaches(
       }
     })
   );
+  if (patchFeed?.undo) undos.push(patchFeed.undo);
 
   const patchPosts = dispatch(
     api.util.updateQueryData('getPosts', undefined as any, (draft: any) => {
@@ -135,10 +236,40 @@ export function removePostFromCaches(
       }
     })
   );
+  if (patchPosts?.undo) undos.push(patchPosts.undo);
+
+  if (state && typeof state === 'object') {
+    const reducerPath = api?.reducerPath || 'api';
+    const apiState = (state as Record<string, any>)?.[reducerPath];
+    const queries = apiState?.queries;
+    if (queries && typeof queries === 'object') {
+      const handledKeys = new Set<string>();
+      Object.keys(queries).forEach((queryKey) => {
+        const queryEntry = queries[queryKey];
+        const endpointName = queryEntry?.endpointName;
+        if (
+          endpointName &&
+          ['getLikedPosts', 'getRepostedPosts', 'getBookmarkedPosts', 'getUserPosts'].includes(endpointName)
+        ) {
+          const serializedKey = `${endpointName}:${JSON.stringify(queryEntry.originalArgs ?? null)}`;
+          if (!handledKeys.has(serializedKey)) {
+            handledKeys.add(serializedKey);
+            const patch = dispatch(
+              api.util.updateQueryData(endpointName, queryEntry.originalArgs, (draft: any) => {
+                if (draft?.posts && Array.isArray(draft.posts)) {
+                  draft.posts = draft.posts.filter((p: Post) => p.id !== postId);
+                }
+              })
+            );
+            if (patch?.undo) undos.push(patch.undo);
+          }
+        }
+      });
+    }
+  }
 
   return () => {
-    patchFeed.undo();
-    patchPosts.undo();
+    [...undos].reverse().forEach((undo) => undo());
   };
 }
 

@@ -19,9 +19,14 @@ import {
   ReportPostResponse,
   SearchPostsParams,
   SearchPostsResult,
+  CursorPaginatedPostsParams,
+  UserScopedCursorPostsParams,
+  CursorPaginatedPostsResponse,
 } from './types';
 import {
   normalizePost,
+  normalizeCursorPaginatedPosts,
+  mergeCursorPaginatedPosts,
   updatePostInCaches,
   removePostFromCaches,
   mergeUniquePosts,
@@ -139,6 +144,84 @@ export const postsApi = baseApi.injectEndpoints({
       providesTags: (_result, _error, postId) => [{ type: 'Post', id: postId }],
     }),
 
+    /**
+     * Fetch posts liked by user (target user if userId provided, authenticated user otherwise).
+     */
+    getLikedPosts: builder.query<FeedResult, UserScopedCursorPostsParams | void>({
+      query: (arg) => ({
+        url: '/likes',
+        params: {
+          ...(arg?.userId ? { user_id: arg.userId } : {}),
+          per_page: arg?.perPage ?? 15,
+          ...(arg?.cursor ? { cursor: arg.cursor } : {}),
+        },
+      }),
+      transformResponse: (response: CursorPaginatedPostsResponse) =>
+        normalizeCursorPaginatedPosts(response),
+      serializeQueryArgs: ({ endpointName, queryArgs }) =>
+        `${endpointName}(${queryArgs?.userId || 'me'})`,
+      merge: (currentCache, newItems, { arg }) =>
+        mergeCursorPaginatedPosts(currentCache, newItems, arg?.cursor),
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.cursor !== previousArg?.cursor ||
+        currentArg?.userId !== previousArg?.userId,
+      providesTags: (result, _error, arg) => [
+        ...(result?.posts.map(({ id }) => ({ type: 'Post' as const, id })) ?? []),
+        { type: 'Post', id: `LIKES_${arg?.userId || 'me'}` },
+      ],
+    }),
+
+    /**
+     * Fetch posts reposted by user (target user if userId provided, authenticated user otherwise).
+     */
+    getRepostedPosts: builder.query<FeedResult, UserScopedCursorPostsParams | void>({
+      query: (arg) => ({
+        url: '/reposts',
+        params: {
+          ...(arg?.userId ? { user_id: arg.userId } : {}),
+          per_page: arg?.perPage ?? 15,
+          ...(arg?.cursor ? { cursor: arg.cursor } : {}),
+        },
+      }),
+      transformResponse: (response: CursorPaginatedPostsResponse) =>
+        normalizeCursorPaginatedPosts(response),
+      serializeQueryArgs: ({ endpointName, queryArgs }) =>
+        `${endpointName}(${queryArgs?.userId || 'me'})`,
+      merge: (currentCache, newItems, { arg }) =>
+        mergeCursorPaginatedPosts(currentCache, newItems, arg?.cursor),
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.cursor !== previousArg?.cursor ||
+        currentArg?.userId !== previousArg?.userId,
+      providesTags: (result, _error, arg) => [
+        ...(result?.posts.map(({ id }) => ({ type: 'Post' as const, id })) ?? []),
+        { type: 'Post', id: `REPOSTS_${arg?.userId || 'me'}` },
+      ],
+    }),
+
+    /**
+     * Fetch bookmarked posts for authenticated user.
+     */
+    getBookmarkedPosts: builder.query<FeedResult, CursorPaginatedPostsParams | void>({
+      query: (arg) => ({
+        url: '/bookmarks',
+        params: {
+          per_page: arg?.perPage ?? 15,
+          ...(arg?.cursor ? { cursor: arg.cursor } : {}),
+        },
+      }),
+      transformResponse: (response: CursorPaginatedPostsResponse) =>
+        normalizeCursorPaginatedPosts(response),
+      serializeQueryArgs: ({ endpointName }) => endpointName,
+      merge: (currentCache, newItems, { arg }) =>
+        mergeCursorPaginatedPosts(currentCache, newItems, arg?.cursor),
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.cursor !== previousArg?.cursor,
+      providesTags: (result) => [
+        ...(result?.posts.map(({ id }) => ({ type: 'Post' as const, id })) ?? []),
+        { type: 'Post', id: 'BOOKMARKS_me' },
+      ],
+    }),
+
     // ------------------------------------------------------------------------
     // Micro-Interactions (Optimistic Updates, No Tag Invalidation)
     // ------------------------------------------------------------------------
@@ -154,15 +237,21 @@ export const postsApi = baseApi.injectEndpoints({
         url: `/posts/${postId}/like`,
         method: liked ? 'DELETE' : 'POST',
       }),
-      async onQueryStarted({ postId, liked }, { dispatch, queryFulfilled }) {
+      async onQueryStarted({ postId, liked }, { dispatch, getState, queryFulfilled }) {
         const nextLiked = !liked;
 
         // Optimistically flip liked boolean and adjust like counter
-        const undo = updatePostInCaches(postsApi, dispatch, postId, (post) => {
-          post.liked = nextLiked;
-          const current = parseInt(post.likes || '0', 10) || 0;
-          post.likes = String(nextLiked ? current + 1 : Math.max(0, current - 1));
-        });
+        const undo = updatePostInCaches(
+          postsApi,
+          dispatch,
+          postId,
+          (post) => {
+            post.liked = nextLiked;
+            const current = parseInt(post.likes || '0', 10) || 0;
+            post.likes = String(nextLiked ? current + 1 : Math.max(0, current - 1));
+          },
+          getState()
+        );
 
         try {
           await queryFulfilled;
@@ -184,15 +273,21 @@ export const postsApi = baseApi.injectEndpoints({
         url: `/posts/${postId}/repost`,
         method: reposted ? 'DELETE' : 'POST',
       }),
-      async onQueryStarted({ postId, reposted }, { dispatch, queryFulfilled }) {
+      async onQueryStarted({ postId, reposted }, { dispatch, getState, queryFulfilled }) {
         const nextReposted = !reposted;
 
-        const undo = updatePostInCaches(postsApi, dispatch, postId, (post) => {
-          post.isReposted = nextReposted;
-          post.reposted = nextReposted;
-          const current = post.repostsCount ?? 0;
-          post.repostsCount = nextReposted ? current + 1 : Math.max(0, current - 1);
-        });
+        const undo = updatePostInCaches(
+          postsApi,
+          dispatch,
+          postId,
+          (post) => {
+            post.isReposted = nextReposted;
+            post.reposted = nextReposted;
+            const current = post.repostsCount ?? 0;
+            post.repostsCount = nextReposted ? current + 1 : Math.max(0, current - 1);
+          },
+          getState()
+        );
 
         try {
           await queryFulfilled;
@@ -210,12 +305,18 @@ export const postsApi = baseApi.injectEndpoints({
         url: `/posts/${postId}/repost`,
         method: 'POST',
       }),
-      async onQueryStarted(postId, { dispatch, queryFulfilled }) {
-        const undo = updatePostInCaches(postsApi, dispatch, postId, (post) => {
-          post.isReposted = true;
-          post.reposted = true;
-          post.repostsCount = (post.repostsCount ?? 0) + 1;
-        });
+      async onQueryStarted(postId, { dispatch, getState, queryFulfilled }) {
+        const undo = updatePostInCaches(
+          postsApi,
+          dispatch,
+          postId,
+          (post) => {
+            post.isReposted = true;
+            post.reposted = true;
+            post.repostsCount = (post.repostsCount ?? 0) + 1;
+          },
+          getState()
+        );
 
         try {
           await queryFulfilled;
@@ -233,12 +334,18 @@ export const postsApi = baseApi.injectEndpoints({
         url: `/posts/${postId}/repost`,
         method: 'DELETE',
       }),
-      async onQueryStarted(postId, { dispatch, queryFulfilled }) {
-        const undo = updatePostInCaches(postsApi, dispatch, postId, (post) => {
-          post.isReposted = false;
-          post.reposted = false;
-          post.repostsCount = Math.max(0, (post.repostsCount ?? 0) - 1);
-        });
+      async onQueryStarted(postId, { dispatch, getState, queryFulfilled }) {
+        const undo = updatePostInCaches(
+          postsApi,
+          dispatch,
+          postId,
+          (post) => {
+            post.isReposted = false;
+            post.reposted = false;
+            post.repostsCount = Math.max(0, (post.repostsCount ?? 0) - 1);
+          },
+          getState()
+        );
 
         try {
           await queryFulfilled;
@@ -259,13 +366,19 @@ export const postsApi = baseApi.injectEndpoints({
         url: `/posts/${postId}/bookmark`,
         method: bookmarked ? 'DELETE' : 'POST',
       }),
-      async onQueryStarted({ postId, bookmarked }, { dispatch, queryFulfilled }) {
+      async onQueryStarted({ postId, bookmarked }, { dispatch, getState, queryFulfilled }) {
         const nextBookmarked = !bookmarked;
 
-        const undo = updatePostInCaches(postsApi, dispatch, postId, (post) => {
-          post.isBookmarked = nextBookmarked;
-          post.bookmarked = nextBookmarked;
-        });
+        const undo = updatePostInCaches(
+          postsApi,
+          dispatch,
+          postId,
+          (post) => {
+            post.isBookmarked = nextBookmarked;
+            post.bookmarked = nextBookmarked;
+          },
+          getState()
+        );
 
         try {
           await queryFulfilled;
@@ -354,8 +467,8 @@ export const postsApi = baseApi.injectEndpoints({
         url: `/posts/${postId}`,
         method: 'DELETE',
       }),
-      async onQueryStarted(postId, { dispatch, queryFulfilled }) {
-        const undo = removePostFromCaches(postsApi, dispatch, postId);
+      async onQueryStarted(postId, { dispatch, getState, queryFulfilled }) {
+        const undo = removePostFromCaches(postsApi, dispatch, postId, getState());
         try {
           await queryFulfilled;
         } catch {
@@ -380,18 +493,30 @@ export const postsApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: any): Post =>
         normalizePost(response?.data || response),
-      async onQueryStarted({ postId, content }, { dispatch, queryFulfilled }) {
-        const undo = updatePostInCaches(postsApi, dispatch, postId, (post) => {
-          if (content !== undefined) {
-            post.content = content;
-          }
-        });
+      async onQueryStarted({ postId, content }, { dispatch, getState, queryFulfilled }) {
+        const undo = updatePostInCaches(
+          postsApi,
+          dispatch,
+          postId,
+          (post) => {
+            if (content !== undefined) {
+              post.content = content;
+            }
+          },
+          getState()
+        );
 
         try {
           const { data: updatedPost } = await queryFulfilled;
-          updatePostInCaches(postsApi, dispatch, postId, (post) => {
-            Object.assign(post, updatedPost);
-          });
+          updatePostInCaches(
+            postsApi,
+            dispatch,
+            postId,
+            (post) => {
+              Object.assign(post, updatedPost);
+            },
+            getState()
+          );
         } catch {
           undo();
         }
@@ -457,6 +582,12 @@ export const {
   useGetFeedQuery,
   useGetPostsQuery,
   useGetPostQuery,
+  useGetLikedPostsQuery,
+  useLazyGetLikedPostsQuery,
+  useGetRepostedPostsQuery,
+  useLazyGetRepostedPostsQuery,
+  useGetBookmarkedPostsQuery,
+  useLazyGetBookmarkedPostsQuery,
   useToggleLikePostMutation,
   useToggleRepostPostMutation,
   useToggleBookmarkPostMutation,

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert } from "react-native";
 import { useSelector } from "react-redux";
 import { router, useLocalSearchParams } from "expo-router";
@@ -19,10 +19,14 @@ import {
 import { normalizeUserProfile } from "../features/users/utils";
 import type { ReportReasonId } from "../features/users/types";
 import {
+  useGetBookmarkedPostsQuery,
+  useGetLikedPostsQuery,
+  useGetRepostedPostsQuery,
   useToggleBookmarkPostMutation,
   useToggleLikePostMutation,
   useToggleRepostPostMutation,
 } from "../features/posts/api";
+import { isPrivateAccountError } from "../features/posts/utils";
 import { ProfileTabType } from "../components/profile/types";
 
 export function useUserProfile() {
@@ -30,6 +34,12 @@ export function useUserProfile() {
   const currentUser = useSelector((state: RootState) => state.auth.user);
 
   const [activeTab, setActiveTab] = useState<ProfileTabType>("posts");
+  const [tabCursors, setTabCursors] = useState<Record<ProfileTabType, string | undefined>>({
+    posts: undefined,
+    likes: undefined,
+    reposts: undefined,
+    bookmarks: undefined,
+  });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // More menu, reporting, and blocking state
@@ -48,6 +58,12 @@ export function useUserProfile() {
     if (!currentUser?.id) return false;
     return String(userId) === String(currentUser.id);
   }, [userId, currentUser?.id]);
+
+  useEffect(() => {
+    if (!isOwnProfile && activeTab === "bookmarks") {
+      setActiveTab("posts");
+    }
+  }, [isOwnProfile, activeTab]);
 
   const targetUserId = useMemo(() => {
     if (isOwnProfile) {
@@ -88,16 +104,6 @@ export function useUserProfile() {
   } = useGetUserFollowingCountQuery(targetUserId, {
     skip: !targetUserId,
   });
-
-  // User posts
-  const {
-    data: postsData,
-    isLoading: isPostsLoading,
-    refetch: refetchPosts,
-  } = useGetUserPostsQuery(
-    { userId: targetUserId },
-    { skip: !targetUserId }
-  );
 
   // Follow / Unfollow mutations
   const [followUser, { isLoading: isFollowLoading }] = useFollowUserMutation();
@@ -156,9 +162,145 @@ export function useUserProfile() {
       ? localBlockedState
       : Boolean(profile.isBlocked);
 
+  // Content Tab Queries (lazy-loaded per active tab)
+  const {
+    data: postsData,
+    isLoading: isPostsLoading,
+    isFetching: isPostsFetching,
+    error: postsError,
+    refetch: refetchPosts,
+  } = useGetUserPostsQuery(
+    { userId: targetUserId, cursor: tabCursors.posts },
+    { skip: !targetUserId || isBlocked }
+  );
+
+  const {
+    data: likesData,
+    isLoading: isLikesLoading,
+    isFetching: isLikesFetching,
+    error: likesError,
+    refetch: refetchLikes,
+  } = useGetLikedPostsQuery(
+    {
+      userId: isOwnProfile ? undefined : targetUserId,
+      cursor: tabCursors.likes,
+    },
+    { skip: !targetUserId || isBlocked || activeTab !== "likes" }
+  );
+
+  const {
+    data: repostsData,
+    isLoading: isRepostsLoading,
+    isFetching: isRepostsFetching,
+    error: repostsError,
+    refetch: refetchReposts,
+  } = useGetRepostedPostsQuery(
+    {
+      userId: isOwnProfile ? undefined : targetUserId,
+      cursor: tabCursors.reposts,
+    },
+    { skip: !targetUserId || isBlocked || activeTab !== "reposts" }
+  );
+
+  const {
+    data: bookmarksData,
+    isLoading: isBookmarksLoading,
+    isFetching: isBookmarksFetching,
+    error: bookmarksError,
+    refetch: refetchBookmarks,
+  } = useGetBookmarkedPostsQuery(
+    { cursor: tabCursors.bookmarks },
+    { skip: !isOwnProfile || isBlocked || activeTab !== "bookmarks" }
+  );
+
+  const activeTabData = useMemo(() => {
+    switch (activeTab) {
+      case "likes":
+        return {
+          posts: likesData?.posts || [],
+          isLoading: isLikesLoading,
+          isFetching: isLikesFetching,
+          nextCursor: likesData?.nextCursor,
+          error: likesError,
+        };
+      case "reposts":
+        return {
+          posts: repostsData?.posts || [],
+          isLoading: isRepostsLoading,
+          isFetching: isRepostsFetching,
+          nextCursor: repostsData?.nextCursor,
+          error: repostsError,
+        };
+      case "bookmarks":
+        return {
+          posts: bookmarksData?.posts || [],
+          isLoading: isBookmarksLoading,
+          isFetching: isBookmarksFetching,
+          nextCursor: bookmarksData?.nextCursor,
+          error: bookmarksError,
+        };
+      case "posts":
+      default:
+        return {
+          posts: postsData?.posts || [],
+          isLoading: isPostsLoading,
+          isFetching: isPostsFetching,
+          nextCursor: postsData?.nextCursor,
+          error: postsError,
+        };
+    }
+  }, [
+    activeTab,
+    likesData,
+    isLikesLoading,
+    isLikesFetching,
+    likesError,
+    repostsData,
+    isRepostsLoading,
+    isRepostsFetching,
+    repostsError,
+    bookmarksData,
+    isBookmarksLoading,
+    isBookmarksFetching,
+    bookmarksError,
+    postsData,
+    isPostsLoading,
+    isPostsFetching,
+    postsError,
+  ]);
+
+  const isPrivateAccount = useMemo(() => {
+    if (isOwnProfile) return false;
+    if (profile.isPrivate && !profile.isFollowing) return true;
+    return isPrivateAccountError(activeTabData.error);
+  }, [isOwnProfile, profile.isPrivate, profile.isFollowing, activeTabData.error]);
+
   const isLoading = isOwnProfile
     ? isMeLoading && !currentUser
     : isOtherProfileLoading;
+
+  const isFetchingMore = Boolean(
+    activeTabData.isFetching &&
+    !activeTabData.isLoading &&
+    activeTabData.posts.length > 0 &&
+    tabCursors[activeTab]
+  );
+
+  const handleLoadMore = useCallback(() => {
+    if (
+      !activeTabData.nextCursor ||
+      activeTabData.isFetching ||
+      activeTabData.isLoading ||
+      isPrivateAccount ||
+      isBlocked
+    ) {
+      return;
+    }
+    setTabCursors((prev) => ({
+      ...prev,
+      [activeTab]: activeTabData.nextCursor ?? undefined,
+    }));
+  }, [activeTabData, activeTab, isPrivateAccount, isBlocked]);
 
   const handleToggleFollow = useCallback(async () => {
     if (!targetUserId || isOwnProfile) return;
@@ -175,6 +317,11 @@ export function useUserProfile() {
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
+    // Reset cursor for active tab on pull-to-refresh
+    setTabCursors((prev) => ({
+      ...prev,
+      [activeTab]: undefined,
+    }));
     try {
       const promises: Array<Promise<any>> = [];
       if (isOwnProfile) {
@@ -185,7 +332,15 @@ export function useUserProfile() {
       if (targetUserId) {
         promises.push(refetchFollowers());
         promises.push(refetchFollowing());
-        promises.push(refetchPosts());
+        if (activeTab === "posts") {
+          promises.push(refetchPosts());
+        } else if (activeTab === "likes") {
+          promises.push(refetchLikes());
+        } else if (activeTab === "reposts") {
+          promises.push(refetchReposts());
+        } else if (activeTab === "bookmarks" && isOwnProfile) {
+          promises.push(refetchBookmarks());
+        }
       }
       await Promise.all(promises);
     } catch {
@@ -194,6 +349,7 @@ export function useUserProfile() {
       setIsRefreshing(false);
     }
   }, [
+    activeTab,
     isOwnProfile,
     targetUserId,
     refetchMe,
@@ -201,6 +357,9 @@ export function useUserProfile() {
     refetchFollowers,
     refetchFollowing,
     refetchPosts,
+    refetchLikes,
+    refetchReposts,
+    refetchBookmarks,
   ]);
 
   const handlePressBack = useCallback(() => {
@@ -333,7 +492,7 @@ export function useUserProfile() {
 
   const handleRepostPost = useCallback(
     (postId: string) => {
-      const targetPost = postsData?.posts.find(
+      const targetPost = activeTabData.posts.find(
         (postItem) => postItem.id === postId
       );
       toggleRepostPost({
@@ -341,12 +500,12 @@ export function useUserProfile() {
         reposted: Boolean(targetPost?.isReposted ?? targetPost?.reposted),
       });
     },
-    [postsData?.posts, toggleRepostPost]
+    [activeTabData.posts, toggleRepostPost]
   );
 
   const handleBookmarkPost = useCallback(
     (postId: string) => {
-      const targetPost = postsData?.posts.find(
+      const targetPost = activeTabData.posts.find(
         (postItem) => postItem.id === postId
       );
       toggleBookmarkPost({
@@ -354,7 +513,7 @@ export function useUserProfile() {
         bookmarked: Boolean(targetPost?.isBookmarked ?? targetPost?.bookmarked),
       });
     },
-    [postsData?.posts, toggleBookmarkPost]
+    [activeTabData.posts, toggleBookmarkPost]
   );
 
   return {
@@ -365,8 +524,10 @@ export function useUserProfile() {
     isFollowLoading: isFollowLoading || isUnfollowLoading,
     activeTab,
     setActiveTab,
-    posts: postsData?.posts || [],
-    isPostsLoading,
+    posts: activeTabData.posts,
+    isPostsLoading: activeTabData.isLoading,
+    isFetchingMore,
+    isPrivateAccount,
     currentUserId: currentUser?.id,
     isBlocked,
     isBlocking,
@@ -377,6 +538,7 @@ export function useUserProfile() {
     isReportSheetVisible,
     handleToggleFollow,
     handleRefresh,
+    handleLoadMore,
     handlePressBack,
     handlePressEditProfile,
     handlePressMessage,

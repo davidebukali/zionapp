@@ -22,15 +22,21 @@ export interface ProfileInfoProps {
 export interface ProfileTabsProps {
   activeTab: ProfileTabType;
   onSelectTab: (tab: ProfileTabType) => void;
+  isOwnProfile?: boolean;
 }
 
 export interface ProfileFeedProps {
   activeTab: ProfileTabType;
   posts: Post[];
-  isLoading: boolean;
-  isRefreshing: boolean;
-  onRefresh: () => void;
-  onEndReached?: () => void;
-  onPressPost?: (postId: string) => void;
+  isPostsLoading: boolean;
+  isFetchingMore?: boolean;
+  isPrivateAccount?: boolean;
+  isFollowLoading?: boolean;
+  currentUserId?: string | number;
+  onLikePost?: (postId: string, liked: boolean) => void;
+  onRepostPost?: (postId: string) => void;
+  onBookmarkPost?: (postId: string) => void;
+  onCommentPost?: (postId: string) => void;
+  onPressFollow?: () => void;
 }
 

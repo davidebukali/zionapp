@@ -1,41 +1,113 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useTheme } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
-import { Post } from "../../features/posts/types";
 import { PostCard } from "../Posts/PostCard";
-import { ProfileTabType } from "./types";
-
-interface ProfileFeedProps {
-  activeTab: ProfileTabType;
-  posts: Post[];
-  isPostsLoading: boolean;
-  currentUserId?: string | number;
-  onLikePost?: (postId: string, liked: boolean) => void;
-  onRepostPost?: (postId: string) => void;
-  onBookmarkPost?: (postId: string) => void;
-  onCommentPost?: (postId: string) => void;
-}
+import { ProfileFeedProps } from "./types";
 
 export function ProfileFeed({
   activeTab,
   posts,
   isPostsLoading,
+  isFetchingMore = false,
+  isPrivateAccount = false,
+  isFollowLoading = false,
   currentUserId,
   onLikePost,
   onRepostPost,
   onBookmarkPost,
   onCommentPost,
+  onPressFollow,
 }: ProfileFeedProps) {
   const theme = useTheme();
 
-  if (activeTab !== "posts") {
-    const tabLabels: Record<string, { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string }> = {
+  if (isPrivateAccount) {
+    return (
+      <View style={styles.emptyContainer}>
+        <View
+          style={[
+            styles.lockIconContainer,
+            {
+              backgroundColor: theme.dark
+                ? "rgba(255, 255, 255, 0.08)"
+                : "rgba(0, 0, 0, 0.04)",
+            },
+          ]}
+        >
+          <Ionicons
+            name="lock-closed-outline"
+            size={36}
+            color={theme.colors.onSurfaceVariant}
+          />
+        </View>
+        <Text style={[styles.emptyTitle, { color: theme.colors.onBackground }]}>
+          This account is private
+        </Text>
+        <Text
+          style={[
+            styles.emptySubtitle,
+            { color: theme.colors.onSurfaceVariant },
+          ]}
+        >
+          Follow this account to see their posts, likes, and reposts.
+        </Text>
+        {onPressFollow && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Follow private account"
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: theme.colors.primary,
+              },
+            ]}
+            disabled={isFollowLoading}
+            onPress={onPressFollow}
+            activeOpacity={0.75}
+          >
+            <Text
+              style={[
+                styles.actionButtonText,
+                { color: theme.colors.onPrimary },
+              ]}
+            >
+              {isFollowLoading ? "Following..." : "Follow"}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
+  if (isPostsLoading && posts.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (posts.length === 0) {
+    const tabLabels: Record<
+      string,
+      { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string }
+    > = {
+      posts: {
+        icon: "newspaper-outline",
+        title: "No posts yet",
+        subtitle: "When posts are published, they will show up here.",
+      },
       likes: {
         icon: "heart-outline",
         title: "No liked posts yet",
-        subtitle: "Posts you or this user like will appear here.",
+        subtitle: "Posts liked by this user will appear here.",
       },
       reposts: {
         icon: "repeat-outline",
@@ -49,7 +121,7 @@ export function ProfileFeed({
       },
     };
 
-    const emptyInfo = tabLabels[activeTab] || tabLabels.likes;
+    const emptyInfo = tabLabels[activeTab] || tabLabels.posts;
 
     return (
       <View style={styles.emptyContainer}>
@@ -69,30 +141,6 @@ export function ProfileFeed({
           ]}
         >
           {emptyInfo.subtitle}
-        </Text>
-      </View>
-    );
-  }
-
-  if (posts.length === 0 && !isPostsLoading) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Ionicons
-          name="newspaper-outline"
-          size={48}
-          color={theme.colors.onSurfaceVariant}
-          style={styles.emptyIcon}
-        />
-        <Text style={[styles.emptyTitle, { color: theme.colors.onBackground }]}>
-          No posts yet
-        </Text>
-        <Text
-          style={[
-            styles.emptySubtitle,
-            { color: theme.colors.onSurfaceVariant },
-          ]}
-        >
-          When posts are published, they will show up here.
         </Text>
       </View>
     );
@@ -118,6 +166,7 @@ export function ProfileFeed({
               imageUrl={post.imageUrl}
               mediaWidth={post.mediaWidth}
               mediaHeight={post.mediaHeight}
+              media={post.media}
               likes={post.likes}
               comments={post.comments}
               liked={post.liked}
@@ -135,6 +184,11 @@ export function ProfileFeed({
           </View>
         );
       })}
+      {isFetchingMore && (
+        <View style={styles.fetchingMoreContainer}>
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+        </View>
+      )}
     </View>
   );
 }
@@ -147,11 +201,29 @@ const styles = StyleSheet.create({
   postCardWrapper: {
     marginBottom: 16,
   },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 56,
+  },
+  fetchingMoreContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+  },
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 56,
     paddingHorizontal: 32,
+  },
+  lockIconContainer: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
   },
   emptyIcon: {
     marginBottom: 14,
@@ -167,5 +239,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     lineHeight: 20,
+    marginBottom: 16,
+  },
+  actionButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
