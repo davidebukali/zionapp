@@ -1,8 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   StyleSheet,
   Text,
   View,
@@ -13,6 +11,7 @@ import { useSelector } from "react-redux";
 
 import { RootState } from "../../../../store/store";
 import { globalStyles } from "../../../../assets/styles/theme";
+import { KeyboardAvoidingContainer } from "../../../../components/Common";
 import {
   CommentInput,
   CommentItem,
@@ -133,8 +132,7 @@ export default function PostDetailScreen() {
   );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <KeyboardAvoidingContainer
       style={[
         globalStyles.commentsScreen,
         { backgroundColor: theme.colors.background },
@@ -221,7 +219,7 @@ export default function PostDetailScreen() {
         visible={previewIndex !== null}
         onClose={() => setPreviewIndex(null)}
       />
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingContainer>
   );
 }
 

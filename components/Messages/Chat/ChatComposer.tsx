@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   ActivityIndicator,
   Image,
-  Keyboard,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,6 +15,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { globalStyles } from "../../../assets/styles/theme";
 import { MAX_CHAT_MEDIA, MAX_MESSAGE_LENGTH } from "../../../constants";
+import { useKeyboardVisible } from "../../../hooks/useKeyboardVisible";
 import { ChatComposerProps } from "./types";
 import { ChatReplySnippet } from "./ChatReplySnippet";
 
@@ -38,24 +37,7 @@ export const ChatComposer = React.memo(function ChatComposer({
 }: ChatComposerProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-
-  useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const showSubscription = Keyboard.addListener?.(showEvent, () => {
-      setIsKeyboardVisible(true);
-    });
-    const hideSubscription = Keyboard.addListener?.(hideEvent, () => {
-      setIsKeyboardVisible(false);
-    });
-
-    return () => {
-      showSubscription?.remove?.();
-      hideSubscription?.remove?.();
-    };
-  }, []);
+  const isKeyboardVisible = useKeyboardVisible();
 
   const hasImages = selectedMedia.length > 0;
   const canSend = !disabled && !isUploadingMedia && (Boolean(text.trim()) || hasImages);

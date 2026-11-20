@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   ActivityIndicator,
-  Keyboard,
   NativeSyntheticEvent,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +14,7 @@ import { Avatar, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { globalStyles } from "../../assets/styles/theme";
+import { useKeyboardVisible } from "../../hooks/useKeyboardVisible";
 
 type CommentInputProps = {
   value: string;
@@ -44,24 +43,7 @@ export function CommentInput({
 }: CommentInputProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-
-  useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
-
-    const showSubscription = Keyboard.addListener?.(showEvent, () => {
-      setIsKeyboardVisible(true);
-    });
-    const hideSubscription = Keyboard.addListener?.(hideEvent, () => {
-      setIsKeyboardVisible(false);
-    });
-
-    return () => {
-      showSubscription?.remove?.();
-      hideSubscription?.remove?.();
-    };
-  }, []);
+  const isKeyboardVisible = useKeyboardVisible();
 
   const canSubmit = value.trim().length > 0 && !isSubmitting;
   const placeholder = replyingTo ? `Reply to @${replyingTo.username}...` : "Add a comment...";

@@ -1,5 +1,4 @@
 import React from "react";
-import { KeyboardAvoidingView, Platform } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
@@ -8,7 +7,7 @@ import EmojiPicker from "rn-emoji-keyboard";
 import { globalStyles } from "../../../assets/styles/theme";
 import { useChatThread } from "../../../hooks/useChatThread";
 import { useMessageActions } from "../../../hooks/useMessageActions";
-import { ImagePreviewModal } from "../../../components/Common";
+import { ImagePreviewModal, KeyboardAvoidingContainer } from "../../../components/Common";
 import {
   ChatHeader,
   ChatMessageList,
@@ -25,7 +24,7 @@ export default function ChatScreen() {
   const messageActions = useMessageActions(thread.conversationId);
 
   return (
-    <KeyboardAvoidingView
+    <KeyboardAvoidingContainer
       style={[
         globalStyles.screen,
         {
@@ -33,7 +32,6 @@ export default function ChatScreen() {
           paddingTop: insets.top,
         },
       ]}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       {/* Recipient Header */}
       <ChatHeader
@@ -134,6 +132,6 @@ export default function ChatScreen() {
         onClose={thread.handleCloseMediaPreview}
         enableDownload
       />
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingContainer>
   );
 }

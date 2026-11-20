@@ -2,14 +2,13 @@ import { useCallback } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Text,
   View,
 } from "react-native";
 import { useTheme } from "react-native-paper";
 
 import { globalStyles } from "../../../../assets/styles/theme";
+import { KeyboardAvoidingContainer } from "../../../../components/Common";
 import {
   CommentInput,
   CommentItem,
@@ -32,7 +31,6 @@ export default function PostComments() {
     currentUser,
     draft,
     replyingTo,
-    setDraft,
     hasMore,
     isInitialLoading,
     isLoadingMore,
@@ -64,8 +62,7 @@ export default function PostComments() {
   );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <KeyboardAvoidingContainer
       style={[
         globalStyles.commentsScreen,
         { backgroundColor: theme.colors.background },
@@ -123,6 +120,6 @@ export default function PostComments() {
         onClose={() => setIsMentionSheetVisible(false)}
         onSelectUser={handleSelectMention}
       />
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingContainer>
   );
 }
