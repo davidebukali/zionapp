@@ -31,6 +31,7 @@ import {
   mergeTaggableUsersCache,
   normalizeDiscoverAccount,
   normalizeTaggableUser,
+  shouldRollbackFollowMutation,
   updateProfileFollowInCaches,
   updateUserInCaches,
 } from "./utils";
@@ -85,8 +86,9 @@ export const usersApi = baseApi.injectEndpoints({
         { userId, searchArgs },
         { dispatch, getState, queryFulfilled }
       ) {
+        const state = getState();
         const currentUserId = (
-          getState() as { auth?: { user?: { id?: string } } }
+          state as { auth?: { user?: { id?: string } } }
         )?.auth?.user?.id;
         const undoDiscover = updateUserInCaches(
           usersApi,
@@ -95,7 +97,8 @@ export const usersApi = baseApi.injectEndpoints({
           (account) => {
             account.isFollowing = true;
           },
-          searchArgs
+          searchArgs,
+          state
         );
         const undoProfile = updateProfileFollowInCaches(
           usersApi,
@@ -107,9 +110,11 @@ export const usersApi = baseApi.injectEndpoints({
 
         try {
           await queryFulfilled;
-        } catch {
-          undoDiscover();
-          undoProfile();
+        } catch (queryError) {
+          if (shouldRollbackFollowMutation(queryError, true)) {
+            undoDiscover();
+            undoProfile();
+          }
         }
       },
       invalidatesTags: (_result, error, { userId }) =>
@@ -118,6 +123,7 @@ export const usersApi = baseApi.injectEndpoints({
           : [
               { type: "User", id: userId },
               { type: "User", id: `${userId}_followers` },
+              { type: "User", id: "TAGGABLE" },
               { type: "Conversation", id: "RECIPIENTS" },
             ],
     }),
@@ -134,8 +140,9 @@ export const usersApi = baseApi.injectEndpoints({
         { userId, searchArgs },
         { dispatch, getState, queryFulfilled }
       ) {
+        const state = getState();
         const currentUserId = (
-          getState() as { auth?: { user?: { id?: string } } }
+          state as { auth?: { user?: { id?: string } } }
         )?.auth?.user?.id;
         const undoDiscover = updateUserInCaches(
           usersApi,
@@ -144,7 +151,8 @@ export const usersApi = baseApi.injectEndpoints({
           (account) => {
             account.isFollowing = false;
           },
-          searchArgs
+          searchArgs,
+          state
         );
         const undoProfile = updateProfileFollowInCaches(
           usersApi,
@@ -156,9 +164,11 @@ export const usersApi = baseApi.injectEndpoints({
 
         try {
           await queryFulfilled;
-        } catch {
-          undoDiscover();
-          undoProfile();
+        } catch (queryError) {
+          if (shouldRollbackFollowMutation(queryError, false)) {
+            undoDiscover();
+            undoProfile();
+          }
         }
       },
       invalidatesTags: (_result, error, { userId }) =>
@@ -167,6 +177,7 @@ export const usersApi = baseApi.injectEndpoints({
           : [
               { type: "User", id: userId },
               { type: "User", id: `${userId}_followers` },
+              { type: "User", id: "TAGGABLE" },
               { type: "Conversation", id: "RECIPIENTS" },
             ],
     }),

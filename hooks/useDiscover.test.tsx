@@ -18,6 +18,7 @@ jest.mock("react-redux", () => ({
 const mockAccounts = [
   { id: "1", name: "Grace Church", username: "gracechurch", meta: "Church", bio: "A community church", isFollowing: false },
   { id: "2", name: "Pastor Mensah", username: "pmensah", meta: "Pastor", bio: "Pastor & Teacher", isFollowing: false },
+  { id: "user-1", name: "Current User", username: "currentuser", meta: "Member", bio: "My bio", isFollowing: false },
 ];
 
 const mockPosts = [
@@ -157,22 +158,48 @@ describe("hooks/useDiscover", () => {
     const account = mockAccounts[0];
 
     // First tap executes
-    act(() => {
-      hookResult.handleToggleFollow(account);
+    await act(async () => {
+      await hookResult.handleToggleFollow(account);
     });
     expect(mockFollowUser).toHaveBeenCalledTimes(1);
 
     // Rapid second tap on the same account within 600ms is suppressed
-    act(() => {
-      hookResult.handleToggleFollow(account);
+    await act(async () => {
+      await hookResult.handleToggleFollow(account);
     });
     expect(mockFollowUser).toHaveBeenCalledTimes(1);
 
     // Tapping another account is not blocked
     const otherAccount = mockAccounts[1];
-    act(() => {
-      hookResult.handleToggleFollow(otherAccount);
+    await act(async () => {
+      await hookResult.handleToggleFollow(otherAccount);
     });
     expect(mockFollowUser).toHaveBeenCalledTimes(2);
+  });
+
+  it("defensively filters out the current user's own account from accounts list", () => {
+    act(() => {
+      ReactTestRenderer.create(<TestHookConsumer />);
+    });
+
+    const accountIds = hookResult.accounts.map((acc) => acc.id);
+    expect(accountIds).toContain("1");
+    expect(accountIds).toContain("2");
+    expect(accountIds).not.toContain("user-1");
+  });
+
+  it("prevents following one's own account", async () => {
+    mockFollowUser.mockClear();
+
+    act(() => {
+      ReactTestRenderer.create(<TestHookConsumer />);
+    });
+
+    const selfAccount = mockAccounts[2];
+    await act(async () => {
+      await hookResult.handleToggleFollow(selfAccount);
+    });
+
+    expect(mockFollowUser).not.toHaveBeenCalled();
   });
 });

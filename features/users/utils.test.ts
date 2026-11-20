@@ -5,6 +5,7 @@ import {
   normalizeTaggableUser,
   normalizeUserProfile,
   replaceMentionAtCursor,
+  shouldRollbackFollowMutation,
   shouldTriggerMentionSheet,
   syncTaggedUserIds,
   updateProfileFollowInCaches,
@@ -161,6 +162,115 @@ describe("features/users/utils", () => {
 
       undo();
       expect(undoMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("scans state.api.queries and patches all active searchUsers cache entries without duplicate dispatch", () => {
+      const undoMock = jest.fn();
+      const mockDispatch = jest.fn(() => ({ undo: undoMock }));
+      const mockApi = {
+        reducerPath: "api",
+        util: {
+          updateQueryData: jest.fn(),
+        },
+      };
+
+      const mockState = {
+        api: {
+          queries: {
+            'searchUsers({"q":"grace"})': {
+              originalArgs: { q: "grace" },
+            },
+            'searchUsers({"q":"pastor"})': {
+              originalArgs: { q: "pastor" },
+            },
+            'searchUsers({"q":"*"})': {
+              originalArgs: { q: "*" },
+            },
+            'getUserProfile("user-1")': {
+              originalArgs: "user-1",
+            },
+          },
+        },
+      };
+
+      const undo = updateUserInCaches(
+        mockApi,
+        mockDispatch,
+        "u-1",
+        (acc) => {
+          acc.isFollowing = true;
+        },
+        { q: "grace" },
+        mockState
+      );
+
+      // Should patch: "grace" (explicit + in state deduplicated), "*" (default + in state deduplicated), "pastor" (in state) -> total 3
+      expect(mockDispatch).toHaveBeenCalledTimes(3);
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        "searchUsers",
+        { q: "grace" },
+        expect.any(Function)
+      );
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        "searchUsers",
+        { q: "*" },
+        expect.any(Function)
+      );
+      expect(mockApi.util.updateQueryData).toHaveBeenCalledWith(
+        "searchUsers",
+        { q: "pastor" },
+        expect.any(Function)
+      );
+
+      undo();
+      expect(undoMock).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe("shouldRollbackFollowMutation", () => {
+    it("returns false for follow mutation when error is 409 Conflict", () => {
+      const error = { status: 409, data: { message: "Already following this user." } };
+      expect(shouldRollbackFollowMutation(error, true)).toBe(false);
+    });
+
+    it("returns false for follow mutation when error is 422 with already following message", () => {
+      const error = {
+        status: 422,
+        data: { message: "You are already following this user." },
+      };
+      expect(shouldRollbackFollowMutation(error, true)).toBe(false);
+    });
+
+    it("returns true for follow mutation on self-follow 422 error", () => {
+      const error = {
+        status: 422,
+        data: { message: "You cannot follow yourself." },
+      };
+      expect(shouldRollbackFollowMutation(error, true)).toBe(true);
+    });
+
+    it("returns true for follow mutation on 500 server error or network failure", () => {
+      expect(shouldRollbackFollowMutation({ status: 500 }, true)).toBe(true);
+      expect(shouldRollbackFollowMutation({ error: "Network Error" }, true)).toBe(true);
+      expect(shouldRollbackFollowMutation(null, true)).toBe(true);
+    });
+
+    it("returns false for unfollow mutation when error is 404 Not Found", () => {
+      const error = { status: 404, data: { message: "Follow relation not found." } };
+      expect(shouldRollbackFollowMutation(error, false)).toBe(false);
+    });
+
+    it("returns false for unfollow mutation when error is 422 with not following message", () => {
+      const error = {
+        status: 422,
+        data: { message: "You are not following this user." },
+      };
+      expect(shouldRollbackFollowMutation(error, false)).toBe(false);
+    });
+
+    it("returns true for unfollow mutation on 500 server error or network failure", () => {
+      expect(shouldRollbackFollowMutation({ status: 500 }, false)).toBe(true);
+      expect(shouldRollbackFollowMutation({ error: "FETCH_ERROR" }, false)).toBe(true);
     });
   });
 

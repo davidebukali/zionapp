@@ -33,5 +33,6 @@ export interface DiscoverAccountCardProps {
   account: DiscoverAccount;
   onToggleFollow: (accountId: string) => void;
   onPressProfile?: (accountId: string) => void;
+  isFollowPending?: boolean;
 }
 

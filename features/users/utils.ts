@@ -159,6 +159,9 @@ export function normalizeDiscoverAccount(raw: BackendUser): DiscoverAccount {
  * Optimistically updates user follow status across active RTK Query caches.
  * Uses Dependency Injection for the api slice to avoid circular dependencies.
  *
+ * Inspects all active searchUsers cache entries in state (or given searchArgs)
+ * and patches each cache key uniquely.
+ *
  * Returns an undo function that reverts patched caches if the API call fails.
  */
 export function updateUserInCaches(
@@ -166,14 +169,19 @@ export function updateUserInCaches(
   dispatch: any,
   userId: string,
   updater: (account: DiscoverAccount) => void,
-  searchArgs?: { q: string }
+  searchArgs?: { q: string },
+  state?: unknown
 ): () => void {
   const patches: Array<{ undo: () => void }> = [];
+  const handledQueryArgs = new Set<string>();
 
-  // If specific searchArgs provided (and distinct from default '*'), patch it directly
-  if (searchArgs && searchArgs.q !== "*") {
+  const patchQueryArgs = (args: { q: string }) => {
+    const key = JSON.stringify(args);
+    if (handledQueryArgs.has(key)) return;
+    handledQueryArgs.add(key);
+
     const patch = dispatch(
-      api.util.updateQueryData("searchUsers", searchArgs, (draft: any) => {
+      api.util.updateQueryData("searchUsers", args, (draft: any) => {
         if (!Array.isArray(draft)) return;
         draft.forEach((account: DiscoverAccount) => {
           if (account.id === userId) updater(account);
@@ -181,22 +189,99 @@ export function updateUserInCaches(
       })
     );
     patches.push(patch);
+  };
+
+  // 1. Explicit searchArgs if provided
+  if (searchArgs) {
+    patchQueryArgs(searchArgs);
   }
 
-  // Always patch the default suggested search cache (q: '*')
-  const patchDefault = dispatch(
-    api.util.updateQueryData("searchUsers", { q: "*" }, (draft: any) => {
-      if (!Array.isArray(draft)) return;
-      draft.forEach((account: DiscoverAccount) => {
-        if (account.id === userId) updater(account);
-      });
-    })
-  );
-  patches.push(patchDefault);
+  // 2. Default suggested search cache (q: '*')
+  patchQueryArgs({ q: "*" });
+
+  // 3. Scan state for all active searchUsers queries in RTK Query state
+  const reducerPath = api?.reducerPath || "api";
+  const apiState = (state as Record<string, any>)?.[reducerPath];
+  const queries = apiState?.queries;
+  if (queries && typeof queries === "object") {
+    Object.keys(queries).forEach((queryKey) => {
+      if (queryKey.startsWith("searchUsers(")) {
+        const queryEntry = queries[queryKey];
+        if (queryEntry?.originalArgs && typeof queryEntry.originalArgs === "object") {
+          patchQueryArgs(queryEntry.originalArgs as { q: string });
+        }
+      }
+    });
+  }
 
   return () => {
     [...patches].reverse().forEach((patch) => patch.undo());
   };
+}
+
+/**
+ * Determines whether an optimistic follow or unfollow mutation should roll back.
+ * Idempotent backend responses or states where the user is already in the target state
+ * do not require rolling back.
+ *
+ * @param queryError The error thrown by queryFulfilled or RTK Query unwrap
+ * @param targetFollowingState Desired isFollowing state (true for follow, false for unfollow)
+ */
+export function shouldRollbackFollowMutation(
+  queryError: unknown,
+  targetFollowingState: boolean
+): boolean {
+  if (!queryError || typeof queryError !== "object") {
+    return true;
+  }
+
+  const errorObj = queryError as {
+    status?: number | string;
+    data?: {
+      message?: string;
+      errors?: Record<string, string[]>;
+    };
+    error?: string;
+    message?: string;
+  };
+
+  const status = typeof errorObj.status === "number" ? errorObj.status : undefined;
+  const message = (
+    errorObj.data?.message ||
+    errorObj.message ||
+    errorObj.error ||
+    ""
+  ).toLowerCase();
+
+  // If we intended to follow (targetFollowingState === true):
+  // 409 Conflict indicates already following.
+  // 422 with message indicating already following / request pending.
+  if (targetFollowingState) {
+    if (status === 409) return false;
+    if (
+      status === 422 &&
+      (message.includes("already following") ||
+        message.includes("already sent") ||
+        message.includes("already pending"))
+    ) {
+      return false;
+    }
+  }
+
+  // If we intended to unfollow (targetFollowingState === false):
+  // 404 or 422 indicating user was already not following.
+  if (!targetFollowingState) {
+    if (status === 404) return false;
+    if (
+      status === 422 &&
+      (message.includes("not following") || message.includes("not currently following"))
+    ) {
+      return false;
+    }
+  }
+
+  // Network failures, 500s, self-follow 422, etc. must roll back
+  return true;
 }
 
 /**

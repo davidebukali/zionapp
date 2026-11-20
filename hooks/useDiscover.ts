@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "../store/store";
 import { DiscoverAccount, DiscoverTabType } from "../components/Discover/types";
@@ -82,21 +82,28 @@ export function useDiscover() {
     }
   };
 
+  // Exclude current authenticated user from account suggestions
+  const nonSelfAccounts = useMemo(() => {
+    if (!currentUser?.id) return rawAccounts;
+    const currentUserIdStr = String(currentUser.id);
+    return rawAccounts.filter((account) => String(account.id) !== currentUserIdStr);
+  }, [rawAccounts, currentUser?.id]);
+
   // Client-side category filtering for accounts
   const filteredAccounts = useMemo(() => {
-    if (selectedCategory === "All") return rawAccounts;
+    if (selectedCategory === "All") return nonSelfAccounts;
     if (selectedCategory === "Pastors & Leaders") {
-      return rawAccounts.filter((account) => {
+      return nonSelfAccounts.filter((account) => {
         const text = `${account.name || ""} ${account.meta || ""} ${account.bio || ""}`.toLowerCase();
         return text.includes("pastor") || text.includes("leader");
       });
     }
     const term = getCategorySearchTerm(selectedCategory);
-    return rawAccounts.filter((account) => {
+    return nonSelfAccounts.filter((account) => {
       const text = `${account.name || ""} ${account.meta || ""} ${account.bio || ""}`.toLowerCase();
       return text.includes(term);
     });
-  }, [rawAccounts, selectedCategory]);
+  }, [nonSelfAccounts, selectedCategory]);
 
   // Client-side category filtering for posts
   const filteredPosts = useMemo(() => {
@@ -117,11 +124,23 @@ export function useDiscover() {
   // Follow / Unfollow mutation handlers
   const [followUser] = useFollowUserMutation();
   const [unfollowUser] = useUnfollowUserMutation();
+  const [pendingFollowIds, setPendingFollowIds] = useState<Record<string, boolean>>({});
+  const pendingFollowSetRef = useRef(new Set<string>());
 
   const handleToggleFollow = useMemo(
     () =>
       throttle(
         async (account: DiscoverAccount) => {
+          if (currentUser?.id && String(account.id) === String(currentUser.id)) {
+            return;
+          }
+          if (pendingFollowSetRef.current.has(account.id)) {
+            return;
+          }
+
+          pendingFollowSetRef.current.add(account.id);
+          setPendingFollowIds((prev) => ({ ...prev, [account.id]: true }));
+
           const searchArgs = { q: activeSearchTerm };
           try {
             if (account.isFollowing) {
@@ -131,12 +150,20 @@ export function useDiscover() {
             }
           } catch {
             // Automatic rollback handled in mutation lifecycle
+          } finally {
+            pendingFollowSetRef.current.delete(account.id);
+            setPendingFollowIds((prev) => {
+              if (!prev[account.id]) return prev;
+              const next = { ...prev };
+              delete next[account.id];
+              return next;
+            });
           }
         },
         600,
         (account) => account.id
       ),
-    [activeSearchTerm, followUser, unfollowUser]
+    [activeSearchTerm, currentUser?.id, followUser, unfollowUser]
   );
 
   // Post action flows
@@ -186,6 +213,7 @@ export function useDiscover() {
     currentUser,
     isLoading,
     isFetching,
+    pendingFollowIds,
     handleToggleFollow,
     postActions,
     handleLoadMorePosts,

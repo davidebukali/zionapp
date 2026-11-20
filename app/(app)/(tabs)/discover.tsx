@@ -74,6 +74,7 @@ export default function Discover() {
     currentUser,
     isLoading,
     isFetching,
+    pendingFollowIds,
     handleToggleFollow,
     postActions,
     handleLoadMorePosts,
@@ -98,9 +99,10 @@ export default function Discover() {
         account={item}
         onToggleFollow={() => handleToggleFollow(item)}
         onPressProfile={handlePressProfile}
+        isFollowPending={Boolean(pendingFollowIds[item.id])}
       />
     ),
-    [handleToggleFollow, handlePressProfile]
+    [handleToggleFollow, handlePressProfile, pendingFollowIds]
   );
 
   const renderPostItem = useCallback(

@@ -108,6 +108,29 @@ describe("Discover UI Components", () => {
 
       expect(onProfile).toHaveBeenCalledWith("acc-1");
     });
+
+    it("disables follow button when isFollowPending is true", () => {
+      const onToggle = jest.fn();
+      const tree = ReactTestRenderer.create(
+        <DiscoverAccountCard
+          account={mockAccount}
+          onToggleFollow={onToggle}
+          isFollowPending={true}
+        />
+      );
+
+      const followBtn = tree.root.findAllByType(TouchableOpacity).find(
+        (b) => b.props.accessibilityLabel === "Follow Grace Mensah"
+      );
+      expect(followBtn).toBeDefined();
+      expect(followBtn?.props.disabled).toBe(true);
+
+      act(() => {
+        followBtn?.props.onPress();
+      });
+
+      expect(onToggle).not.toHaveBeenCalled();
+    });
   });
 
   describe("DiscoverSearchBar", () => {

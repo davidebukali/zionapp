@@ -9,6 +9,7 @@ export function DiscoverAccountCard({
   account,
   onToggleFollow,
   onPressProfile,
+  isFollowPending = false,
 }: DiscoverAccountCardProps) {
   const theme = useTheme();
 
@@ -17,6 +18,7 @@ export function DiscoverAccountCard({
   };
 
   const handlePressFollow = () => {
+    if (isFollowPending) return;
     onToggleFollow(account.id);
   };
 
@@ -85,6 +87,7 @@ export function DiscoverAccountCard({
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={handlePressFollow}
+          disabled={isFollowPending}
           accessibilityRole="button"
           accessibilityLabel={
             account.isFollowing
@@ -105,6 +108,7 @@ export function DiscoverAccountCard({
                     shadowColor: theme.colors.primary,
                   },
                 ],
+            isFollowPending && styles.pendingFollowButton,
           ]}
         >
           <Text
@@ -175,6 +179,9 @@ const styles = StyleSheet.create({
   },
   followingButton: {
     borderWidth: 0,
+  },
+  pendingFollowButton: {
+    opacity: 0.6,
   },
   followButtonText: {
     fontSize: 13,
