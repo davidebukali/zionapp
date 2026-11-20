@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  View,
 } from "react-native";
 import { useTheme } from "react-native-paper";
 
@@ -68,8 +69,10 @@ export function AccountClassificationBottomSheet({
       subtitle="Select your identity on Tsiyon. This classification determines your badges and discovery category."
       closeAccessibilityLabel="Close"
       sheetStyle={styles.sheetContainer}
+      contentStyle={styles.sheetContent}
     >
       <ScrollView
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
@@ -107,46 +110,48 @@ export function AccountClassificationBottomSheet({
         />
       </ScrollView>
 
-      {/* Action Button */}
-      <TouchableOpacity
-        onPress={handleConfirm}
-        disabled={isConfirmDisabled}
-        activeOpacity={0.85}
-        accessibilityRole="button"
-        accessibilityLabel="Confirm Classification"
-        style={[
-          styles.confirmButton,
-          {
-            backgroundColor: isConfirmDisabled
-              ? theme.dark
-                ? "rgba(255, 255, 255, 0.12)"
-                : "rgba(0, 0, 0, 0.12)"
-              : theme.colors.primary,
-          },
-        ]}
-      >
-        <Text
+      {/* Sticky Footer Action Area */}
+      <View style={styles.footerContainer}>
+        <TouchableOpacity
+          onPress={handleConfirm}
+          disabled={isConfirmDisabled}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Confirm Classification"
           style={[
-            styles.confirmButtonText,
+            styles.confirmButton,
             {
-              color: isConfirmDisabled
-                ? theme.colors.onSurfaceDisabled
-                : "#FFFFFF",
+              backgroundColor: isConfirmDisabled
+                ? theme.dark
+                  ? "rgba(255, 255, 255, 0.12)"
+                  : "rgba(0, 0, 0, 0.12)"
+                : theme.colors.primary,
             },
           ]}
         >
-          Confirm
-        </Text>
-      </TouchableOpacity>
+          <Text
+            style={[
+              styles.confirmButtonText,
+              {
+                color: isConfirmDisabled
+                  ? theme.colors.onSurfaceDisabled
+                  : "#FFFFFF",
+              },
+            ]}
+          >
+            Confirm
+          </Text>
+        </TouchableOpacity>
 
-      <Text
-        style={[
-          styles.footerCaption,
-          { color: theme.colors.onSurfaceVariant },
-        ]}
-      >
-        You can adjust your community role anytime in Edit Profile
-      </Text>
+        <Text
+          style={[
+            styles.footerCaption,
+            { color: theme.colors.onSurfaceVariant },
+          ]}
+        >
+          You can adjust your community role anytime in Edit Profile
+        </Text>
+      </View>
     </BottomSheet>
   );
 }
@@ -156,16 +161,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     maxHeight: "85%",
   },
+  sheetContent: {
+    flexShrink: 1,
+  },
+  scrollView: {
+    flexShrink: 1,
+  },
   scrollContent: {
     gap: 12,
     paddingBottom: 16,
+  },
+  footerContainer: {
+    flexShrink: 0,
+    paddingTop: 8,
   },
   confirmButton: {
     height: 48,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
   },
   confirmButtonText: {
     fontSize: 15,

@@ -141,6 +141,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingTop: 12,
+    overflow: "hidden",
   },
   dragHandle: {
     width: 38,
